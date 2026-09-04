@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: alphaway-logistics-preview
+    runtime: node
+    plan: 0.5c-512mb
+    region: oregon
+    numInstances: 1
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    maxShutdownDelaySeconds: 30
+    autoDeployTrigger: off
+    disk:
+      name: alphaway-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 20
+      - key: ALPHAWAY_HOST
+        value: 0.0.0.0
+      - key: ALPHAWAY_DATA_FILE
+        value: /var/data/alphaway-store.json
+      - key: ALPHAWAY_REQUIRE_AUTH
+        value: "true"
+      - key: ALPHAWAY_PREVIEW_USERNAME
+        sync: false
+      - key: ALPHAWAY_PREVIEW_PASSWORD
+        sync: false
+      - key: ALPHAWAY_ADMIN_TOKEN
+        sync: false

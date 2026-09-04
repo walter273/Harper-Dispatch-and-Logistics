@@ -1,0 +1,11 @@
+# Runtime data is created by the local app and may contain operational requests.
+data/alphaway-store.json
+data/*.tmp
+Alphaway Logistics LLC _ Nationwide Freight & Dispatch_files/
+
+# Dependencies and local editor files.
+node_modules/
+.env
+.env.*
+!.env.example
+.DS_Store

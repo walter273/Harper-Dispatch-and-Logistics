@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en-US">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Demo load catalog tools for Alphaway Logistics.">
+  <title>Demo Tools | Alphaway Logistics</title>
+  <link href="./css2" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css">
+  <script src="./script.js" defer></script>
+  <script src="./operations.js" defer></script>
+</head>
+<body>
+  <main class="page-shell portal-shell">
+    <header class="topbar portal-topbar">
+      <a class="brand" href="./Alphaway Logistics LLC _ Nationwide Freight & Dispatch.html" aria-label="Alphaway home">
+        <span class="brand-mark">A</span><span class="brand-copy"><span class="brand-name">Alphaway</span><small>Logistics LLC</small></span>
+      </a>
+      <nav class="main-nav" aria-label="Main navigation">
+        <a href="./Alphaway Logistics LLC _ Nationwide Freight & Dispatch.html">Home</a>
+        <a href="./loadboard.html">Load board</a>
+        <a href="./tms.html">Operations</a>
+      </nav>
+      <div class="header-actions"><a class="primary-button" href="./loadboard.html">View board</a></div>
+    </header>
+
+    <section class="portal-hero compact-portal-hero">
+      <div>
+        <p class="eyebrow">Demo tools</p>
+        <h1>Load catalog manager</h1>
+        <p>Create, edit, import, or export demo loads. When this app is opened through its server, changes are shared with its connected browser sessions and reflected on the load board.</p>
+      </div>
+      <aside class="portal-callout warning-callout">
+        <strong>Not a secured production admin</strong>
+        <p>This local-server demo has no authentication, audit trail, or team permissions. Keep it private and off public deployments until those controls exist.</p>
+      </aside>
+    </section>
+
+    <section class="admin-layout">
+      <section class="portal-panel admin-form-panel">
+        <header class="section-panel-header"><div><p class="eyebrow">Demo catalog</p><h2 id="adminFormTitle">Add a demo load</h2></div></header>
+        <form id="adminLoadForm" class="operations-form">
+          <div class="operations-form-grid">
+            <label><span>Load ID</span><input name="id" type="text" maxlength="28" placeholder="LB-49001" required></label>
+            <label><span>Status</span><select name="status"><option>Available</option><option>Hot</option><option>New</option><option>Booked</option></select></label>
+            <label><span>Origin</span><input name="origin" type="text" maxlength="90" placeholder="Denver, CO" required></label>
+            <label><span>Destination</span><input name="destination" type="text" maxlength="90" placeholder="Phoenix, AZ" required></label>
+            <label><span>Equipment</span><select name="equipment"><option>Dry Van</option><option>Reefer</option><option>Flatbed</option><option>Power Only</option></select></label>
+            <label><span>Broker / customer</span><input name="broker" type="text" maxlength="90" placeholder="Company name" required></label>
+            <label><span>Miles</span><input name="miles" type="number" min="0" max="10000" step="1" placeholder="700" required></label>
+            <label><span>Rate</span><input name="rate" type="number" min="0" max="100000" step="1" placeholder="2500" required></label>
+            <label><span>Pickup</span><input name="pickup" type="text" maxlength="60" placeholder="Tomorrow, 8:00 AM" required></label>
+            <label><span>Delivery</span><input name="delivery" type="text" maxlength="60" placeholder="Fri, 4:00 PM" required></label>
+            <label><span>Weight</span><input name="weight" type="text" maxlength="40" placeholder="28,000 lb"></label>
+          </div>
+          <div class="portal-actions"><button id="saveLoadButton" class="primary-button" type="submit">Add load</button><button id="cancelLoadEdit" class="ghost-button" type="button" hidden>Cancel edit</button></div>
+          <p id="adminStatus" class="form-status" role="status" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <aside class="portal-panel catalog-tools-panel">
+        <p class="eyebrow">Catalog controls</p>
+        <h2>Move demo data safely</h2>
+        <p>JSON import/export helps move sample loads between test sessions. Export stays in your browser; an import updates the active demo catalog.</p>
+        <div class="tool-button-stack">
+          <button id="exportCatalogButton" class="ghost-button" type="button">Export JSON</button>
+          <label class="ghost-button file-trigger" for="importCatalogInput">Import JSON</label>
+          <input id="importCatalogInput" type="file" accept="application/json,.json" hidden>
+          <button id="resetCatalogButton" class="link-button destructive-button" type="button">Restore original demo loads</button>
+        </div>
+      </aside>
+    </section>
+
+    <section class="portal-panel admin-table-panel" aria-labelledby="catalogTableTitle">
+      <header class="section-panel-header table-panel-header">
+        <div><p class="eyebrow">Current catalog</p><h2 id="catalogTableTitle">Demo loads</h2><span id="adminLoadCount" class="muted-inline">Loading…</span></div>
+        <label class="admin-search"><span class="visually-hidden">Search demo loads</span><input id="adminSearch" type="search" placeholder="Search demo catalog"></label>
+      </header>
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead><tr><th>Load</th><th>Route</th><th>Equipment</th><th>Broker</th><th>Rate</th><th>Status</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
+          <tbody id="adminLoadRows"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

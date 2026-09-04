@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en-US">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Submit an initial broker load request to Alphaway Logistics.">
+  <title>Broker Intake | Alphaway Logistics</title>
+  <link href="./css2" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css">
+  <script src="./script.js" defer></script>
+  <script src="./operations.js" defer></script>
+</head>
+<body>
+  <main class="page-shell portal-shell">
+    <header class="topbar portal-topbar">
+      <a class="brand" href="./Alphaway Logistics LLC _ Nationwide Freight & Dispatch.html" aria-label="Alphaway home">
+        <span class="brand-mark">A</span><span class="brand-copy"><span class="brand-name">Alphaway</span><small>Logistics LLC</small></span>
+      </a>
+      <nav class="main-nav" aria-label="Main navigation">
+        <a href="./Alphaway Logistics LLC _ Nationwide Freight & Dispatch.html">Home</a>
+        <a href="./loadboard.html">Load board</a>
+        <a href="./tms.html">Operations</a>
+        <a href="./carrier-onboarding.html">Carrier portal</a>
+      </nav>
+      <div class="header-actions"><a class="primary-button" href="./loadboard.html">Open board</a></div>
+    </header>
+
+    <section class="portal-hero compact-portal-hero">
+      <div>
+        <p class="eyebrow">Broker intake</p>
+        <h1>Share a freight opportunity</h1>
+        <p>Send the lane basics to dispatch for a conversation about capacity, equipment, and fit. The local board is not a commitment to cover.</p>
+      </div>
+      <aside class="portal-callout warning-callout">
+        <strong>Use the secure workflow for documents</strong>
+        <p>This initial request does not accept rate confirmations, broker packets, W-9s, or files. Dispatch can provide a secure company-controlled upload path when needed.</p>
+      </aside>
+    </section>
+
+    <section class="portal-panel form-page-panel">
+      <header class="section-panel-header"><div><p class="eyebrow">Initial request</p><h2>Lane details</h2></div></header>
+      <form class="operations-form" data-request-form data-request-type="broker-intake" data-subject="Broker load intake request" data-notice="The app server is unavailable, so an email draft is opening with this non-sensitive intake summary.">
+        <div class="operations-form-grid">
+          <label><span>Broker / company name</span><input name="broker_company" type="text" autocomplete="organization" required></label>
+          <label><span>Primary contact</span><input name="primary_contact" type="text" autocomplete="name" required></label>
+          <label><span>Business email</span><input name="business_email" type="email" autocomplete="email" required></label>
+          <label><span>Business phone</span><input name="business_phone" type="tel" autocomplete="tel"></label>
+          <label><span>Load reference</span><input name="load_reference" type="text" maxlength="60"></label>
+          <label><span>Equipment needed</span><select name="equipment"><option>Dry Van</option><option>Reefer</option><option>Flatbed</option><option>Power Only</option><option>Other</option></select></label>
+          <label><span>Origin</span><input name="origin" type="text" placeholder="City, State" required></label>
+          <label><span>Destination</span><input name="destination" type="text" placeholder="City, State" required></label>
+          <label><span>Pickup date</span><input name="pickup_date" type="date"></label>
+          <label><span>Delivery date</span><input name="delivery_date" type="date"></label>
+          <label><span>Weight</span><input name="weight" type="text" placeholder="e.g., 28,000 lb"></label>
+          <label><span>Target rate</span><input name="target_rate" type="text" placeholder="e.g., $2,500"></label>
+        </div>
+        <label class="full-field"><span>Load notes</span><textarea name="load_notes" rows="5" maxlength="1000" placeholder="Appointment requirements, commodity, equipment details, or accessorial notes"></textarea></label>
+        <div class="portal-actions"><button class="primary-button" type="submit">Submit request</button><a class="ghost-button" href="./contact-portal.html">Contact dispatch</a></div>
+        <p class="form-status" data-form-status role="status" aria-live="polite"></p>
+      </form>
+    </section>
+  </main>
+</body>
+</html>

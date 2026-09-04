@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en-US">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Alphaway Logistics dispatch operations workspace.">
+  <title>Dispatch Operations | Alphaway Logistics</title>
+  <link href="./css2" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css">
+  <script src="./script.js" defer></script>
+  <script src="./operations.js" defer></script>
+</head>
+<body>
+  <main class="page-shell portal-shell">
+    <header class="topbar portal-topbar">
+      <a class="brand" href="./Alphaway Logistics LLC _ Nationwide Freight & Dispatch.html" aria-label="Alphaway home">
+        <span class="brand-mark">A</span><span class="brand-copy"><span class="brand-name">Alphaway</span><small>Logistics LLC</small></span>
+      </a>
+      <nav class="main-nav" aria-label="Main navigation">
+        <a href="./Alphaway Logistics LLC _ Nationwide Freight & Dispatch.html">Home</a>
+        <a href="./loadboard.html">Load board</a>
+        <a href="./tms.html" aria-current="page">Operations</a>
+        <a href="./carrier-onboarding.html">Carrier portal</a>
+      </nav>
+      <div class="header-actions"><a class="primary-button" href="./loadboard.html#tmsTitle">Open dispatch board</a></div>
+    </header>
+
+    <section class="portal-hero operations-hero">
+      <div>
+        <p class="eyebrow">Dispatch operations</p>
+        <h1>TMS command center</h1>
+        <p>Review the local board snapshot, driver assignments, and demo route progress in one place. Dispatch chat and detailed tracking remain available inside the load board.</p>
+      </div>
+      <aside class="portal-callout">
+        <span class="local-badge"><i aria-hidden="true"></i> Local app workspace</span>
+        <strong>Built for a real dispatch handoff</strong>
+        <p>Current positions and assignments are shared demo data in this local app. They are not a substitute for a connected ELD, telematics, or TMS service.</p>
+      </aside>
+    </section>
+
+    <section class="operations-stats" aria-label="Local dispatch snapshot">
+      <article><span>Catalog loads</span><strong id="operationsLoadCount">0</strong></article>
+      <article><span>Assigned drivers</span><strong id="operationsDriverCount">0</strong></article>
+      <article><span>In transit</span><strong id="operationsTransitCount">0</strong></article>
+      <article><span>Needs attention</span><strong id="operationsAttentionCount">0</strong></article>
+      <article><span>Booked</span><strong id="operationsBookingCount">0</strong></article>
+      <article><span>Board value</span><strong id="operationsRevenue">$0</strong></article>
+    </section>
+
+    <section class="operations-layout">
+      <section class="portal-panel tracking-panel" aria-labelledby="trackingTitle">
+        <header class="section-panel-header">
+          <div><p class="eyebrow">Demo GPS snapshot</p><h2 id="trackingTitle">Driver assignments</h2></div>
+          <span id="operationsUpdatedAt" class="muted-inline">Loading…</span>
+        </header>
+        <div id="tmsTrackingList" class="tracking-list" aria-live="polite"></div>
+        <div class="portal-actions"><a class="primary-button" href="./loadboard.html#tmsTitle">Track in load board</a><a class="ghost-button" href="./loadboard.html">Open driver &amp; dispatch chat</a></div>
+      </section>
+
+      <aside class="portal-panel readiness-panel">
+        <p class="eyebrow">Production readiness</p>
+        <h2>What connects this to live operations</h2>
+        <ul class="readiness-list">
+          <li><span>01</span><div><strong>Authorized load data</strong><p>Connect DAT, 123Loadboard, Truckstop, or another approved source through its supported API and your account permissions.</p></div></li>
+          <li><span>02</span><div><strong>Driver telemetry</strong><p>Use an authorized ELD or telematics provider for real GPS events, consent, and driver visibility controls.</p></div></li>
+          <li><span>03</span><div><strong>Production operations backend</strong><p>Add user roles, encrypted document storage, dispatch messaging, audit history, and a secure cloud database.</p></div></li>
+        </ul>
+        <a class="ghost-button wide-button" href="./admin.html">Open demo tools</a>
+      </aside>
+    </section>
+
+    <section class="portal-panel workflow-panel">
+      <div>
+        <p class="eyebrow">Workflow</p>
+        <h2>Bring carriers and brokers into the same process</h2>
+        <p>Start with a lightweight request, confirm the details with dispatch, then use a secure company-controlled system for sensitive paperwork and signed agreements.</p>
+      </div>
+      <div class="workflow-actions">
+        <a class="ghost-button" href="./carrier-onboarding.html">Carrier onboarding</a>
+        <a class="ghost-button" href="./broker-intake.html">Broker intake</a>
+        <a class="ghost-button" href="./carrier-agreement.html">Agreement overview</a>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

@@ -12,22 +12,36 @@ const REQUIRE_PREVIEW_AUTH = String(process.env.ALPHAWAY_REQUIRE_AUTH || '').tri
 const PREVIEW_USERNAME = String(process.env.ALPHAWAY_PREVIEW_USERNAME || process.env.ALPHAWAY_ACCESS_USER || '').trim();
 const PREVIEW_PASSWORD = String(process.env.ALPHAWAY_PREVIEW_PASSWORD || process.env.ALPHAWAY_ACCESS_PASSWORD || '');
 const PREVIEW_ADMIN_TOKEN = String(process.env.ALPHAWAY_ADMIN_TOKEN || '');
+const PRIVATE_NETWORK = String(process.env.ALPHAWAY_PRIVATE_NETWORK || '').trim().toLowerCase() === 'true';
+const NETWORK_INVITE_CODE = String(process.env.ALPHAWAY_NETWORK_INVITE_CODE || '');
+const NETWORK_ACCESS_COOKIE = 'alphaway_network_access';
+const ACCOUNT_AUTH = String(process.env.ALPHAWAY_ACCOUNT_AUTH || '').trim().toLowerCase() === 'true';
+const ACCOUNT_SESSION_SECRET = String(process.env.ALPHAWAY_ACCOUNT_SESSION_SECRET || NETWORK_INVITE_CODE || PREVIEW_PASSWORD || 'local-account-secret');
+const ACCOUNT_COOKIE = 'alphaway_account';
+const ACCOUNT_SESSION_DAYS = 7;
+const FMCSA_API_KEY = String(process.env.ALPHAWAY_FMCSA_QCMOBILE_KEY || '');
+const FMCSA_BASE_URL = String(process.env.ALPHAWAY_FMCSA_BASE_URL || 'https://mobile.fmcsa.dot.gov/qc/services').replace(/\/+$/, '');
 const HOME_PAGE = 'Alphaway Logistics LLC _ Nationwide Freight & Dispatch.html';
 const MAX_JSON_BYTES = 1024 * 1024;
 const MAX_INTAKE_BYTES = 64 * 1024;
+const MAX_OPERATION_BYTES = 3 * 1024 * 1024;
 const MAX_SSE_CLIENTS = 40;
 const AUTH_FAILURE_WINDOW_MS = 60 * 1000;
 const AUTH_FAILURE_LIMIT = 12;
+const NETWORK_ACCESS_FAILURE_LIMIT = 8;
 const EVENT_WINDOW_MS = 60 * 1000;
 const EVENT_LIMIT = 120;
 const INTAKE_WINDOW_MS = 60 * 60 * 1000;
 const INTAKE_LIMIT = 12;
+const OPERATION_LIMIT = 60;
 const sseClients = new Set();
 const rateLimitBuckets = new Map();
 
 const STATIC_FILES = new Set([
   HOME_PAGE,
   'loadboard.html',
+  'workspace.html',
+  'workspace.js',
   'tms.html',
   'admin.html',
   'carrier-onboarding.html',
@@ -52,6 +66,9 @@ const SECURITY_HEADERS = Object.freeze({
 if (!BIND_HOST) throw new Error('ALPHAWAY_HOST must not be blank.');
 if (REQUIRE_PREVIEW_AUTH && (!PREVIEW_USERNAME || !PREVIEW_PASSWORD)) {
   throw new Error('ALPHAWAY_REQUIRE_AUTH=true requires ALPHAWAY_PREVIEW_USERNAME and ALPHAWAY_PREVIEW_PASSWORD.');
+}
+if (PRIVATE_NETWORK && !NETWORK_INVITE_CODE) {
+  throw new Error('ALPHAWAY_PRIVATE_NETWORK=true requires ALPHAWAY_NETWORK_INVITE_CODE.');
 }
 
 const LOAD_ROWS = [
@@ -160,6 +177,49 @@ function hasIntakeReadAccess(request) {
     && timingSafeTextEqual(headerValue(request, 'x-alphaway-admin-token'), PREVIEW_ADMIN_TOKEN);
 }
 
+function parseCookies(request) {
+  return Object.fromEntries(String(headerValue(request, 'cookie') || '')
+    .split(';')
+    .map((part) => part.trim().split('='))
+    .filter(([name, value]) => name && value)
+    .map(([name, ...value]) => [name, value.join('=')]));
+}
+
+function networkAccessTokenIsValid(token) {
+  if (!PRIVATE_NETWORK || typeof token !== 'string') return !PRIVATE_NETWORK;
+  const [issuedAt, signature] = token.split('.');
+  const timestamp = Number(issuedAt);
+  if (!Number.isSafeInteger(timestamp) || !signature || Date.now() - timestamp > 7 * 24 * 60 * 60 * 1000) return false;
+  const expected = crypto.createHmac('sha256', NETWORK_INVITE_CODE).update(String(timestamp)).digest('hex');
+  return timingSafeTextEqual(signature, expected);
+}
+
+function hasNetworkAccess(request) {
+  if (!PRIVATE_NETWORK) return true;
+  return networkAccessTokenIsValid(parseCookies(request)[NETWORK_ACCESS_COOKIE]);
+}
+
+function accountFromRequest(request) {
+  if (!ACCOUNT_AUTH) return null;
+  const raw = parseCookies(request)[ACCOUNT_COOKIE];
+  if (!raw) return null;
+  const tokenHash = crypto.createHash('sha256').update(raw).digest('hex');
+  const session = store.accounts.sessions.find((entry) => entry.tokenHash === tokenHash && entry.expiresAt > Date.now());
+  const user = session && store.accounts.users.find((entry) => entry.id === session.userId);
+  return user?.status === 'active' ? user : null;
+}
+
+function requireAccount(request, roles = null) {
+  const user = accountFromRequest(request);
+  if (!user) throw reject(401, 'A signed-in account is required.');
+  if (roles && !roles.includes(user.role)) throw reject(403, 'Your account role does not have permission for this action.');
+  return user;
+}
+
+function addAudit(actorId, action, targetId = '') {
+  store.accounts.audit = [...store.accounts.audit, { id: operationId('audit'), actorId, action, targetId, createdAt: Date.now() }].slice(-1000);
+}
+
 function sendUnauthorized(response) {
   response.writeHead(401, responseHeaders({
     'Content-Type': 'application/json; charset=utf-8',
@@ -168,6 +228,12 @@ function sendUnauthorized(response) {
     'WWW-Authenticate': 'Basic realm="Alphaway Preview", charset="UTF-8"'
   }));
   response.end(JSON.stringify({ error: 'Preview access is required.' }));
+}
+
+function sendNetworkAccessRequired(response) {
+  sendJson(response, 403, { error: 'An invitation code is required to access the private carrier network.' }, {
+    'X-Alphaway-Private-Network': 'true'
+  });
 }
 
 function requireJsonSameOrigin(request) {
@@ -324,7 +390,21 @@ function normalizeState(candidate, catalog) {
 
 function createStore() {
   const loads = defaultLoads();
-  return { schemaVersion: 1, revision: 1, loads, state: defaultState(), intakes: [] };
+  const adminEmail = String(process.env.ALPHAWAY_ADMIN_EMAIL || '').trim().toLowerCase();
+  const adminPassword = String(process.env.ALPHAWAY_ADMIN_PASSWORD || '');
+  const seeded = adminEmail && adminPassword ? hashPassword(adminPassword) : null;
+  return {
+    schemaVersion: 2,
+    revision: 1,
+    loads,
+    state: defaultState(),
+    intakes: [],
+    operations: normalizeOperations(),
+    accounts: normalizeAccounts(seeded ? {
+      companies: [{ id: 'alphaway', name: 'Alphaway Logistics LLC', type: 'organization', status: 'active' }],
+      users: [{ id: 'user-admin', email: adminEmail, name: 'Alphaway Administrator', role: 'admin', companyId: 'alphaway', status: 'active', passwordSalt: seeded.salt, passwordHash: seeded.hash }]
+    } : {})
+  };
 }
 
 function normalizeStore(candidate) {
@@ -334,7 +414,9 @@ function normalizeStore(candidate) {
     revision: cleanNumber(candidate?.revision, 1, 1, Number.MAX_SAFE_INTEGER),
     loads,
     state: normalizeState(candidate?.state, loads),
-    intakes: Array.isArray(candidate?.intakes) ? candidate.intakes.slice(-200).map(normalizeIntake).filter(Boolean) : []
+    intakes: Array.isArray(candidate?.intakes) ? candidate.intakes.slice(-200).map(normalizeIntake).filter(Boolean) : [],
+    operations: normalizeOperations(candidate?.operations),
+    accounts: normalizeAccounts(candidate?.accounts)
   };
 }
 
@@ -374,6 +456,7 @@ function normalizeIntake(candidate) {
     if (safeKey.endsWith('email') || safeKey === 'email') {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(safeValue)) return null;
     }
+
     if (['pickup_date', 'delivery_date'].includes(safeKey) && !/^\d{4}-\d{2}-\d{2}$/.test(safeValue)) return null;
     if (['mc_number', 'dot_number'].includes(safeKey) && !/^\d{1,10}$/.test(safeValue)) return null;
     if (safeKey === 'available_units' && !/^\d{1,4}$/.test(safeValue)) return null;
@@ -386,6 +469,100 @@ function normalizeIntake(candidate) {
     fields: normalizedFields,
     createdAt: cleanNumber(candidate.createdAt, Date.now(), 0, Number.MAX_SAFE_INTEGER)
   };
+}
+
+function normalizeOperations(candidate) {
+  const source = candidate && typeof candidate === 'object' ? candidate : {};
+  const documents = Array.isArray(source.documents) ? source.documents.slice(-200).map((document, index) => ({
+    id: cleanText(document?.id, `document-${index}`, 80).replace(/[^A-Z0-9_-]/gi, ''),
+    fileName: cleanText(document?.fileName, 'document', 160),
+    documentType: cleanText(document?.documentType, 'Other', 60),
+    loadId: cleanText(document?.loadId, 'general', 28),
+    uploadedBy: cleanText(document?.uploadedBy, 'Operations', 90),
+    companyId: cleanText(document?.companyId, 'demo', 80),
+    contentType: cleanText(document?.contentType, 'application/octet-stream', 100),
+    size: cleanNumber(document?.size, 0, 0, 3 * 1024 * 1024),
+    storedPath: cleanText(document?.storedPath, '', 240),
+    createdAt: cleanNumber(document?.createdAt, Date.now(), 0, Number.MAX_SAFE_INTEGER)
+  })) : [];
+  const assignments = Array.isArray(source.assignments) ? source.assignments.slice(-200).map((assignment, index) => ({
+    id: cleanText(assignment?.id, `assignment-${index}`, 80).replace(/[^A-Z0-9_-]/gi, ''),
+    loadId: cleanText(assignment?.loadId, '', 28),
+    driverName: cleanText(assignment?.driverName, '', 90),
+    driverUserId: cleanText(assignment?.driverUserId, '', 80),
+    truckId: cleanText(assignment?.truckId, '', 40),
+    companyId: cleanText(assignment?.companyId, 'demo', 80),
+    status: ASSIGNMENT_STATUSES.has(assignment?.status) ? assignment.status : 'Dispatched',
+    createdAt: cleanNumber(assignment?.createdAt, Date.now(), 0, Number.MAX_SAFE_INTEGER)
+  })).filter((assignment) => assignment.loadId && assignment.driverName) : [];
+  const invoices = Array.isArray(source.invoices) ? source.invoices.slice(-200).map((invoice, index) => ({
+    id: cleanText(invoice?.id, `invoice-${index}`, 80).replace(/[^A-Z0-9_-]/gi, ''),
+    loadId: cleanText(invoice?.loadId, 'general', 28),
+    customer: cleanText(invoice?.customer, '', 120),
+    companyId: cleanText(invoice?.companyId, 'demo', 80),
+    amount: cleanNumber(invoice?.amount, 0, 0, 1000000),
+    status: ['Draft', 'Sent', 'Paid', 'Overdue'].includes(invoice?.status) ? invoice.status : 'Draft',
+    dueDate: cleanText(invoice?.dueDate, '', 10),
+    createdAt: cleanNumber(invoice?.createdAt, Date.now(), 0, Number.MAX_SAFE_INTEGER)
+  })).filter((invoice) => invoice.customer) : [];
+  return { documents, assignments, invoices, brokerSearches: Array.isArray(source.brokerSearches) ? source.brokerSearches.slice(-100) : [] };
+}
+
+const ACCOUNT_ROLES = new Set(['admin', 'dispatcher', 'carrier-owner', 'driver', 'broker', 'shipper']);
+const ACCOUNT_STATUSES = new Set(['pending', 'active', 'suspended', 'invited']);
+
+function hashPassword(password, salt = crypto.randomBytes(16).toString('hex')) {
+  return { salt, hash: crypto.scryptSync(String(password), salt, 64).toString('hex') };
+}
+
+function verifyPassword(password, account) {
+  if (!account?.passwordHash || !account?.passwordSalt) return false;
+  const candidate = crypto.scryptSync(String(password), account.passwordSalt, 64).toString('hex');
+  return timingSafeTextEqual(candidate, account.passwordHash);
+}
+
+function normalizeAccounts(candidate) {
+  const source = candidate && typeof candidate === 'object' ? candidate : {};
+  const companies = Array.isArray(source.companies) ? source.companies.slice(-500).map((company, index) => ({
+    id: cleanText(company?.id, `company-${index}`, 80).replace(/[^A-Z0-9_-]/gi, ''),
+    name: cleanText(company?.name, 'Unnamed company', 120),
+    type: cleanText(company?.type, 'carrier', 40),
+    status: ['pending', 'active', 'suspended'].includes(company?.status) ? company.status : 'pending',
+    createdAt: cleanNumber(company?.createdAt, Date.now(), 0, Number.MAX_SAFE_INTEGER)
+  })) : [];
+  const users = Array.isArray(source.users) ? source.users.slice(-1000).map((user, index) => ({
+    id: cleanText(user?.id, `user-${index}`, 80).replace(/[^A-Z0-9_-]/gi, ''),
+    email: cleanText(user?.email, '', 160).toLowerCase(),
+    name: cleanText(user?.name, 'User', 120),
+    role: ACCOUNT_ROLES.has(user?.role) ? user.role : 'driver',
+    companyId: cleanText(user?.companyId, '', 80),
+    status: ACCOUNT_STATUSES.has(user?.status) ? user.status : 'pending',
+    passwordSalt: cleanText(user?.passwordSalt, '', 64),
+    passwordHash: cleanText(user?.passwordHash, '', 160),
+    createdAt: cleanNumber(user?.createdAt, Date.now(), 0, Number.MAX_SAFE_INTEGER)
+  })).filter((user) => user.email) : [];
+  const invitations = Array.isArray(source.invitations) ? source.invitations.slice(-500).map((invite, index) => ({
+    id: cleanText(invite?.id, `invite-${index}`, 80).replace(/[^A-Z0-9_-]/gi, ''),
+    email: cleanText(invite?.email, '', 160).toLowerCase(),
+    role: ACCOUNT_ROLES.has(invite?.role) ? invite.role : 'driver',
+    companyId: cleanText(invite?.companyId, '', 80),
+    tokenHash: cleanText(invite?.tokenHash, '', 160),
+    status: invite?.status === 'accepted' ? 'accepted' : 'pending',
+    expiresAt: cleanNumber(invite?.expiresAt, Date.now() + 7 * 86400000, 0, Number.MAX_SAFE_INTEGER)
+  })).filter((invite) => invite.email && invite.tokenHash) : [];
+  const sessions = Array.isArray(source.sessions) ? source.sessions.slice(-1000).filter((session) => session?.tokenHash && session?.userId).map((session) => ({
+    tokenHash: cleanText(session.tokenHash, '', 160),
+    userId: cleanText(session.userId, '', 80),
+    expiresAt: cleanNumber(session.expiresAt, 0, 0, Number.MAX_SAFE_INTEGER)
+  })) : [];
+  const audit = Array.isArray(source.audit) ? source.audit.slice(-1000).map((entry) => ({
+    id: cleanText(entry?.id, operationId('audit'), 90),
+    actorId: cleanText(entry?.actorId, 'system', 80),
+    action: cleanText(entry?.action, 'unknown', 100),
+    targetId: cleanText(entry?.targetId, '', 100),
+    createdAt: cleanNumber(entry?.createdAt, Date.now(), 0, Number.MAX_SAFE_INTEGER)
+  })) : [];
+  return { companies, users, invitations, sessions, audit };
 }
 
 function reject(statusCode, message) {
@@ -501,12 +678,53 @@ function broadcastSnapshot() {
   }
 }
 
-function sendJson(response, statusCode, payload) {
+function sendJson(response, statusCode, payload, headers = {}) {
   response.writeHead(statusCode, responseHeaders({
     'Content-Type': 'application/json; charset=utf-8',
-    'Cache-Control': 'no-store, private'
+    'Cache-Control': 'no-store, private',
+    ...headers
   }));
   response.end(JSON.stringify(payload));
+}
+
+function operationSnapshot(user = null) {
+  const role = user?.role || 'admin';
+  const companyId = user?.companyId || null;
+  const canSeeAll = ['admin', 'dispatcher', 'shipper', 'broker'].includes(role);
+  const assignments = canSeeAll
+    ? store.operations.assignments
+    : store.operations.assignments.filter((item) => role === 'driver' ? (item.driverUserId === user.id || item.driverName === user.name) : item.companyId === companyId);
+  return {
+    operations: {
+      ...store.operations,
+      assignments,
+      documents: canSeeAll ? store.operations.documents : store.operations.documents.filter((item) => item.companyId === companyId),
+      invoices: canSeeAll ? store.operations.invoices : store.operations.invoices.filter((item) => item.companyId === companyId)
+    },
+    fmcsaConfigured: Boolean(FMCSA_API_KEY),
+    account: user ? { id: user.id, name: user.name, email: user.email, role: user.role, companyId: user.companyId } : null
+  };
+}
+
+function operationSnapshot() {
+  return { operations: store.operations, fmcsaConfigured: Boolean(FMCSA_API_KEY) };
+}
+
+function operationId(prefix) {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+async function lookupFmcsaBroker(query) {
+  if (!FMCSA_API_KEY) {
+    return { configured: false, message: 'Set ALPHAWAY_FMCSA_QCMOBILE_KEY to enable live FMCSA lookup.' };
+  }
+  const safeQuery = encodeURIComponent(cleanText(query, '', 40));
+  if (!safeQuery) throw reject(400, 'Enter an MC, DOT, or broker search value.');
+  const endpoint = `${FMCSA_BASE_URL}/brokers/${safeQuery}?webKey=${encodeURIComponent(FMCSA_API_KEY)}`;
+  const upstream = await fetch(endpoint, { headers: { Accept: 'application/json' } });
+  const payload = await upstream.json().catch(() => ({}));
+  if (!upstream.ok) throw reject(502, `FMCSA lookup failed with status ${upstream.status}.`);
+  return { configured: true, result: payload };
 }
 
 function readJson(request, maximumBytes) {
@@ -593,6 +811,13 @@ function serveStatic(request, response, pathname) {
 
 let store = readStore();
 
+if (ACCOUNT_AUTH && store.accounts.users.length === 0 && process.env.ALPHAWAY_ADMIN_EMAIL && process.env.ALPHAWAY_ADMIN_PASSWORD) {
+  const credentials = hashPassword(process.env.ALPHAWAY_ADMIN_PASSWORD);
+  store.accounts.companies.push({ id: 'alphaway', name: 'Alphaway Logistics LLC', type: 'organization', status: 'active', createdAt: Date.now() });
+  store.accounts.users.push({ id: 'user-admin', email: process.env.ALPHAWAY_ADMIN_EMAIL.trim().toLowerCase(), name: 'Alphaway Administrator', role: 'admin', companyId: 'alphaway', status: 'active', passwordSalt: credentials.salt, passwordHash: credentials.hash, createdAt: Date.now() });
+  persistStore();
+}
+
 const server = http.createServer(async (request, response) => {
   const requestUrl = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
   const pathname = requestUrl.pathname;
@@ -611,6 +836,188 @@ const server = http.createServer(async (request, response) => {
       } else {
         sendUnauthorized(response);
       }
+      return;
+    }
+    if (request.method === 'POST' && pathname === '/api/access') {
+      requireJsonSameOrigin(request);
+      if (!consumeRateLimit(request, 'network-access', NETWORK_ACCESS_FAILURE_LIMIT, AUTH_FAILURE_WINDOW_MS)) {
+        sendJson(response, 429, { error: 'Too many invitation attempts. Try again shortly.' });
+        return;
+      }
+      const body = await readJson(request, 4 * 1024);
+      if (!timingSafeTextEqual(String(body?.code || ''), NETWORK_INVITE_CODE)) {
+        sendJson(response, 403, { error: 'That invitation code is not valid.' });
+        return;
+      }
+      const issuedAt = Date.now();
+      const signature = crypto.createHmac('sha256', NETWORK_INVITE_CODE).update(String(issuedAt)).digest('hex');
+      const secure = request.socket.encrypted ? '; Secure' : '';
+      sendJson(response, 200, { ok: true }, {
+        'Set-Cookie': `${NETWORK_ACCESS_COOKIE}=${issuedAt}.${signature}; HttpOnly; SameSite=Strict; Path=/; Max-Age=604800${secure}`
+      });
+      return;
+    }
+    if (!hasNetworkAccess(request) && ['/api/app', '/api/events'].includes(pathname)) {
+      sendNetworkAccessRequired(response);
+      return;
+    }
+    if (request.method === 'POST' && pathname === '/api/accounts/signin') {
+      requireJsonSameOrigin(request);
+      const body = await readJson(request, 16 * 1024);
+      const user = store.accounts.users.find((entry) => entry.email === cleanText(body?.email, '', 160).toLowerCase());
+      if (!user || user.status !== 'active' || !verifyPassword(body?.password, user)) {
+        throw reject(401, 'Invalid credentials or inactive account.');
+      }
+      const rawToken = crypto.randomBytes(32).toString('hex');
+      store.accounts.sessions = [...store.accounts.sessions, {
+        tokenHash: crypto.createHash('sha256').update(rawToken).digest('hex'),
+        userId: user.id,
+        expiresAt: Date.now() + ACCOUNT_SESSION_DAYS * 86400000
+      }].slice(-1000);
+      addAudit(user.id, 'account.signin', user.id);
+      persistStore();
+      sendJson(response, 200, { account: { id: user.id, name: user.name, email: user.email, role: user.role, companyId: user.companyId } }, {
+        'Set-Cookie': `${ACCOUNT_COOKIE}=${rawToken}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${ACCOUNT_SESSION_DAYS * 86400}${request.socket.encrypted ? '; Secure' : ''}`
+      });
+      return;
+    }
+    if (request.method === 'POST' && pathname === '/api/accounts/accept') {
+      requireJsonSameOrigin(request);
+      const body = await readJson(request, 16 * 1024);
+      const tokenHash = crypto.createHash('sha256').update(String(body?.token || '')).digest('hex');
+      const invitation = store.accounts.invitations.find((entry) => entry.tokenHash === tokenHash && entry.status === 'pending' && entry.expiresAt > Date.now());
+      const name = cleanText(body?.name, '', 120);
+      const password = String(body?.password || '');
+      if (!invitation || !name || password.length < 10) throw reject(400, 'A valid invitation, name, and password of at least 10 characters are required.');
+      if (store.accounts.users.some((user) => user.email === invitation.email)) throw reject(409, 'An account already exists for this email.');
+      const credentials = hashPassword(password);
+      const user = { id: operationId('user'), email: invitation.email, name, role: invitation.role, companyId: invitation.companyId, status: 'active', passwordSalt: credentials.salt, passwordHash: credentials.hash, createdAt: Date.now() };
+      store.accounts.users.push(user);
+      invitation.status = 'accepted';
+      addAudit(user.id, 'account.accept-invitation', user.id);
+      persistStore();
+      const rawToken = crypto.randomBytes(32).toString('hex');
+      store.accounts.sessions.push({ tokenHash: crypto.createHash('sha256').update(rawToken).digest('hex'), userId: user.id, expiresAt: Date.now() + ACCOUNT_SESSION_DAYS * 86400000 });
+      persistStore();
+      sendJson(response, 201, { account: { id: user.id, name, email: user.email, role: user.role, companyId: user.companyId } }, {
+        'Set-Cookie': `${ACCOUNT_COOKIE}=${rawToken}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${ACCOUNT_SESSION_DAYS * 86400}${request.socket.encrypted ? '; Secure' : ''}`
+      });
+      return;
+    }
+    if (request.method === 'POST' && pathname === '/api/accounts/signout') {
+      const user = accountFromRequest(request);
+      if (user) addAudit(user.id, 'account.signout', user.id);
+      sendJson(response, 200, { ok: true }, { 'Set-Cookie': `${ACCOUNT_COOKIE}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0` });
+      if (user) persistStore();
+      return;
+    }
+    if (request.method === 'GET' && pathname === '/api/accounts/me') {
+      sendJson(response, 200, { account: accountFromRequest(request) ? operationSnapshot(accountFromRequest(request)).account : null });
+      return;
+    }
+    if (request.method === 'POST' && pathname === '/api/accounts/invitations') {
+      const actor = requireAccount(request, ['admin', 'dispatcher']);
+      requireJsonSameOrigin(request);
+      const body = await readJson(request, 16 * 1024);
+      const email = cleanText(body?.email, '', 160).toLowerCase();
+      const role = cleanText(body?.role, '', 40);
+      const companyId = cleanText(body?.companyId, actor.companyId, 80);
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !ACCOUNT_ROLES.has(role) || !companyId) throw reject(400, 'A valid email, role, and company are required.');
+      const rawToken = crypto.randomBytes(24).toString('hex');
+      store.accounts.invitations = [...store.accounts.invitations, { id: operationId('invite'), email, role, companyId, tokenHash: crypto.createHash('sha256').update(rawToken).digest('hex'), status: 'pending', expiresAt: Date.now() + 7 * 86400000 }].slice(-500);
+      addAudit(actor.id, 'account.invite', email);
+      persistStore();
+      sendJson(response, 201, { invitation: { email, role, companyId, token: rawToken, expiresAt: Date.now() + 7 * 86400000 } });
+      return;
+    }
+    if (request.method === 'GET' && pathname === '/api/accounts/users') {
+      const actor = requireAccount(request, ['admin', 'dispatcher']);
+      const users = store.accounts.users.filter((user) => actor.role === 'admin' || user.companyId === actor.companyId).map(({ passwordHash, passwordSalt, ...safe }) => safe);
+      sendJson(response, 200, { users, companies: store.accounts.companies });
+      return;
+    }
+    if (request.method === 'GET' && pathname === '/api/accounts/audit') {
+      const actor = requireAccount(request, ['admin', 'dispatcher']);
+      const audit = actor.role === 'admin' ? store.accounts.audit : store.accounts.audit.filter((entry) => entry.actorId === actor.id);
+      sendJson(response, 200, { audit: audit.slice(-200).reverse() });
+      return;
+    }
+    if (request.method === 'PATCH' && pathname.startsWith('/api/accounts/users/')) {
+      const actor = requireAccount(request, ['admin']);
+      requireJsonSameOrigin(request);
+      const userId = decodeURIComponent(pathname.slice('/api/accounts/users/'.length));
+      const target = store.accounts.users.find((user) => user.id === userId);
+      if (!target) throw reject(404, 'Account not found.');
+      const body = await readJson(request, 16 * 1024);
+      if (body.status && ACCOUNT_STATUSES.has(body.status)) target.status = body.status;
+      if (body.role && ACCOUNT_ROLES.has(body.role)) target.role = body.role;
+      if (body.companyId) target.companyId = cleanText(body.companyId, target.companyId, 80);
+      if (body.password) {
+        const password = hashPassword(body.password);
+        target.passwordSalt = password.salt;
+        target.passwordHash = password.hash;
+      }
+      addAudit(actor.id, 'account.update', target.id);
+      persistStore();
+      const { passwordHash, passwordSalt, ...safe } = target;
+      sendJson(response, 200, { user: safe });
+      return;
+    }
+    if (request.method === 'GET' && pathname === '/api/operations') {
+      const user = ACCOUNT_AUTH ? requireAccount(request) : null;
+      sendJson(response, 200, operationSnapshot(user));
+      return;
+    }
+    if (request.method === 'GET' && pathname === '/api/fmcsa/brokers') {
+      if (!hasNetworkAccess(request)) {
+        sendNetworkAccessRequired(response);
+        return;
+      }
+      sendJson(response, 200, await lookupFmcsaBroker(requestUrl.searchParams.get('q')));
+      return;
+    }
+    if (request.method === 'POST' && pathname === '/api/operations') {
+      if (!hasNetworkAccess(request)) {
+        sendNetworkAccessRequired(response);
+        return;
+      }
+      requireJsonSameOrigin(request);
+      const actor = ACCOUNT_AUTH ? requireAccount(request, ['admin', 'dispatcher', 'carrier-owner', 'broker', 'shipper']) : null;
+      if (!consumeRateLimit(request, 'operations', OPERATION_LIMIT, EVENT_WINDOW_MS)) {
+        throw reject(429, 'Too many operations updates. Try again shortly.');
+      }
+      const payload = await readJson(request, MAX_OPERATION_BYTES);
+      const type = cleanText(payload?.type, '', 40);
+      if (type === 'assignment.create') {
+        const assignment = normalizeOperations({ assignments: [payload.assignment] }).assignments[0];
+        if (!assignment) throw reject(400, 'A load, driver name, and truck are required.');
+        assignment.companyId = actor?.companyId || 'demo';
+        store.operations.assignments = [assignment, ...store.operations.assignments].slice(0, 200);
+      } else if (type === 'invoice.create') {
+        const invoice = normalizeOperations({ invoices: [payload.invoice] }).invoices[0];
+        if (!invoice) throw reject(400, 'A customer and valid invoice details are required.');
+        invoice.id = operationId('invoice');
+        invoice.companyId = actor?.companyId || 'demo';
+        store.operations.invoices = [invoice, ...store.operations.invoices].slice(0, 200);
+      } else if (type === 'document.upload') {
+        const document = payload.document || {};
+        const content = String(document.contentBase64 || '');
+        if (!content || content.length > 4 * 1024 * 1024) throw reject(400, 'A document under 3 MB is required.');
+        const fileName = cleanText(document.fileName, 'document', 160).replace(/[\\/]/g, '_');
+        const uploadDirectory = path.join(path.dirname(DATA_FILE), 'documents');
+        fs.mkdirSync(uploadDirectory, { recursive: true });
+        const storedPath = path.join(uploadDirectory, `${Date.now()}-${crypto.randomBytes(6).toString('hex')}-${fileName}`);
+        fs.writeFileSync(storedPath, Buffer.from(content, 'base64'));
+        const normalized = normalizeOperations({ documents: [{ ...document, fileName, size: Buffer.byteLength(content, 'base64'), storedPath: path.basename(storedPath), companyId: actor?.companyId || 'demo' }] }).documents[0];
+        if (!normalized) throw reject(400, 'Document metadata is invalid.');
+        normalized.id = operationId('document');
+        store.operations.documents = [normalized, ...store.operations.documents].slice(0, 200);
+      } else {
+        throw reject(400, 'Unsupported operations update.');
+      }
+      store.revision += 1;
+      persistStore();
+      sendJson(response, 201, operationSnapshot(actor));
       return;
     }
     if (request.method === 'GET' && pathname === '/api/app') {

@@ -27,6 +27,11 @@
       <button class="primary-button search-button" id="searchButton" type="button">Search loads</button>
     </section>
 
+    <section class="private-network-banner" aria-labelledby="privateNetworkTitle">
+      <div><p class="eyebrow">Alpha Way carrier network</p><h2 id="privateNetworkTitle">Exclusive freight access for invited carriers</h2><p>This board is being built as a private network for Alpha Way dispatch clients, contracted carriers, and direct shipper freight. Access is granted by invitation code.</p></div>
+      <button class="ghost-button" id="networkAccessButton" type="button">Enter invitation code</button>
+    </section>
+
     <section class="tms-panel" aria-labelledby="tmsTitle">
       <header class="tms-header">
         <div><p class="eyebrow">TMS command center</p><h2 id="tmsTitle">Dispatch &amp; GPS tracking</h2></div>
@@ -106,6 +111,19 @@
     <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="accountTitle">
       <div class="modal-header"><h2 id="accountTitle">Preview carrier workspace</h2><button class="modal-close" id="closeModalButton" type="button" aria-label="Close">×</button></div>
       <form class="account-form" id="accountForm"><label><span>Work email</span><input name="email" type="email" autocomplete="email" required></label><p class="account-preview-note">Preview only — this does not sign you in or create an account.</p><button class="primary-button modal-submit" type="submit">Continue to preview</button></form>
+    </section>
+  </div>
+
+  <div class="modal hidden" id="networkAccessModal" aria-hidden="true" data-close-network-modal="true">
+    <div class="modal-backdrop" aria-hidden="true" data-close-network-modal="true"></div>
+    <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="networkAccessTitle">
+      <div class="modal-header"><h2 id="networkAccessTitle">Private carrier network</h2><button class="modal-close" id="closeNetworkAccessButton" type="button" aria-label="Close">×</button></div>
+      <form class="account-form" id="networkAccessForm">
+        <p class="account-preview-note">Enter the invitation code provided by Alpha Way dispatch. Don’t have one yet? <a href="./Alphaway Logistics LLC _ Nationwide Freight & Dispatch.html#signup">Request access</a>.</p>
+        <label><span>Invitation code</span><input name="code" type="password" autocomplete="one-time-code" required></label>
+        <p id="networkAccessStatus" class="form-status" role="status" aria-live="polite"></p>
+        <button class="primary-button modal-submit" type="submit">Unlock private board</button>
+      </form>
     </section>
   </div>
 </body>

@@ -351,6 +351,7 @@ function cloneDefaultLoads() {
 const APP_UPDATED_EVENT = 'alphaway-app-updated';
 let remoteAppSnapshot = null;
 let appEventStream = null;
+let privateAccessLocked = false;
 let resolveAppReady;
 const appReady = new Promise((resolve) => {
   resolveAppReady = resolve;
@@ -362,6 +363,10 @@ function hasServerTransport() {
 
 function isServerConnected() {
   return Boolean(remoteAppSnapshot);
+}
+
+function isPrivateAccessLocked() {
+  return privateAccessLocked;
 }
 
 function applyRemoteSnapshot(snapshot) {
@@ -428,7 +433,14 @@ async function hydrateApp() {
   }
   try {
     const response = await fetch('./api/app', { headers: { Accept: 'application/json' } });
-    if (!response.ok) throw new Error('Server snapshot unavailable.');
+    if (!response.ok) {
+      if (response.status === 403 && response.headers.get('X-Alphaway-Private-Network') === 'true') {
+        privateAccessLocked = true;
+        window.dispatchEvent(new CustomEvent('alphaway-private-access-required'));
+      }
+      throw new Error('Server snapshot unavailable.');
+    }
+    privateAccessLocked = false;
     applyRemoteSnapshot(await response.json());
     connectAppEvents();
   } catch (error) {
@@ -436,9 +448,24 @@ async function hydrateApp() {
   } finally {
     resolveAppReady(remoteAppSnapshot);
   }
+
+}
+
+async function requestNetworkAccess(code) {
+  const response = await fetch('./api/access', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code })
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || 'The invitation code could not be verified.');
+  remoteAppSnapshot = null;
+  await hydrateApp();
+  if (privateAccessLocked) throw new Error('The private network is still unavailable.');
 }
 
 function getLoadCatalog() {
+  if (privateAccessLocked) return [];
   const remoteCatalog = normalizeLoadCatalog(remoteAppSnapshot?.loads);
   if (remoteCatalog) return remoteCatalog;
   try {
@@ -490,6 +517,8 @@ window.AlphawayLoadboard = Object.freeze({
   resetLoads: resetLoadCatalog,
   getState: getRemoteAppState,
   isServerConnected,
+  isPrivateAccessLocked,
+  requestNetworkAccess,
   whenReady: () => appReady,
   sendEvent: sendAppEvent,
   submitIntake: submitIntakeRequest
@@ -549,6 +578,11 @@ if (isBoardPage) {
   const accountModal = document.getElementById('accountModal');
   const closeModalButton = document.getElementById('closeModalButton');
   const accountForm = document.getElementById('accountForm');
+  const networkAccessButton = document.getElementById('networkAccessButton');
+  const networkAccessModal = document.getElementById('networkAccessModal');
+  const closeNetworkAccessButton = document.getElementById('closeNetworkAccessButton');
+  const networkAccessForm = document.getElementById('networkAccessForm');
+  const networkAccessStatus = document.getElementById('networkAccessStatus');
   const savedSearchesContainer = document.getElementById('savedSearches');
   const loadRows = document.getElementById('loadRows');
   const resultsCount = document.getElementById('resultsCount');
@@ -1251,6 +1285,35 @@ if (isBoardPage) {
     accountModal.setAttribute('aria-hidden', 'false');
   });
 
+  const setNetworkAccessModal = (open) => {
+    networkAccessModal.classList.toggle('hidden', !open);
+    networkAccessModal.setAttribute('aria-hidden', String(!open));
+    if (open) networkAccessForm.elements.code.focus();
+  };
+
+  networkAccessButton.addEventListener('click', () => setNetworkAccessModal(true));
+  closeNetworkAccessButton.addEventListener('click', () => setNetworkAccessModal(false));
+  networkAccessModal.addEventListener('click', (event) => {
+    if (event.target.dataset.closeNetworkModal === 'true') setNetworkAccessModal(false);
+  });
+
+  networkAccessForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    networkAccessStatus.textContent = 'Verifying invitation…';
+    try {
+      await board.requestNetworkAccess(new FormData(networkAccessForm).get('code'));
+      networkAccessForm.reset();
+      networkAccessStatus.textContent = 'Private board unlocked.';
+      setNetworkAccessModal(false);
+      renderSavedSearches();
+      renderLoads({ resetPage: true });
+      clearInterval(gpsDemoInterval);
+      startGpsDemo();
+    } catch (error) {
+      networkAccessStatus.textContent = error.message || 'The invitation code could not be verified.';
+    }
+  });
+
   closeModalButton.addEventListener('click', () => {
     accountModal.classList.add('hidden');
     accountModal.setAttribute('aria-hidden', 'true');
@@ -1431,6 +1494,11 @@ if (isBoardPage) {
     setChatSyncStatus('Server sync');
     renderSavedSearches();
     renderLoads();
+  });
+
+  window.addEventListener('alphaway-private-access-required', () => {
+    renderLoads({ resetPage: true });
+    setNetworkAccessModal(true);
   });
 
   populateStateOptions();

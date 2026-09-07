@@ -26,3 +26,19 @@ services:
         sync: false
       - key: ALPHAWAY_ADMIN_TOKEN
         sync: false
+      - key: ALPHAWAY_PRIVATE_NETWORK
+        value: "true"
+      - key: ALPHAWAY_NETWORK_INVITE_CODE
+        sync: false
+      - key: ALPHAWAY_FMCSA_QCMOBILE_KEY
+        sync: false
+      - key: ALPHAWAY_FMCSA_BASE_URL
+        value: https://mobile.fmcsa.dot.gov/qc/services
+      - key: ALPHAWAY_ACCOUNT_AUTH
+        value: "true"
+      - key: ALPHAWAY_ACCOUNT_SESSION_SECRET
+        sync: false
+      - key: ALPHAWAY_ADMIN_EMAIL
+        sync: false
+      - key: ALPHAWAY_ADMIN_PASSWORD
+        sync: false

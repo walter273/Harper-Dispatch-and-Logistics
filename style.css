@@ -154,6 +154,324 @@ a { color: inherit; text-decoration: none; }
   box-shadow: var(--shadow);
 }
 
+.private-network-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  background: linear-gradient(135deg, rgba(201, 168, 93, 0.14), rgba(31, 31, 30, 0.96));
+  border: 1px solid rgba(201, 168, 93, 0.42);
+  padding: 20px 22px;
+}
+
+.private-network-banner h2,
+.private-network-banner p {
+  margin: 0;
+}
+
+.private-network-banner h2 {
+  margin-top: 4px;
+  font-size: 1.2rem;
+}
+
+.private-network-banner p:last-child {
+  max-width: 760px;
+  margin-top: 8px;
+  color: var(--muted);
+}
+
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 28px;
+}
+
+.pricing-card {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  background: linear-gradient(180deg, var(--panel-alt), var(--panel));
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.pricing-card.featured-plan {
+  border-color: var(--accent);
+  box-shadow: 0 16px 32px rgba(201, 168, 93, 0.12);
+}
+
+.pricing-header {
+  min-height: 142px;
+}
+
+.plan-tag {
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.featured-tag {
+  color: var(--text);
+}
+
+.pricing-card h3 {
+  margin: 10px 0 14px;
+  font-size: 1.3rem;
+}
+
+.price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.price {
+  font-size: 2rem;
+  font-weight: 800;
+}
+
+.period {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.pricing-card ul {
+  display: grid;
+  gap: 12px;
+  min-height: 148px;
+  margin: 0;
+  padding: 0;
+  color: var(--muted);
+  list-style: none;
+}
+
+.pricing-card li::before {
+  content: '✓';
+  margin-right: 8px;
+  color: var(--accent);
+}
+
+.pricing-card .wide {
+  width: 100%;
+  margin-top: auto;
+  text-align: center;
+}
+
+.workspace-grid,
+.module-grid {
+  display: grid;
+  gap: 18px;
+  margin-top: 24px;
+}
+
+.workspace-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.module-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.workspace-card,
+.module-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.workspace-card h2,
+.module-card h2,
+.roadmap-panel h2 {
+  margin: 0;
+}
+
+.workspace-card p:not(.eyebrow),
+.module-card p {
+  color: var(--muted);
+}
+
+.workspace-card .primary-button,
+.workspace-card .ghost-button {
+  align-self: flex-start;
+  margin-top: auto;
+}
+
+.workspace-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: auto;
+}
+
+.module-status {
+  color: var(--success);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.planned-status {
+  color: var(--accent);
+}
+
+.module-card a {
+  margin-top: auto;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.operations-tool-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 24px;
+}
+
+.account-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(420px, 1.4fr);
+  gap: 24px;
+  align-items: end;
+  margin-top: 24px;
+}
+
+.account-panel h2 {
+  margin: 0;
+}
+
+.account-inline-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.account-management-panel {
+  margin-top: 24px;
+}
+
+.account-user-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.account-user-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.account-user-row span {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.account-inline-form label,
+.account-inline-form label span {
+  display: grid;
+  gap: 7px;
+}
+
+.account-inline-form label span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+@media (max-width: 900px) {
+  .account-panel { grid-template-columns: 1fr; }
+  .account-inline-form { grid-template-columns: 1fr 1fr; }
+}
+
+.tool-card {
+  display: grid;
+  gap: 12px;
+}
+
+.tool-card h2 {
+  margin: 0;
+}
+
+.tool-note,
+.tool-card label > span {
+  color: var(--muted);
+}
+
+.integration-result {
+  max-height: 240px;
+  overflow: auto;
+  margin: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #101010;
+  color: var(--muted);
+  font-size: 0.78rem;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 720px) {
+  .operations-tool-grid { grid-template-columns: 1fr; }
+}
+
+.roadmap-panel {
+  margin-top: 24px;
+}
+
+.roadmap-list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+  margin: 24px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.roadmap-list li {
+  display: grid;
+  gap: 7px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.roadmap-list span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 960px) {
+  .workspace-grid,
+  .module-grid,
+  .roadmap-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .workspace-grid,
+  .module-grid,
+  .roadmap-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1100px) {
+  .pricing-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 620px) {
+  .pricing-grid { grid-template-columns: 1fr; }
+}
+
 .field-field {
   display: grid;
   gap: 8px;

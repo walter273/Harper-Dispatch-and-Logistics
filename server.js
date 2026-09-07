@@ -787,23 +787,6 @@ function readJson(request, maximumBytes) {
         return;
       }
 
-      function readRaw(request, maximumBytes) {
-        return new Promise((resolve, rejectPromise) => {
-          const chunks = [];
-          let byteCount = 0;
-          request.on('data', (chunk) => {
-            byteCount += chunk.length;
-            if (byteCount > maximumBytes) {
-              rejectPromise(reject(413, 'Request is too large.'));
-              request.destroy();
-              return;
-            }
-            chunks.push(chunk);
-          });
-          request.on('end', () => resolve(Buffer.concat(chunks)));
-          request.on('error', rejectPromise);
-        });
-      }
       chunks.push(chunk);
     });
     request.on('end', () => {
@@ -813,6 +796,24 @@ function readJson(request, maximumBytes) {
         rejectPromise(reject(400, 'Request body must be valid JSON.'));
       }
     });
+    request.on('error', rejectPromise);
+  });
+}
+
+function readRaw(request, maximumBytes) {
+  return new Promise((resolve, rejectPromise) => {
+    const chunks = [];
+    let byteCount = 0;
+    request.on('data', (chunk) => {
+      byteCount += chunk.length;
+      if (byteCount > maximumBytes) {
+        rejectPromise(reject(413, 'Request is too large.'));
+        request.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    request.on('end', () => resolve(Buffer.concat(chunks)));
     request.on('error', rejectPromise);
   });
 }

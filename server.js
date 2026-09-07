@@ -756,10 +756,10 @@ async function createStripeCheckout(plan, customerEmail = '') {
 function verifyStripeSignature(payload, signature) {
   if (!STRIPE_WEBHOOK_SECRET || !signature) return false;
   const timestamp = signature.match(/t=(\d+)/)?.[1];
-  const received = signature.match(/v1=([a-f0-9]+)/)?.[1];
-  if (!timestamp || !received || Math.abs(Date.now() / 1000 - Number(timestamp)) > 300) return false;
+  const received = [...signature.matchAll(/v1=([a-f0-9]+)/g)].map((match) => match[1]);
+  if (!timestamp || received.length === 0 || Math.abs(Date.now() / 1000 - Number(timestamp)) > 300) return false;
   const expected = crypto.createHmac('sha256', STRIPE_WEBHOOK_SECRET).update(`${timestamp}.${payload}`).digest('hex');
-  return timingSafeTextEqual(received, expected);
+  return received.some((candidate) => timingSafeTextEqual(candidate, expected));
 }
 
 async function lookupFmcsaBroker(query) {

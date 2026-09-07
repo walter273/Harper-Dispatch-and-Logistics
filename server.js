@@ -727,44 +727,44 @@ function operationId(prefix) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+async function createStripeCheckout(plan, customerEmail = '') {
+  if (!STRIPE_SECRET_KEY) throw reject(503, 'Stripe is not configured yet.');
+  const priceId = STRIPE_PRICE_IDS[plan];
+  if (!priceId) throw reject(503, `Stripe price is not configured for the ${plan} plan.`);
+  const params = new URLSearchParams({
+    mode: 'subscription',
+    success_url: STRIPE_SUCCESS_URL,
+    cancel_url: STRIPE_CANCEL_URL,
+    'line_items[0][price]': priceId,
+    'line_items[0][quantity]': '1',
+    'subscription_data[metadata][plan]': plan
+  });
+  if (customerEmail) params.set('customer_email', customerEmail);
+  const upstream = await fetch('https://api.stripe.com/v1/checkout/sessions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${STRIPE_SECRET_KEY}`,
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: params
+  });
+  const payload = await upstream.json().catch(() => ({}));
+  if (!upstream.ok || !payload.url) throw reject(502, payload.error?.message || 'Stripe could not create checkout.');
+  return { url: payload.url, sessionId: payload.id };
+}
+
+function verifyStripeSignature(payload, signature) {
+  if (!STRIPE_WEBHOOK_SECRET || !signature) return false;
+  const timestamp = signature.match(/t=(\d+)/)?.[1];
+  const received = signature.match(/v1=([a-f0-9]+)/)?.[1];
+  if (!timestamp || !received || Math.abs(Date.now() / 1000 - Number(timestamp)) > 300) return false;
+  const expected = crypto.createHmac('sha256', STRIPE_WEBHOOK_SECRET).update(`${timestamp}.${payload}`).digest('hex');
+  return timingSafeTextEqual(received, expected);
+}
+
 async function lookupFmcsaBroker(query) {
   if (!FMCSA_API_KEY) {
     return { configured: false, message: 'Set ALPHAWAY_FMCSA_QCMOBILE_KEY to enable live FMCSA lookup.' };
-  }
-
-  async function createStripeCheckout(plan, customerEmail = '') {
-    if (!STRIPE_SECRET_KEY) throw reject(503, 'Stripe is not configured yet.');
-    const priceId = STRIPE_PRICE_IDS[plan];
-    if (!priceId) throw reject(503, `Stripe price is not configured for the ${plan} plan.`);
-    const params = new URLSearchParams({
-      mode: 'subscription',
-      success_url: STRIPE_SUCCESS_URL,
-      cancel_url: STRIPE_CANCEL_URL,
-      'line_items[0][price]': priceId,
-      'line_items[0][quantity]': '1',
-      'subscription_data[metadata][plan]': plan
-    });
-    if (customerEmail) params.set('customer_email', customerEmail);
-    const upstream = await fetch('https://api.stripe.com/v1/checkout/sessions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${STRIPE_SECRET_KEY}`,
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: params
-    });
-    const payload = await upstream.json().catch(() => ({}));
-    if (!upstream.ok || !payload.url) throw reject(502, payload.error?.message || 'Stripe could not create checkout.');
-    return { url: payload.url, sessionId: payload.id };
-  }
-
-  function verifyStripeSignature(payload, signature) {
-    if (!STRIPE_WEBHOOK_SECRET || !signature) return false;
-    const timestamp = signature.match(/t=(\d+)/)?.[1];
-    const received = signature.match(/v1=([a-f0-9]+)/)?.[1];
-    if (!timestamp || !received || Math.abs(Date.now() / 1000 - Number(timestamp)) > 300) return false;
-    const expected = crypto.createHmac('sha256', STRIPE_WEBHOOK_SECRET).update(`${timestamp}.${payload}`).digest('hex');
-    return timingSafeTextEqual(received, expected);
   }
   const safeQuery = encodeURIComponent(cleanText(query, '', 40));
   if (!safeQuery) throw reject(400, 'Enter an MC, DOT, or broker search value.');

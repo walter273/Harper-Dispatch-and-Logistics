@@ -8,12 +8,12 @@ services:
     buildCommand: npm install
     startCommand: npm start
     healthCheckPath: /api/health
-    autoDeployTrigger: off
+    autoDeployTrigger: "off"
     envVars:
       - key: NODE_ENV
         value: production
       - key: NODE_VERSION
-        value: 20
+        value: "20"
       - key: ALPHAWAY_HOST
         value: 0.0.0.0
       - key: ALPHAWAY_DATA_FILE

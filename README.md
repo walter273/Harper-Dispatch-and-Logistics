@@ -55,6 +55,11 @@ The hosted preview also enables the private-network gate. Carriers must enter th
 | `ALPHAWAY_ACCOUNT_SESSION_SECRET` | derived local value | secret session-signing input |
 | `ALPHAWAY_ADMIN_EMAIL` | blank | initial administrator email |
 | `ALPHAWAY_ADMIN_PASSWORD` | blank | initial administrator password |
+| `STRIPE_SECRET_KEY` | blank | secret Stripe API key |
+| `STRIPE_WEBHOOK_SECRET` | blank | Stripe endpoint signing secret |
+| `STRIPE_PRICE_CARRIER` | blank | Stripe recurring Price ID for Carrier Network |
+| `STRIPE_PRICE_SHIPPER` | blank | Stripe recurring Price ID for Shipper Control |
+| `STRIPE_PRICE_BROKER` | blank | Stripe recurring Price ID for Broker Desk |
 
 For a local password test in PowerShell, set the values only in the current shell before running `npm start`:
 
@@ -73,5 +78,7 @@ This is a shared-editing preview, not a production transportation-management sys
 FMCSA lookup is server-side and requires `ALPHAWAY_FMCSA_QCMOBILE_KEY`; the key is never sent to the browser. The current document endpoint stores files on the configured server volume and is limited to 3 MB, but it is not a replacement for encrypted production document storage, malware scanning, retention rules, or role-based authorization. Before a real public launch, replace the JSON store with an authenticated database, add role-based accounts and audit logs, establish retention and incident procedures, and validate FMCSA usage permissions.
 
 When account auth is enabled, users sign in through the Freight Command Center. Administrators and dispatchers can invite users; administrators can approve, suspend, reassign, or reset accounts through the account API. Company and role scope is applied to operations data, and audit events are retained in the JSON store. Set the initial admin variables before first hosted startup.
+
+Stripe checkout is server-side. Add the secret key, webhook signing secret, and recurring Price IDs in Render; never place Stripe secret values in HTML or client JavaScript. Configure a Stripe webhook endpoint at `/api/stripe/webhook` for `checkout.session.completed`, `customer.subscription.updated`, and `customer.subscription.deleted`.
 
 Useful hosting references: [Render web services](https://render.com/docs/web-services), [persistent disks](https://render.com/docs/disks), [health checks](https://render.com/docs/health-checks), and [Blueprint configuration](https://render.com/docs/blueprint-spec).

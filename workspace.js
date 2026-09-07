@@ -20,18 +20,33 @@
   const formFields = (form) => Object.fromEntries(new FormData(form).entries());
 
   const renderAccount = () => {
-    byId('accountSummary').textContent = signedInAccount
-      ? `Signed in as ${signedInAccount.name} (${signedInAccount.role}) · company ${signedInAccount.companyId || 'Alphaway'}`
-      : 'Accounts are separated by company, role, and assignment scope.';
-    byId('signoutButton').hidden = !signedInAccount;
-    byId('inviteForm').closest('.admin-tool').hidden = !signedInAccount || !['admin', 'dispatcher'].includes(signedInAccount.role);
-    byId('accountManagementPanel').hidden = !signedInAccount || signedInAccount.role !== 'admin';
+    const summary = byId('accountSummary');
+    if (summary) {
+      summary.textContent = signedInAccount
+        ? `Signed in as ${signedInAccount.name} (${signedInAccount.role}) · company ${signedInAccount.companyId || 'Alphaway'}`
+        : 'Accounts are separated by company, role, and assignment scope.';
+    }
+
+    const signoutButton = byId('signoutButton');
+    if (signoutButton) signoutButton.hidden = !signedInAccount;
+
+    const inviteForm = byId('inviteForm');
+    const invitePanel = inviteForm?.closest('.admin-tool');
+    if (invitePanel) {
+      invitePanel.hidden = !signedInAccount || !['admin', 'dispatcher'].includes(signedInAccount.role);
+    }
+
+    const accountManagementPanel = byId('accountManagementPanel');
+    if (accountManagementPanel) {
+      accountManagementPanel.hidden = !signedInAccount || signedInAccount.role !== 'admin';
+    }
   };
 
   const loadUsers = async () => {
     if (!signedInAccount || signedInAccount.role !== 'admin') return;
     const payload = await accountRequest('./api/accounts/users', { method: 'GET' });
     const list = byId('accountUsers');
+    if (!list) return;
     list.replaceChildren();
     payload.users.forEach((user) => {
       const row = document.createElement('div');
@@ -58,11 +73,13 @@
 
   byId('signinForm')?.addEventListener('submit', async (event) => {
     event.preventDefault();
+    const form = event.currentTarget;
     const status = byId('signinStatus');
+    if (!form || !status) return;
     try {
-      const payload = await accountRequest('./api/accounts/signin', { method: 'POST', body: JSON.stringify(formFields(event.currentTarget)) });
+      const payload = await accountRequest('./api/accounts/signin', { method: 'POST', body: JSON.stringify(formFields(form)) });
       signedInAccount = payload.account;
-      event.currentTarget.reset();
+      form.reset();
       status.textContent = 'Signed in. Workspace permissions applied.';
       renderAccount();
       loadUsers();
@@ -79,10 +96,12 @@
 
   byId('inviteForm')?.addEventListener('submit', async (event) => {
     event.preventDefault();
+    const form = event.currentTarget;
     const status = byId('inviteStatus');
+    if (!form || !status) return;
     try {
-      const payload = await accountRequest('./api/accounts/invitations', { method: 'POST', body: JSON.stringify(formFields(event.currentTarget)) });
-      event.currentTarget.reset();
+      const payload = await accountRequest('./api/accounts/invitations', { method: 'POST', body: JSON.stringify(formFields(form)) });
+      form.reset();
       status.textContent = `Invitation created for ${payload.invitation.email}. Token: ${payload.invitation.token}`;
     } catch (error) {
       status.textContent = error.message;
@@ -109,10 +128,12 @@
 
   byId('assignmentForm')?.addEventListener('submit', async (event) => {
     event.preventDefault();
+    const form = event.currentTarget;
     const status = byId('assignmentStatus');
+    if (!form || !status) return;
     try {
-      await postOperation({ type: 'assignment.create', assignment: formFields(event.currentTarget) });
-      event.currentTarget.reset();
+      await postOperation({ type: 'assignment.create', assignment: formFields(form) });
+      form.reset();
       status.textContent = 'Driver assignment saved.';
     } catch (error) {
       status.textContent = error.message;
@@ -121,10 +142,12 @@
 
   byId('invoiceForm')?.addEventListener('submit', async (event) => {
     event.preventDefault();
+    const form = event.currentTarget;
     const status = byId('invoiceStatus');
+    if (!form || !status) return;
     try {
-      await postOperation({ type: 'invoice.create', invoice: formFields(event.currentTarget) });
-      event.currentTarget.reset();
+      await postOperation({ type: 'invoice.create', invoice: formFields(form) });
+      form.reset();
       status.textContent = 'Invoice draft created.';
     } catch (error) {
       status.textContent = error.message;
@@ -135,8 +158,10 @@
     event.preventDefault();
     const form = event.currentTarget;
     const status = byId('documentStatus');
+    if (!form || !status) return;
     const fields = formFields(form);
-    const file = form.elements.file.files[0];
+    const fileInput = form.elements.file;
+    const file = fileInput?.files?.[0];
     if (!file || file.size > 3 * 1024 * 1024) {
       status.textContent = 'Choose a file no larger than 3 MB.';
       return;

@@ -1,0 +1,377 @@
+{
+  "schemaVersion": 2,
+  "revision": 1,
+  "loads": [
+    {
+      "id": "LB-48201",
+      "origin": "Denver, CO",
+      "destination": "Phoenix, AZ",
+      "equipment": "Dry Van",
+      "miles": 698,
+      "rate": 2540,
+      "pickup": "Today, 2:00 PM",
+      "delivery": "Tomorrow, 11:30 AM",
+      "weight": "26,000 lb",
+      "broker": "Swiftline Logistics",
+      "status": "Hot",
+      "lane": "Denver → Phoenix"
+    },
+    {
+      "id": "LB-48322",
+      "origin": "Colorado Springs, CO",
+      "destination": "Dallas, TX",
+      "equipment": "Reefer",
+      "miles": 874,
+      "rate": 3185,
+      "pickup": "Today, 7:15 PM",
+      "delivery": "Fri, 6:00 AM",
+      "weight": "22,400 lb",
+      "broker": "Northway Freight",
+      "status": "New",
+      "lane": "Colorado Springs → Dallas"
+    },
+    {
+      "id": "LB-48190",
+      "origin": "Fort Collins, CO",
+      "destination": "Kansas City, MO",
+      "equipment": "Flatbed",
+      "miles": 992,
+      "rate": 2950,
+      "pickup": "Tomorrow, 9:45 AM",
+      "delivery": "Sat, 2:15 PM",
+      "weight": "41,600 lb",
+      "broker": "Summit Dispatch",
+      "status": "Hot",
+      "lane": "Fort Collins → Kansas City"
+    },
+    {
+      "id": "LB-48246",
+      "origin": "Grand Junction, CO",
+      "destination": "Salt Lake City, UT",
+      "equipment": "Power Only",
+      "miles": 412,
+      "rate": 1860,
+      "pickup": "Today, 11:00 AM",
+      "delivery": "Today, 9:30 PM",
+      "weight": "12,000 lb",
+      "broker": "Cedar Union",
+      "status": "New",
+      "lane": "Grand Junction → Salt Lake City"
+    },
+    {
+      "id": "LB-48410",
+      "origin": "Denver, CO",
+      "destination": "Albuquerque, NM",
+      "equipment": "Dry Van",
+      "miles": 519,
+      "rate": 2265,
+      "pickup": "Tomorrow, 1:30 PM",
+      "delivery": "Tue, 7:10 AM",
+      "weight": "28,300 lb",
+      "broker": "Blue Mesa Logistics",
+      "status": "Hot",
+      "lane": "Denver → Albuquerque"
+    },
+    {
+      "id": "LB-48468",
+      "origin": "Pueblo, CO",
+      "destination": "Omaha, NE",
+      "equipment": "Reefer",
+      "miles": 711,
+      "rate": 2675,
+      "pickup": "Sat, 6:00 AM",
+      "delivery": "Sun, 4:45 PM",
+      "weight": "17,800 lb",
+      "broker": "Prairie Crest",
+      "status": "New",
+      "lane": "Pueblo → Omaha"
+    },
+    {
+      "id": "LB-48155",
+      "origin": "Greeley, CO",
+      "destination": "Las Vegas, NV",
+      "equipment": "Dry Van",
+      "miles": 1042,
+      "rate": 3455,
+      "pickup": "Fri, 10:15 AM",
+      "delivery": "Sat, 10:00 PM",
+      "weight": "30,900 lb",
+      "broker": "Mountain Line",
+      "status": "Hot",
+      "lane": "Greeley → Las Vegas"
+    },
+    {
+      "id": "LB-48531",
+      "origin": "Boulder, CO",
+      "destination": "Cheyenne, WY",
+      "equipment": "Flatbed",
+      "miles": 170,
+      "rate": 975,
+      "pickup": "Today, 8:30 AM",
+      "delivery": "Today, 3:00 PM",
+      "weight": "38,000 lb",
+      "broker": "High Plains Haul",
+      "status": "New",
+      "lane": "Boulder → Cheyenne"
+    },
+    {
+      "id": "LB-48621",
+      "origin": "Atlanta, GA",
+      "destination": "Jacksonville, FL",
+      "equipment": "Dry Van",
+      "miles": 452,
+      "rate": 2140,
+      "pickup": "Today, 4:45 PM",
+      "delivery": "Tue, 5:30 AM",
+      "weight": "23,500 lb",
+      "broker": "Southern Route Group",
+      "status": "Hot",
+      "lane": "Atlanta → Jacksonville"
+    },
+    {
+      "id": "LB-48658",
+      "origin": "Chicago, IL",
+      "destination": "Detroit, MI",
+      "equipment": "Reefer",
+      "miles": 281,
+      "rate": 1825,
+      "pickup": "Tomorrow, 7:00 AM",
+      "delivery": "Tomorrow, 3:30 PM",
+      "weight": "19,800 lb",
+      "broker": "Midwest Bridge",
+      "status": "New",
+      "lane": "Chicago → Detroit"
+    },
+    {
+      "id": "LB-48703",
+      "origin": "Nashville, TN",
+      "destination": "Charlotte, NC",
+      "equipment": "Flatbed",
+      "miles": 436,
+      "rate": 2420,
+      "pickup": "Fri, 1:15 PM",
+      "delivery": "Sat, 6:10 PM",
+      "weight": "33,200 lb",
+      "broker": "Blue Ridge Carrier Co.",
+      "status": "Hot",
+      "lane": "Nashville → Charlotte"
+    },
+    {
+      "id": "LB-48795",
+      "origin": "Portland, OR",
+      "destination": "Spokane, WA",
+      "equipment": "Dry Van",
+      "miles": 432,
+      "rate": 1965,
+      "pickup": "Today, 9:20 AM",
+      "delivery": "Today, 7:10 PM",
+      "weight": "27,900 lb",
+      "broker": "Cascade Dispatch",
+      "status": "New",
+      "lane": "Portland → Spokane"
+    },
+    {
+      "id": "LB-48822",
+      "origin": "Philadelphia, PA",
+      "destination": "Baltimore, MD",
+      "equipment": "Power Only",
+      "miles": 170,
+      "rate": 980,
+      "pickup": "Today, 12:00 PM",
+      "delivery": "Today, 4:30 PM",
+      "weight": "10,800 lb",
+      "broker": "Atlantic Fleet",
+      "status": "New",
+      "lane": "Philadelphia → Baltimore"
+    },
+    {
+      "id": "LB-48871",
+      "origin": "Dallas, TX",
+      "destination": "Houston, TX",
+      "equipment": "Reefer",
+      "miles": 246,
+      "rate": 1480,
+      "pickup": "Tomorrow, 6:00 AM",
+      "delivery": "Tomorrow, 2:00 PM",
+      "weight": "16,900 lb",
+      "broker": "Texas Freight One",
+      "status": "Hot",
+      "lane": "Dallas → Houston"
+    },
+    {
+      "id": "LB-48911",
+      "origin": "Reno, NV",
+      "destination": "Sacramento, CA",
+      "equipment": "Flatbed",
+      "miles": 566,
+      "rate": 2285,
+      "pickup": "Sat, 7:30 AM",
+      "delivery": "Sun, 3:15 PM",
+      "weight": "36,400 lb",
+      "broker": "Golden Bear Logistics",
+      "status": "New",
+      "lane": "Reno → Sacramento"
+    },
+    {
+      "id": "LB-48974",
+      "origin": "Boston, MA",
+      "destination": "Newark, NJ",
+      "equipment": "Dry Van",
+      "miles": 220,
+      "rate": 1620,
+      "pickup": "Today, 5:15 PM",
+      "delivery": "Tomorrow, 12:45 PM",
+      "weight": "25,700 lb",
+      "broker": "Northeast Line",
+      "status": "Hot",
+      "lane": "Boston → Newark"
+    }
+  ],
+  "state": {
+    "savedSearches": [
+      {
+        "id": "reefer-routes",
+        "name": "Reefer hot lanes",
+        "origin": "all",
+        "destination": "all",
+        "equipment": "Reefer",
+        "minRate": "2500",
+        "miles": "all"
+      },
+      {
+        "id": "west-drive",
+        "name": "West coast lanes",
+        "origin": "all",
+        "destination": "California",
+        "equipment": "all",
+        "minRate": "0",
+        "miles": "all"
+      },
+      {
+        "id": "midwest-fast",
+        "name": "Midwest priority",
+        "origin": "Illinois",
+        "destination": "all",
+        "equipment": "Dry Van",
+        "minRate": "2000",
+        "miles": "all"
+      }
+    ],
+    "bookedLoads": [],
+    "messages": [
+      {
+        "id": "dispatch-welcome",
+        "loadId": "general",
+        "sender": "Dispatcher",
+        "text": "Dispatch channel is ready. Select a load to keep messages tied to that route.",
+        "createdAt": 1788750711627
+      }
+    ],
+    "tms": {
+      "demoRunning": true,
+      "assignments": [
+        {
+          "id": "tms-48201",
+          "loadId": "LB-48201",
+          "driverName": "Marcus Lane",
+          "truckId": "TRK-204",
+          "status": "In transit",
+          "tracking": {
+            "progress": 0.42,
+            "speedMph": 64,
+            "etaMinutes": 525,
+            "lastPingAt": 1788750711627
+          }
+        },
+        {
+          "id": "tms-48322",
+          "loadId": "LB-48322",
+          "driverName": "Daniela Ruiz",
+          "truckId": "TRK-317",
+          "status": "Dispatched",
+          "tracking": {
+            "progress": 0.12,
+            "speedMph": 0,
+            "etaMinutes": 845,
+            "lastPingAt": 1788750711627
+          }
+        },
+        {
+          "id": "tms-48190",
+          "loadId": "LB-48190",
+          "driverName": "Andre Cole",
+          "truckId": "TRK-185",
+          "status": "Attention",
+          "tracking": {
+            "progress": 0.58,
+            "speedMph": 18,
+            "etaMinutes": 640,
+            "lastPingAt": 1788750711627
+          }
+        },
+        {
+          "id": "tms-48410",
+          "loadId": "LB-48410",
+          "driverName": "Casey Owens",
+          "truckId": "TRK-278",
+          "status": "In transit",
+          "tracking": {
+            "progress": 0.31,
+            "speedMph": 58,
+            "etaMinutes": 430,
+            "lastPingAt": 1788750711627
+          }
+        }
+      ]
+    }
+  },
+  "intakes": [],
+  "operations": {
+    "documents": [],
+    "assignments": [],
+    "invoices": [],
+    "brokerSearches": [],
+    "stripeEvents": []
+  },
+  "accounts": {
+    "companies": [
+      {
+        "id": "alphaway",
+        "name": "Alphaway Logistics LLC",
+        "type": "organization",
+        "status": "active",
+        "createdAt": 1788750711628
+      }
+    ],
+    "users": [
+      {
+        "id": "user-admin",
+        "email": "admin@alphaway.local",
+        "name": "Alphaway Administrator",
+        "role": "admin",
+        "companyId": "alphaway",
+        "status": "active",
+        "passwordSalt": "ced0ac6e7a5efd83040a54b2bfdfd6ef",
+        "passwordHash": "c3dcc397571c9be1164846363d4d77afc4b50fabd681c97b6d3b22548c451f3f44f90474cee65c59230ab1b4c60e185f766b0c197973b328985677af96cd41e3",
+        "createdAt": 1788750711629
+      }
+    ],
+    "invitations": [],
+    "sessions": [
+      {
+        "tokenHash": "110869fd8f37f4cef1b4c34c9504efd79fc3700994fe2769d2271ab7b7f23974",
+        "userId": "user-admin",
+        "expiresAt": 1789355541866
+      }
+    ],
+    "audit": [
+      {
+        "id": "audit-1788750741868-lz4kwg",
+        "actorId": "user-admin",
+        "action": "account.signin",
+        "targetId": "user-admin",
+        "createdAt": 1788750741868
+      }
+    ]
+  }
+}

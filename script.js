@@ -531,6 +531,30 @@ const boardRoot = document.getElementById('originFilter');
 const signupForm = document.getElementById('signupForm');
 const signupStatus = document.getElementById('signupStatus');
 
+document.querySelectorAll('[data-plan].checkout-button').forEach((button) => {
+  button.addEventListener('click', async () => {
+    const plan = button.dataset.plan;
+    const email = document.querySelector('#signupForm input[name="email"]')?.value.trim() || '';
+    button.disabled = true;
+    button.textContent = 'Opening secure checkout…';
+    try {
+      const response = await fetch('./api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan, email })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || 'Stripe checkout is not available yet.');
+      window.location.href = payload.url;
+    } catch (error) {
+      window.location.hash = 'signup';
+      if (signupStatus) signupStatus.textContent = error.message;
+      button.disabled = false;
+      button.textContent = plan === 'carrier' ? 'Choose Carrier Network' : plan === 'shipper' ? 'Choose Shipper Control' : 'Choose Broker Desk';
+    }
+  });
+});
+
 if (signupForm && signupStatus) {
   signupForm.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -603,6 +627,11 @@ if (isBoardPage) {
   const chatSender = document.getElementById('chatSender');
   const chatMessage = document.getElementById('chatMessage');
   const chatSyncStatus = document.getElementById('chatSyncStatus');
+  const driverCallLabel = document.getElementById('driverCallLabel');
+  const driverCallLink = document.getElementById('driverCallLink');
+  const driverSmsLink = document.getElementById('driverSmsLink');
+  const dispatchCallLink = document.getElementById('dispatchCallLink');
+  const dispatchSmsLink = document.getElementById('dispatchSmsLink');
   const tmsActiveLoads = document.getElementById('tmsActiveLoads');
   const tmsAvailableLoads = document.getElementById('tmsAvailableLoads');
   const tmsAssignedDrivers = document.getElementById('tmsAssignedDrivers');
@@ -657,6 +686,13 @@ if (isBoardPage) {
       }
     ],
     tms: createDefaultTmsState()
+  };
+
+  const liveDriverPhones = {
+    'LB-48201': { name: 'Marcus Lane', phone: '+19705550118' },
+    'LB-48322': { name: 'Daniela Ruiz', phone: '+19705550124' },
+    'LB-48190': { name: 'Andre Cole', phone: '+19705550131' },
+    'LB-48410': { name: 'Casey Owens', phone: '+19705550147' }
   };
 
   const formatMoney = (value) => new Intl.NumberFormat('en-US', {
@@ -809,6 +845,36 @@ if (isBoardPage) {
       ? `Conversation for ${load.id} · ${load.lane}`
       : 'Select a load to discuss its route.';
     renderChatMessages();
+    updateLiveCallActions(load);
+  }
+
+  function updateLiveCallActions(load) {
+    const dispatchNumber = '+19705550194';
+    const fallbackDriver = { name: 'Driver direct line', phone: '+19705550197' };
+    const assignment = getCurrentState().tms?.assignments?.find((item) => item.loadId === load?.id) || null;
+    const driverContact = (load && liveDriverPhones[load.id]) || (assignment ? { name: assignment.driverName || 'Driver direct line', phone: fallbackDriver.phone } : fallbackDriver);
+
+    if (dispatchCallLink) {
+      dispatchCallLink.href = `tel:${dispatchNumber}`;
+      dispatchCallLink.setAttribute('aria-label', 'Call Alphaway dispatch');
+    }
+    if (dispatchSmsLink) {
+      dispatchSmsLink.href = `sms:${dispatchNumber}`;
+      dispatchSmsLink.setAttribute('aria-label', 'Text Alphaway dispatch');
+    }
+    if (driverCallLabel) {
+      driverCallLabel.textContent = `${driverContact.name || 'Driver'} direct line`;
+    }
+    if (driverCallLink) {
+      const driverPhone = driverContact.phone || fallbackDriver.phone;
+      driverCallLink.href = `tel:${driverPhone}`;
+      driverCallLink.setAttribute('aria-label', `Call ${driverContact.name || 'driver'}`);
+    }
+    if (driverSmsLink) {
+      const driverPhone = driverContact.phone || fallbackDriver.phone;
+      driverSmsLink.href = `sms:${driverPhone}`;
+      driverSmsLink.setAttribute('aria-label', `Text ${driverContact.name || 'driver'}`);
+    }
   }
 
   function broadcastChatUpdate() {
@@ -1136,6 +1202,8 @@ if (isBoardPage) {
       renderTmsPanel(null);
       return;
     }
+
+    updateLiveCallActions(load);
 
     const originCode = getOriginCode(load.origin);
     const destinationCode = getOriginCode(load.destination);

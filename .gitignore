@@ -2,6 +2,9 @@
 data/alphaway-store.json
 data/*.tmp
 Alphaway Logistics LLC _ Nationwide Freight & Dispatch_files/
+render-local.log
+render-local.err
+*.log
 
 # Dependencies and local editor files.
 node_modules/

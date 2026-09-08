@@ -19,11 +19,39 @@
   };
   const formFields = (form) => Object.fromEntries(new FormData(form).entries());
 
+  const loadSubscription = async () => {
+    const status = byId('subscriptionStatus');
+    const manage = byId('manageBillingButton');
+    if (!status || !manage) return;
+    manage.hidden = true;
+    if (!signedInAccount) {
+      status.textContent = 'Sign in to view your subscription.';
+      return;
+    }
+    try {
+      const payload = await accountRequest('./api/stripe/subscription', { method: 'GET' });
+      const subscription = payload.subscription;
+      if (!subscription) {
+        status.textContent = payload.required
+          ? 'No subscription is linked. Choose a plan to activate operations access.'
+          : 'No subscription is linked. Choose a plan to test Stripe Checkout.';
+        return;
+      }
+      const renewal = subscription.currentPeriodEnd
+        ? ` Current period ends ${new Date(subscription.currentPeriodEnd * 1000).toLocaleDateString()}.`
+        : '';
+      status.textContent = `${subscription.plan || 'Stripe'} plan · ${subscription.status}.${renewal}`;
+      manage.hidden = !['carrier-owner', 'shipper', 'broker'].includes(signedInAccount.role);
+    } catch (error) {
+      status.textContent = error.message;
+    }
+  };
+
   const renderAccount = () => {
     const summary = byId('accountSummary');
     if (summary) {
       summary.textContent = signedInAccount
-        ? `Signed in as ${signedInAccount.name} (${signedInAccount.role}) · company ${signedInAccount.companyId || 'Waypoint'}`
+        ? `Signed in as ${signedInAccount.name} (${signedInAccount.role}) · company ${signedInAccount.companyId || 'Alphaway'}`
         : 'Accounts are separated by company, role, and assignment scope.';
     }
 
@@ -69,7 +97,11 @@
     signedInAccount = payload.account;
     renderAccount();
     loadUsers();
-  }).catch(() => renderAccount());
+    loadSubscription();
+  }).catch(() => {
+    renderAccount();
+    loadSubscription();
+  });
 
   byId('signinForm')?.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -83,6 +115,7 @@
       status.textContent = 'Signed in. Workspace permissions applied.';
       renderAccount();
       loadUsers();
+      loadSubscription();
     } catch (error) {
       status.textContent = error.message;
     }
@@ -92,6 +125,43 @@
     await accountRequest('./api/accounts/signout', { method: 'POST', body: '{}' });
     signedInAccount = null;
     renderAccount();
+    loadSubscription();
+  });
+
+  document.querySelectorAll('[data-workspace-plan]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const status = byId('subscriptionStatus');
+      if (!status) return;
+      if (!signedInAccount) {
+        status.textContent = 'Sign in before choosing a subscription plan.';
+        return;
+      }
+      try {
+        button.disabled = true;
+        status.textContent = 'Opening secure Stripe Checkout…';
+        const payload = await accountRequest('./api/stripe/checkout', {
+          method: 'POST',
+          body: JSON.stringify({ plan: button.dataset.workspacePlan, requestId: crypto.randomUUID() })
+        });
+        window.location.assign(payload.url);
+      } catch (error) {
+        status.textContent = error.message;
+        button.disabled = false;
+      }
+    });
+  });
+
+  byId('manageBillingButton')?.addEventListener('click', async (event) => {
+    const status = byId('subscriptionStatus');
+    try {
+      event.currentTarget.disabled = true;
+      status.textContent = 'Opening secure Stripe billing management…';
+      const payload = await accountRequest('./api/stripe/portal', { method: 'POST', body: '{}' });
+      window.location.assign(payload.url);
+    } catch (error) {
+      status.textContent = error.message;
+      event.currentTarget.disabled = false;
+    }
   });
 
   byId('inviteForm')?.addEventListener('submit', async (event) => {

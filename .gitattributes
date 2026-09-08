@@ -1,0 +1,8 @@
+.githooks/* text eol=lf
+.github export-ignore
+.githooks export-ignore
+.vscode export-ignore
+data export-ignore
+test export-ignore
+scripts export-ignore
+desktop.ini export-ignore

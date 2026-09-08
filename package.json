@@ -1,16 +1,19 @@
 {
-  "name": "waypoint-freight-ops",
+  "name": "alphaway-tms",
   "version": "0.1.0",
   "private": true,
-  "description": "Local full-stack Waypoint Freight demo application.",
+  "description": "Private Alphaway TMS freight operations application.",
+  "main": "server.js",
   "scripts": {
+    "build": "node --check server.js && node --check billing.js && node --check script.js",
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "test": "node --test"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
-    "git": "^0.1.5"
+    "stripe": "22.6.1"
   }
 }

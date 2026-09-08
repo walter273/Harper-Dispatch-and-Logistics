@@ -243,8 +243,8 @@ const statePositions = {
   WI: { x: 52, y: 30 }, WY: { x: 32, y: 28 }
 };
 
-const LOAD_CATALOG_STORAGE_KEY = 'waypoint-loadboard-catalog';
-const BOARD_STATE_STORAGE_KEY = 'waypoint-loadboard-state';
+const LOAD_CATALOG_STORAGE_KEY = 'alphaway-loadboard-catalog';
+const BOARD_STATE_STORAGE_KEY = 'alphaway-loadboard-state';
 const allowedEquipment = ['Dry Van', 'Reefer', 'Flatbed', 'Power Only'];
 const allowedLoadStatuses = ['Hot', 'New', 'Available', 'Booked'];
 
@@ -348,7 +348,7 @@ function cloneDefaultLoads() {
   return loads.map((load, index) => normalizeLoadRecord(load, index));
 }
 
-const APP_UPDATED_EVENT = 'waypoint-app-updated';
+const APP_UPDATED_EVENT = 'alphaway-app-updated';
 let remoteAppSnapshot = null;
 let appEventStream = null;
 let privateAccessLocked = false;
@@ -434,9 +434,9 @@ async function hydrateApp() {
   try {
     const response = await fetch('./api/app', { headers: { Accept: 'application/json' } });
     if (!response.ok) {
-      if (response.status === 403 && response.headers.get('X-Waypoint-Private-Network') === 'true') {
+      if (response.status === 403 && response.headers.get('X-Alphaway-Private-Network') === 'true') {
         privateAccessLocked = true;
-        window.dispatchEvent(new CustomEvent('waypoint-private-access-required'));
+        window.dispatchEvent(new CustomEvent('alphaway-private-access-required'));
       }
       throw new Error('Server snapshot unavailable.');
     }
@@ -510,7 +510,7 @@ async function resetLoadCatalog() {
   return defaultCatalog;
 }
 
-window.WaypointLoadboard = Object.freeze({
+window.AlphawayLoadboard = Object.freeze({
   catalogStorageKey: LOAD_CATALOG_STORAGE_KEY,
   getLoads: getLoadCatalog,
   saveLoads: saveLoadCatalog,
@@ -536,13 +536,14 @@ document.querySelectorAll('[data-plan].plan-checkout-button').forEach((button) =
     const plan = button.dataset.plan;
     const planName = plan === 'carrier' ? 'Carrier Network' : plan === 'shipper' ? 'Shipper Control' : 'Broker Desk';
     const email = document.querySelector('#signupForm input[name=email]')?.value.trim() || '';
+    button.dataset.checkoutRequestId ||= crypto.randomUUID();
     button.disabled = true;
     button.textContent = 'Opening secure checkout…';
     fetch('/api/stripe/checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
-      body: JSON.stringify({ plan, email })
+      body: JSON.stringify({ plan, email, requestId: button.dataset.checkoutRequestId })
     })
       .then(async (response) => {
         const payload = await response.json().catch(() => ({}));
@@ -576,7 +577,7 @@ if (signupForm && signupStatus) {
       try {
         await submitIntakeRequest({ type: 'access-request', fields: { name, email, company, plan } });
         signupForm.reset();
-        signupStatus.textContent = 'Request saved for the Waypoint team.';
+        signupStatus.textContent = 'Request saved for the Alphaway team.';
       } catch (error) {
         signupStatus.textContent = error.message || 'We could not save your request.';
       }
@@ -584,7 +585,7 @@ if (signupForm && signupStatus) {
     }
 
     signupStatus.textContent = 'Opening your email app to send this request.';
-    window.location.href = `mailto:support@waypoint-freight.invalid?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = `mailto:support@alphaway-tms.invalid?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   });
 }
 
@@ -655,7 +656,7 @@ if (isBoardPage) {
   const paginationControls = document.querySelectorAll('[data-pagination]');
   const selectedLoadState = { value: null };
   const storageKey = BOARD_STATE_STORAGE_KEY;
-  const chatChannelName = 'waypoint-loadboard-chat';
+  const chatChannelName = 'alphaway-loadboard-chat';
   const pageSize = 6;
   let currentPage = 1;
   let chatChannel = null;
@@ -861,11 +862,11 @@ if (isBoardPage) {
 
     if (dispatchCallLink) {
       dispatchCallLink.href = `tel:${dispatchNumber}`;
-      dispatchCallLink.setAttribute('aria-label', 'Call Waypoint dispatch');
+      dispatchCallLink.setAttribute('aria-label', 'Call Alphaway dispatch');
     }
     if (dispatchSmsLink) {
       dispatchSmsLink.href = `sms:${dispatchNumber}`;
-      dispatchSmsLink.setAttribute('aria-label', 'Text Waypoint dispatch');
+      dispatchSmsLink.setAttribute('aria-label', 'Text Alphaway dispatch');
     }
     if (driverCallLabel) {
       driverCallLabel.textContent = `${driverContact.name || 'Driver'} direct line`;
@@ -1569,7 +1570,7 @@ if (isBoardPage) {
     renderLoads();
   });
 
-  window.addEventListener('waypoint-private-access-required', () => {
+  window.addEventListener('alphaway-private-access-required', () => {
     renderLoads({ resetPage: true });
     setNetworkAccessModal(true);
   });

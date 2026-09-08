@@ -3,6 +3,10 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { URL } = require('node:url');
+const { createBilling } = require('./billing');
+const billing = createBilling();
+const HOSTED = process.env.NODE_ENV === 'production';
+const SECURE_COOKIES = HOSTED;
 
 const ROOT_DIR = __dirname;
 const PORT = Number(process.env.PORT || 4173);
@@ -16,22 +20,13 @@ const PRIVATE_NETWORK = String(process.env.ALPHAWAY_PRIVATE_NETWORK || '').trim(
 const NETWORK_INVITE_CODE = String(process.env.ALPHAWAY_NETWORK_INVITE_CODE || '');
 const NETWORK_ACCESS_COOKIE = 'alphaway_network_access';
 const ACCOUNT_AUTH = String(process.env.ALPHAWAY_ACCOUNT_AUTH || '').trim().toLowerCase() === 'true';
+const REQUIRE_SUBSCRIPTION = String(process.env.ALPHAWAY_REQUIRE_SUBSCRIPTION || '').trim().toLowerCase() === 'true';
 const ACCOUNT_SESSION_SECRET = String(process.env.ALPHAWAY_ACCOUNT_SESSION_SECRET || NETWORK_INVITE_CODE || PREVIEW_PASSWORD || 'local-account-secret');
 const ACCOUNT_COOKIE = 'alphaway_account';
 const ACCOUNT_SESSION_DAYS = 7;
 const FMCSA_API_KEY = String(process.env.ALPHAWAY_FMCSA_QCMOBILE_KEY || '');
 const FMCSA_BASE_URL = String(process.env.ALPHAWAY_FMCSA_BASE_URL || 'https://mobile.fmcsa.dot.gov/qc/services').replace(/\/+$/, '');
-const STRIPE_SECRET_KEY = String(process.env.STRIPE_SECRET_KEY || '');
-const STRIPE_WEBHOOK_SECRET = String(process.env.STRIPE_WEBHOOK_SECRET || '');
-const STRIPE_PRICE_IDS = Object.freeze({
-  carrier: String(process.env.STRIPE_PRICE_CARRIER || ''),
-  shipper: String(process.env.STRIPE_PRICE_SHIPPER || ''),
-  broker: String(process.env.STRIPE_PRICE_BROKER || '')
-});
-const STRIPE_PUBLIC_BASE_URL = String(process.env.STRIPE_PUBLIC_BASE_URL || `http://127.0.0.1:${PORT}`).replace(/\/+$/, '');
-const STRIPE_SUCCESS_URL = String(process.env.STRIPE_SUCCESS_URL || `${STRIPE_PUBLIC_BASE_URL}/workspace.html?billing=success`);
-const STRIPE_CANCEL_URL = String(process.env.STRIPE_CANCEL_URL || `${STRIPE_PUBLIC_BASE_URL}/#plans`);
-const HOME_PAGE = 'Waypoint Freight Operations _ Nationwide Freight & Dispatch.html';
+const HOME_PAGE = 'index.html';
 const MAX_JSON_BYTES = 1024 * 1024;
 const MAX_INTAKE_BYTES = 64 * 1024;
 const MAX_OPERATION_BYTES = 3 * 1024 * 1024;
@@ -73,6 +68,9 @@ const SECURITY_HEADERS = Object.freeze({
   'X-Frame-Options': 'DENY'
 });
 
+if (HOSTED && (!REQUIRE_PREVIEW_AUTH || !PRIVATE_NETWORK || !ACCOUNT_AUTH)) {
+  throw new Error('Hosted previews require ALPHAWAY_REQUIRE_AUTH, ALPHAWAY_PRIVATE_NETWORK, and ALPHAWAY_ACCOUNT_AUTH=true.');
+}
 if (!BIND_HOST) throw new Error('ALPHAWAY_HOST must not be blank.');
 if (REQUIRE_PREVIEW_AUTH && (!PREVIEW_USERNAME || !PREVIEW_PASSWORD)) {
   throw new Error('ALPHAWAY_REQUIRE_AUTH=true requires ALPHAWAY_PREVIEW_USERNAME and ALPHAWAY_PREVIEW_PASSWORD.');
@@ -235,14 +233,14 @@ function sendUnauthorized(response) {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store, private',
     Vary: 'Authorization',
-    'WWW-Authenticate': 'Basic realm="Waypoint Preview", charset="UTF-8"'
+    'WWW-Authenticate': 'Basic realm="Alphaway Preview", charset="UTF-8"'
   }));
   response.end(JSON.stringify({ error: 'Preview access is required.' }));
 }
 
 function sendNetworkAccessRequired(response) {
   sendJson(response, 403, { error: 'An invitation code is required to access the private carrier network.' }, {
-    'X-Waypoint-Private-Network': 'true'
+    'X-Alphaway-Private-Network': 'true'
   });
 }
 
@@ -411,8 +409,8 @@ function createStore() {
     intakes: [],
     operations: normalizeOperations(),
     accounts: normalizeAccounts(seeded ? {
-      companies: [{ id: 'alphaway', name: 'Waypoint Freight Operations', type: 'organization', status: 'active' }],
-      users: [{ id: 'user-admin', email: adminEmail, name: 'Waypoint Administrator', role: 'admin', companyId: 'alphaway', status: 'active', passwordSalt: seeded.salt, passwordHash: seeded.hash }]
+      companies: [{ id: 'alphaway', name: 'Alphaway TMS', type: 'organization', status: 'active' }],
+      users: [{ id: 'user-admin', email: adminEmail, name: 'Alphaway Administrator', role: 'admin', companyId: 'alphaway', status: 'active', passwordSalt: seeded.salt, passwordHash: seeded.hash }]
     } : {})
   };
 }
@@ -521,9 +519,24 @@ function normalizeOperations(candidate) {
     customerId: cleanText(event?.customerId, '', 100),
     subscriptionId: cleanText(event?.subscriptionId, '', 100),
     status: cleanText(event?.status, '', 40),
+    paymentStatus: cleanText(event?.paymentStatus, '', 40),
+    userId: cleanText(event?.userId, '', 100),
+    companyId: cleanText(event?.companyId, '', 100),
+    eventCreated: cleanNumber(event?.eventCreated, 0, 0, Number.MAX_SAFE_INTEGER),
     createdAt: cleanNumber(event?.createdAt, Date.now(), 0, Number.MAX_SAFE_INTEGER)
   })) : [];
-  return { documents, assignments, invoices, brokerSearches: Array.isArray(source.brokerSearches) ? source.brokerSearches.slice(-100) : [], billingEvents };
+  const billingSubscriptions = Array.isArray(source.billingSubscriptions) ? source.billingSubscriptions.slice(-500).map((subscription, index) => ({
+    id: cleanText(subscription?.id, `subscription-${index}`, 100),
+    customerId: cleanText(subscription?.customerId, '', 100),
+    userId: cleanText(subscription?.userId, '', 100),
+    companyId: cleanText(subscription?.companyId, '', 100),
+    plan: ['carrier', 'shipper', 'broker'].includes(subscription?.plan) ? subscription.plan : '',
+    status: cleanText(subscription?.status, 'pending', 40),
+    currentPeriodEnd: cleanNumber(subscription?.currentPeriodEnd, 0, 0, Number.MAX_SAFE_INTEGER),
+    cancelAtPeriodEnd: Boolean(subscription?.cancelAtPeriodEnd),
+    updatedAt: cleanNumber(subscription?.updatedAt, Date.now(), 0, Number.MAX_SAFE_INTEGER)
+  })).filter((subscription) => /^sub_[A-Za-z0-9]+$/.test(subscription.id)) : [];
+  return { documents, assignments, invoices, brokerSearches: Array.isArray(source.brokerSearches) ? source.brokerSearches.slice(-100) : [], billingEvents, billingSubscriptions };
 }
 
 const ACCOUNT_ROLES = new Set(['admin', 'dispatcher', 'carrier-owner', 'driver', 'broker', 'shipper']);
@@ -715,6 +728,8 @@ function operationSnapshot(user = null) {
   return {
     operations: {
       ...store.operations,
+      billingEvents: role === 'admin' ? store.operations.billingEvents : [],
+      billingSubscriptions: role === 'admin' ? store.operations.billingSubscriptions : [],
       assignments,
       documents: canSeeAll ? store.operations.documents : store.operations.documents.filter((item) => item.companyId === companyId),
       invoices: canSeeAll ? store.operations.invoices : store.operations.invoices.filter((item) => item.companyId === companyId)
@@ -724,43 +739,29 @@ function operationSnapshot(user = null) {
   };
 }
 
+function subscriptionForUser(user) {
+  if (!user) return null;
+  return store.operations.billingSubscriptions
+    .filter((subscription) => subscription.userId === user.id)
+    .sort((left, right) => right.updatedAt - left.updatedAt)[0] || null;
+}
+
+function publicSubscription(subscription) {
+  if (!subscription) return null;
+  const { customerId, ...safe } = subscription;
+  return safe;
+}
+
+function requirePaidSubscription(user) {
+  if (!REQUIRE_SUBSCRIPTION || !user || ['admin', 'dispatcher'].includes(user.role)) return;
+  const subscription = subscriptionForUser(user);
+  if (!subscription || !['active', 'trialing'].includes(subscription.status)) {
+    throw reject(402, 'An active Alphaway TMS subscription is required for operations access.');
+  }
+}
+
 function operationId(prefix) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-async function createStripeCheckout(plan, customerEmail = '') {
-  if (!STRIPE_SECRET_KEY) throw reject(503, 'Stripe is not configured yet.');
-  const priceId = STRIPE_PRICE_IDS[plan];
-  if (!priceId) throw reject(503, `Stripe price is not configured for the ${plan} plan.`);
-  const params = new URLSearchParams({
-    mode: 'subscription',
-    success_url: STRIPE_SUCCESS_URL,
-    cancel_url: STRIPE_CANCEL_URL,
-    'line_items[0][price]': priceId,
-    'line_items[0][quantity]': '1',
-    'subscription_data[metadata][plan]': plan
-  });
-  if (customerEmail) params.set('customer_email', customerEmail);
-  const upstream = await fetch('https://api.stripe.com/v1/checkout/sessions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${STRIPE_SECRET_KEY}`,
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-    body: params
-  });
-  const payload = await upstream.json().catch(() => ({}));
-  if (!upstream.ok || !payload.url) throw reject(502, payload.error?.message || 'Stripe could not create checkout.');
-  return { url: payload.url, sessionId: payload.id };
-}
-
-function verifyStripeSignature(payload, signature) {
-  if (!STRIPE_WEBHOOK_SECRET || !signature) return false;
-  const timestamp = signature.match(/t=(\d+)/)?.[1];
-  const received = [...signature.matchAll(/v1=([a-f0-9]+)/g)].map((match) => match[1]);
-  if (!timestamp || received.length === 0 || Math.abs(Date.now() / 1000 - Number(timestamp)) > 300) return false;
-  const expected = crypto.createHmac('sha256', STRIPE_WEBHOOK_SECRET).update(`${timestamp}.${payload}`).digest('hex');
-  return received.some((candidate) => timingSafeTextEqual(candidate, expected));
 }
 
 async function lookupFmcsaBroker(query) {
@@ -881,8 +882,8 @@ let store = readStore();
 
 if (ACCOUNT_AUTH && store.accounts.users.length === 0 && process.env.ALPHAWAY_ADMIN_EMAIL && process.env.ALPHAWAY_ADMIN_PASSWORD) {
   const credentials = hashPassword(process.env.ALPHAWAY_ADMIN_PASSWORD);
-  store.accounts.companies.push({ id: 'alphaway', name: 'Waypoint Freight Operations', type: 'organization', status: 'active', createdAt: Date.now() });
-  store.accounts.users.push({ id: 'user-admin', email: process.env.ALPHAWAY_ADMIN_EMAIL.trim().toLowerCase(), name: 'Waypoint Administrator', role: 'admin', companyId: 'alphaway', status: 'active', passwordSalt: credentials.salt, passwordHash: credentials.hash, createdAt: Date.now() });
+  store.accounts.companies.push({ id: 'alphaway', name: 'Alphaway TMS', type: 'organization', status: 'active', createdAt: Date.now() });
+  store.accounts.users.push({ id: 'user-admin', email: process.env.ALPHAWAY_ADMIN_EMAIL.trim().toLowerCase(), name: 'Alphaway Administrator', role: 'admin', companyId: 'alphaway', status: 'active', passwordSalt: credentials.salt, passwordHash: credentials.hash, createdAt: Date.now() });
   persistStore();
 }
 
@@ -900,25 +901,53 @@ const server = http.createServer(async (request, response) => {
     }
     if (request.method === 'POST' && pathname === '/api/stripe/webhook') {
       const raw = await readRaw(request, 256 * 1024);
-      const signature = headerValue(request, 'stripe-signature');
-      if (!verifyStripeSignature(raw.toString('utf8'), signature)) throw reject(400, 'Invalid Stripe webhook signature.');
-      let event;
-      try {
-        event = JSON.parse(raw.toString('utf8'));
-      } catch {
-        throw reject(400, 'Stripe webhook payload is not valid JSON.');
-      }
-      if (event.type === 'checkout.session.completed' || event.type === 'customer.subscription.updated' || event.type === 'customer.subscription.deleted') {
-        store.operations.billingEvents = [...(store.operations.billingEvents || []), {
-          id: cleanText(event.id, operationId('billing-event'), 100),
-          type: cleanText(event.type, 'billing.event', 100),
-          customerId: cleanText(event.data?.object?.customer, '', 100),
-          subscriptionId: cleanText(event.data?.object?.subscription || event.data?.object?.id, '', 100),
-          status: cleanText(event.data?.object?.status, '', 40),
+      const event = billing.event(raw, headerValue(request, 'stripe-signature'));
+      const tracked = ['checkout.session.completed', 'customer.subscription.updated', 'customer.subscription.deleted'];
+      if (tracked.includes(event.type) && !store.operations.billingEvents.some((entry) => entry.id === event.id)) {
+        const object = event.data.object;
+        const stripeId = (value) => cleanText(typeof value === 'string' ? value : value?.id, '', 100);
+        const previousEvents = store.operations.billingEvents;
+        const previousSubscriptions = store.operations.billingSubscriptions;
+        const previousRevision = store.revision;
+        const subscriptionId = stripeId(event.type === 'checkout.session.completed' ? object.subscription : object.id);
+        const existingSubscription = previousSubscriptions.find((entry) => entry.id === subscriptionId);
+        const metadata = object.metadata || {};
+        store.operations.billingEvents = [...previousEvents, {
+          id: event.id, type: event.type,
+          customerId: stripeId(object.customer),
+          subscriptionId,
+          status: cleanText(object.status, '', 40),
+          paymentStatus: cleanText(object.payment_status, '', 40),
+          userId: cleanText(object.metadata?.userId, '', 100),
+          companyId: cleanText(object.metadata?.companyId, '', 100),
+          eventCreated: event.created,
           createdAt: Date.now()
         }].slice(-500);
+        if (subscriptionId) {
+          const nextSubscription = {
+            id: subscriptionId,
+            customerId: stripeId(object.customer) || existingSubscription?.customerId || '',
+            userId: cleanText(metadata.userId, existingSubscription?.userId || '', 100),
+            companyId: cleanText(metadata.companyId, existingSubscription?.companyId || '', 100),
+            plan: ['carrier', 'shipper', 'broker'].includes(metadata.plan) ? metadata.plan : existingSubscription?.plan || '',
+            status: event.type === 'customer.subscription.deleted'
+              ? 'canceled'
+              : cleanText(object.status, object.payment_status === 'paid' ? 'active' : existingSubscription?.status || 'pending', 40),
+            currentPeriodEnd: cleanNumber(object.current_period_end, existingSubscription?.currentPeriodEnd || 0, 0, Number.MAX_SAFE_INTEGER),
+            cancelAtPeriodEnd: Boolean(object.cancel_at_period_end),
+            updatedAt: Date.now()
+          };
+          store.operations.billingSubscriptions = [...previousSubscriptions.filter((entry) => entry.id !== subscriptionId), nextSubscription].slice(-500);
+        }
         store.revision += 1;
-        persistStore();
+        try { persistStore(); }
+        catch (error) {
+          // Leave retries eligible when the write fails.
+          store.operations.billingEvents = previousEvents;
+          store.operations.billingSubscriptions = previousSubscriptions;
+          store.revision = previousRevision;
+          throw error;
+        }
       }
       sendJson(response, 200, { received: true });
       return;
@@ -933,11 +962,29 @@ const server = http.createServer(async (request, response) => {
     }
     if (request.method === 'POST' && pathname === '/api/stripe/checkout') {
       requireJsonSameOrigin(request);
+      if (!hasNetworkAccess(request)) throw reject(403, 'An invitation code is required before Checkout.');
+      const actor = ACCOUNT_AUTH ? requireAccount(request, ['admin', 'carrier-owner', 'shipper', 'broker']) : null;
+      if (!consumeRateLimit(request, 'checkout', 12, AUTH_FAILURE_WINDOW_MS)) throw reject(429, 'Too many checkout attempts. Try again shortly.');
       const body = await readJson(request, 16 * 1024);
       const plan = cleanText(body?.plan, '', 20).toLowerCase();
       if (!['carrier', 'shipper', 'broker'].includes(plan)) throw reject(400, 'Choose a supported subscription plan.');
-      const checkout = await createStripeCheckout(plan, cleanText(body?.email, '', 160));
+      const email = actor?.email || cleanText(body?.email, '', 160);
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw reject(400, 'Enter a valid email address.');
+      const checkout = await billing.checkout(plan, email, actor, body?.requestId);
       sendJson(response, 200, checkout);
+      return;
+    }
+    if (request.method === 'GET' && pathname === '/api/stripe/subscription') {
+      const actor = ACCOUNT_AUTH ? requireAccount(request) : null;
+      sendJson(response, 200, { required: REQUIRE_SUBSCRIPTION, subscription: publicSubscription(subscriptionForUser(actor)) });
+      return;
+    }
+    if (request.method === 'POST' && pathname === '/api/stripe/portal') {
+      requireJsonSameOrigin(request);
+      const actor = requireAccount(request, ['carrier-owner', 'shipper', 'broker']);
+      const subscription = subscriptionForUser(actor);
+      if (!subscription?.customerId) throw reject(409, 'Complete Stripe Checkout before opening billing management.');
+      sendJson(response, 200, await billing.portal(subscription.customerId));
       return;
     }
     if (request.method === 'POST' && pathname === '/api/access') {
@@ -953,7 +1000,7 @@ const server = http.createServer(async (request, response) => {
       }
       const issuedAt = Date.now();
       const signature = crypto.createHmac('sha256', NETWORK_INVITE_CODE).update(String(issuedAt)).digest('hex');
-      const secure = request.socket.encrypted ? '; Secure' : '';
+      const secure = (SECURE_COOKIES || request.socket.encrypted) ? '; Secure' : '';
       sendJson(response, 200, { ok: true }, {
         'Set-Cookie': `${NETWORK_ACCESS_COOKIE}=${issuedAt}.${signature}; HttpOnly; SameSite=Strict; Path=/; Max-Age=604800${secure}`
       });
@@ -979,7 +1026,7 @@ const server = http.createServer(async (request, response) => {
       addAudit(user.id, 'account.signin', user.id);
       persistStore();
       sendJson(response, 200, { account: { id: user.id, name: user.name, email: user.email, role: user.role, companyId: user.companyId } }, {
-        'Set-Cookie': `${ACCOUNT_COOKIE}=${rawToken}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${ACCOUNT_SESSION_DAYS * 86400}${request.socket.encrypted ? '; Secure' : ''}`
+        'Set-Cookie': `${ACCOUNT_COOKIE}=${rawToken}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${ACCOUNT_SESSION_DAYS * 86400}${(SECURE_COOKIES || request.socket.encrypted) ? '; Secure' : ''}`
       });
       return;
     }
@@ -1002,15 +1049,18 @@ const server = http.createServer(async (request, response) => {
       store.accounts.sessions.push({ tokenHash: crypto.createHash('sha256').update(rawToken).digest('hex'), userId: user.id, expiresAt: Date.now() + ACCOUNT_SESSION_DAYS * 86400000 });
       persistStore();
       sendJson(response, 201, { account: { id: user.id, name, email: user.email, role: user.role, companyId: user.companyId } }, {
-        'Set-Cookie': `${ACCOUNT_COOKIE}=${rawToken}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${ACCOUNT_SESSION_DAYS * 86400}${request.socket.encrypted ? '; Secure' : ''}`
+        'Set-Cookie': `${ACCOUNT_COOKIE}=${rawToken}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${ACCOUNT_SESSION_DAYS * 86400}${(SECURE_COOKIES || request.socket.encrypted) ? '; Secure' : ''}`
       });
       return;
     }
     if (request.method === 'POST' && pathname === '/api/accounts/signout') {
+      requireJsonSameOrigin(request);
+      const tokenHash = crypto.createHash('sha256').update(parseCookies(request)[ACCOUNT_COOKIE] || '').digest('hex');
       const user = accountFromRequest(request);
+      store.accounts.sessions = store.accounts.sessions.filter((session) => session.tokenHash !== tokenHash);
       if (user) addAudit(user.id, 'account.signout', user.id);
+      persistStore();
       sendJson(response, 200, { ok: true }, { 'Set-Cookie': `${ACCOUNT_COOKIE}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0` });
-      if (user) persistStore();
       return;
     }
     if (request.method === 'GET' && pathname === '/api/accounts/me') {
@@ -1067,6 +1117,7 @@ const server = http.createServer(async (request, response) => {
     }
     if (request.method === 'GET' && pathname === '/api/operations') {
       const user = ACCOUNT_AUTH ? requireAccount(request) : null;
+      requirePaidSubscription(user);
       sendJson(response, 200, operationSnapshot(user));
       return;
     }
@@ -1085,6 +1136,7 @@ const server = http.createServer(async (request, response) => {
       }
       requireJsonSameOrigin(request);
       const actor = ACCOUNT_AUTH ? requireAccount(request, ['admin', 'dispatcher', 'carrier-owner', 'broker', 'shipper']) : null;
+      requirePaidSubscription(actor);
       if (!consumeRateLimit(request, 'operations', OPERATION_LIMIT, EVENT_WINDOW_MS)) {
         throw reject(429, 'Too many operations updates. Try again shortly.');
       }
@@ -1225,7 +1277,7 @@ setInterval(() => {
 }, 60000).unref();
 
 function shutdown(signal) {
-  console.log(`Received ${signal}; closing the Waypoint server.`);
+  console.log(`Received ${signal}; closing the Alphaway server.`);
   for (const response of sseClients) response.end();
   sseClients.clear();
   server.close(() => process.exit(0));
@@ -1236,7 +1288,7 @@ process.once('SIGINT', () => shutdown('SIGINT'));
 process.once('SIGTERM', () => shutdown('SIGTERM'));
 
 server.listen(PORT, BIND_HOST, () => {
-  console.log(`Waypoint app running at http://${BIND_HOST}:${PORT}`);
+  console.log(`Alphaway app running at http://${BIND_HOST}:${server.address().port}`);
   console.log(`Data store: ${DATA_FILE}`);
   console.log(`Preview access: ${REQUIRE_PREVIEW_AUTH ? 'enabled' : 'disabled (local default)'}`);
 });

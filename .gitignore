@@ -1,6 +1,8 @@
 # Runtime data is created by the local app and may contain operational requests.
 data/alphaway-store.json
 data/*.tmp
+data/
+!data/alphaway-private-demo.json
 Alphaway Logistics LLC _ Nationwide Freight & Dispatch_files/
 render-local.log
 render-local.err

@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Waypoint Freight freight command center and role-based workspaces.">
-  <title>Freight Command Center | Waypoint Freight</title>
+  <meta name="description" content="Alphaway TMS freight command center and role-based workspaces.">
+  <title>Freight Command Center | Alphaway TMS</title>
   <link href="./css2" rel="stylesheet">
   <link rel="stylesheet" href="./style.css">
   <script src="./script.js" defer></script>
@@ -13,11 +13,11 @@
 <body>
   <main class="page-shell portal-shell">
     <header class="topbar portal-topbar">
-      <a class="brand" href="./Waypoint Freight Operations _ Nationwide Freight & Dispatch.html" aria-label="Waypoint home">
-        <span class="brand-mark">A</span><span class="brand-copy"><span class="brand-name">Waypoint</span><small>Logistics LLC</small></span>
+      <a class="brand" href="./index.html" aria-label="Alphaway home">
+        <span class="brand-mark">A</span><span class="brand-copy"><span class="brand-name">Alphaway</span><small>TMS</small></span>
       </a>
       <nav class="main-nav" aria-label="Main navigation">
-        <a href="./Waypoint Freight Operations _ Nationwide Freight & Dispatch.html#plans">Pricing</a>
+        <a href="./index.html#plans">Pricing</a>
         <a href="./loadboard.html">Load board</a>
         <a href="./tms.html">Operations</a>
         <a href="./carrier-onboarding.html">Carrier portal</a>
@@ -29,11 +29,11 @@
       <div>
         <p class="eyebrow">Freight command center</p>
         <h1>One operating layer for every freight partner.</h1>
-        <p>Choose the workspace that matches your role, then move between freight, tracking, network, documents, and billing workflows without leaving the Waypoint system.</p>
+        <p>Choose the workspace that matches your role, then move between freight, tracking, network, documents, and billing workflows without leaving the Alphaway TMS system.</p>
       </div>
       <aside class="portal-callout">
         <span class="local-badge"><i aria-hidden="true"></i> Private authenticated access</span>
-        <strong>Built for the Alpha Way network</strong>
+        <strong>Built for the Alphaway TMS network</strong>
         <p>Access is limited to invited carriers, shippers, brokers, dispatchers, and approved organization users.</p>
       </aside>
     </section>
@@ -41,6 +41,20 @@
     <section class="portal-panel account-panel" aria-labelledby="accountTitle">
       <div><p class="eyebrow">Account access</p><h2 id="accountTitle">Sign in to your private company workspace</h2><p id="accountSummary" class="tool-note">Accounts are separated by company, role, and assignment scope.</p></div>
       <form id="signinForm" class="account-inline-form"><label><span>Email</span><input name="email" type="email" required></label><label><span>Password</span><input name="password" type="password" required></label><button class="primary-button" type="submit">Sign in</button><button class="ghost-button" id="signoutButton" type="button" hidden>Sign out</button><p id="signinStatus" class="form-status" role="status"></p></form>
+    </section>
+
+    <section class="portal-panel account-panel" aria-labelledby="subscriptionTitle">
+      <div>
+        <p class="eyebrow">Stripe subscription</p>
+        <h2 id="subscriptionTitle">Plan and billing management</h2>
+        <p id="subscriptionStatus" class="tool-note">Sign in to view your subscription.</p>
+      </div>
+      <div class="workspace-actions" id="subscriptionActions">
+        <button class="ghost-button" type="button" data-workspace-plan="carrier">Carrier · $599/month</button>
+        <button class="ghost-button" type="button" data-workspace-plan="shipper">Shipper · $799/month</button>
+        <button class="ghost-button" type="button" data-workspace-plan="broker">Broker · $299/month</button>
+        <button class="primary-button" id="manageBillingButton" type="button" hidden>Manage billing</button>
+      </div>
     </section>
 
     <section class="workspace-grid" aria-label="Role workspaces">
@@ -64,7 +78,7 @@
     <section class="module-grid" aria-label="Platform modules">
       <article class="portal-panel module-card"><span class="module-status">Connected demo</span><h2>Shipment and driver tracking</h2><p>Track assigned loads, route progress, ETA, and exceptions in the operations workspace.</p><a href="./loadboard.html#tmsTitle">View tracking →</a></article>
       <article class="portal-panel module-card"><span class="module-status planned-status">Next integration</span><h2>Broker network directory</h2><p>Approved broker profiles, lanes, contacts, and relationship notes will live here.</p><a href="./broker-intake.html">Add broker request →</a></article>
-      <article class="portal-panel module-card"><span class="module-status planned-status">Next integration</span><h2>Documents and billing</h2><p>Secure document collection, invoice review, and billing status are planned for the production backend.</p><a href="./carrier-agreement.html">Review safe intake rules →</a></article>
+      <article class="portal-panel module-card"><span class="module-status">Connected sandbox</span><h2>Documents and subscription billing</h2><p>Collect operations documents, create invoice records, start Stripe Checkout, and manage an existing sandbox subscription.</p><a href="#subscriptionTitle">View subscription billing →</a></article>
     </section>
 
     <section class="operations-tool-grid" aria-label="Connected operations tools">

@@ -28,9 +28,9 @@ const STRIPE_PRICE_IDS = Object.freeze({
   shipper: String(process.env.STRIPE_PRICE_SHIPPER || ''),
   broker: String(process.env.STRIPE_PRICE_BROKER || '')
 });
-const STRIPE_SUCCESS_URL = String(process.env.STRIPE_SUCCESS_URL || 'https://alphaway-logistics-preview.onrender.com/workspace.html?billing=success');
-const STRIPE_CANCEL_URL = String(process.env.STRIPE_CANCEL_URL || 'https://alphaway-logistics-preview.onrender.com/#plans');
-const HOME_PAGE = 'Alphaway Logistics LLC _ Nationwide Freight & Dispatch.html';
+const STRIPE_SUCCESS_URL = String(process.env.STRIPE_SUCCESS_URL || 'https://private-waypoint.invalid/workspace.html?billing=success');
+const STRIPE_CANCEL_URL = String(process.env.STRIPE_CANCEL_URL || 'https://private-waypoint.invalid/#plans');
+const HOME_PAGE = 'Waypoint Freight Operations _ Nationwide Freight & Dispatch.html';
 const MAX_JSON_BYTES = 1024 * 1024;
 const MAX_INTAKE_BYTES = 64 * 1024;
 const MAX_OPERATION_BYTES = 3 * 1024 * 1024;
@@ -234,14 +234,14 @@ function sendUnauthorized(response) {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store, private',
     Vary: 'Authorization',
-    'WWW-Authenticate': 'Basic realm="Alphaway Preview", charset="UTF-8"'
+    'WWW-Authenticate': 'Basic realm="Waypoint Preview", charset="UTF-8"'
   }));
   response.end(JSON.stringify({ error: 'Preview access is required.' }));
 }
 
 function sendNetworkAccessRequired(response) {
   sendJson(response, 403, { error: 'An invitation code is required to access the private carrier network.' }, {
-    'X-Alphaway-Private-Network': 'true'
+    'X-Waypoint-Private-Network': 'true'
   });
 }
 
@@ -410,8 +410,8 @@ function createStore() {
     intakes: [],
     operations: normalizeOperations(),
     accounts: normalizeAccounts(seeded ? {
-      companies: [{ id: 'alphaway', name: 'Alphaway Logistics LLC', type: 'organization', status: 'active' }],
-      users: [{ id: 'user-admin', email: adminEmail, name: 'Alphaway Administrator', role: 'admin', companyId: 'alphaway', status: 'active', passwordSalt: seeded.salt, passwordHash: seeded.hash }]
+      companies: [{ id: 'alphaway', name: 'Waypoint Freight Operations', type: 'organization', status: 'active' }],
+      users: [{ id: 'user-admin', email: adminEmail, name: 'Waypoint Administrator', role: 'admin', companyId: 'alphaway', status: 'active', passwordSalt: seeded.salt, passwordHash: seeded.hash }]
     } : {})
   };
 }
@@ -880,8 +880,8 @@ let store = readStore();
 
 if (ACCOUNT_AUTH && store.accounts.users.length === 0 && process.env.ALPHAWAY_ADMIN_EMAIL && process.env.ALPHAWAY_ADMIN_PASSWORD) {
   const credentials = hashPassword(process.env.ALPHAWAY_ADMIN_PASSWORD);
-  store.accounts.companies.push({ id: 'alphaway', name: 'Alphaway Logistics LLC', type: 'organization', status: 'active', createdAt: Date.now() });
-  store.accounts.users.push({ id: 'user-admin', email: process.env.ALPHAWAY_ADMIN_EMAIL.trim().toLowerCase(), name: 'Alphaway Administrator', role: 'admin', companyId: 'alphaway', status: 'active', passwordSalt: credentials.salt, passwordHash: credentials.hash, createdAt: Date.now() });
+  store.accounts.companies.push({ id: 'alphaway', name: 'Waypoint Freight Operations', type: 'organization', status: 'active', createdAt: Date.now() });
+  store.accounts.users.push({ id: 'user-admin', email: process.env.ALPHAWAY_ADMIN_EMAIL.trim().toLowerCase(), name: 'Waypoint Administrator', role: 'admin', companyId: 'alphaway', status: 'active', passwordSalt: credentials.salt, passwordHash: credentials.hash, createdAt: Date.now() });
   persistStore();
 }
 
@@ -1219,7 +1219,7 @@ setInterval(() => {
 }, 60000).unref();
 
 function shutdown(signal) {
-  console.log(`Received ${signal}; closing the Alphaway server.`);
+  console.log(`Received ${signal}; closing the Waypoint server.`);
   for (const response of sseClients) response.end();
   sseClients.clear();
   server.close(() => process.exit(0));
@@ -1230,7 +1230,7 @@ process.once('SIGINT', () => shutdown('SIGINT'));
 process.once('SIGTERM', () => shutdown('SIGTERM'));
 
 server.listen(PORT, BIND_HOST, () => {
-  console.log(`Alphaway app running at http://${BIND_HOST}:${PORT}`);
+  console.log(`Waypoint app running at http://${BIND_HOST}:${PORT}`);
   console.log(`Data store: ${DATA_FILE}`);
   console.log(`Preview access: ${REQUIRE_PREVIEW_AUTH ? 'enabled' : 'disabled (local default)'}`);
 });

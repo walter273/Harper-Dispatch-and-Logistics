@@ -1,6 +1,7 @@
+# Deployment paused pending written authorization and hosting review.
 services:
   - type: web
-    name: alphaway-logistics-preview
+    name: waypoint-freight-ops-private
     runtime: node
     plan: free
     region: oregon
@@ -53,6 +54,6 @@ services:
       - key: STRIPE_PRICE_BROKER
         sync: false
       - key: STRIPE_SUCCESS_URL
-        value: https://alphaway-logistics-preview.onrender.com/workspace.html?billing=success
+        value: https://private-waypoint.invalid/workspace.html?billing=success
       - key: STRIPE_CANCEL_URL
-        value: https://alphaway-logistics-preview.onrender.com/#plans
+        value: https://private-waypoint.invalid/#plans

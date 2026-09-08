@@ -1,6 +1,10 @@
-# Alphaway Logistics web app
+# Waypoint Freight Operations (private prototype)
 
-This folder runs a small Node web app for the Alphaway demo load board, shared dispatch messages, simulated GPS updates, and non-sensitive intake requests. The app stores its demo state in one JSON file so browser sessions connected to the same server see the same data.
+> Deployment is paused. This repository is a private prototype and must not be presented as any third-party company or connected to its domain until written authorization is obtained.
+
+# Waypoint Freight web app
+
+This folder runs a small Node web app for the Waypoint demo load board, shared dispatch messages, simulated GPS updates, and non-sensitive intake requests. The app stores its demo state in one JSON file so browser sessions connected to the same server see the same data.
 
 ## Run locally
 
@@ -12,16 +16,16 @@ npm start
 
 Open [http://127.0.0.1:4173/](http://127.0.0.1:4173/). Do not open the downloaded `file:///` pages when you need shared data; that mode intentionally uses a browser-only fallback.
 
-Local mode binds only to `127.0.0.1` and leaves preview authentication off. Runtime data is stored in `data/alphaway-store.json`, which is intentionally ignored by Git.
+Local mode binds only to `127.0.0.1` and leaves preview authentication off. Runtime data is stored in `data/waypoint-store.json`, which is intentionally ignored by Git.
 
 ## Password-protected hosted preview
 
 The project is prepared for a password-protected Render preview through [render.yaml](./render.yaml). It uses Render's free Node service and managed HTTPS. The free configuration stores the demo JSON state at `/tmp`, so shared changes can reset whenever the service restarts or redeploys.
 
-To publish the preview when you are ready:
+To resume a private deployment only after written authorization and a new hosting decision:
 
 1. Put this folder in a **private** Git repository. Do not commit `data/`, `.env`, passwords, or existing request data.
-2. In Render, create a Blueprint from that repository. The included blueprint deliberately has automatic deploys turned off.
+2. Do not create or activate a public hosting service from this repository while deployment is paused. The included blueprint deliberately has automatic deploys turned off.
 3. Set the four prompted secrets in Render's environment-variable UI, using long unique values:
    - `ALPHAWAY_PREVIEW_USERNAME`
    - `ALPHAWAY_PREVIEW_PASSWORD`
@@ -42,7 +46,7 @@ The hosted preview also enables the private-network gate. Carriers must enter th
 | Variable | Local default | Hosted preview value |
 | --- | --- | --- |
 | `ALPHAWAY_HOST` | `127.0.0.1` | `0.0.0.0` |
-| `ALPHAWAY_DATA_FILE` | `./data/alphaway-store.json` | `/tmp/alphaway-store.json` |
+| `ALPHAWAY_DATA_FILE` | `./data/waypoint-store.json` | `/tmp/waypoint-store.json` |
 | `ALPHAWAY_REQUIRE_AUTH` | `false` | `true` |
 | `ALPHAWAY_PREVIEW_USERNAME` | blank | secret |
 | `ALPHAWAY_PREVIEW_PASSWORD` | blank | secret |

@@ -1,8 +1,8 @@
 {
-  "name": "alphaway-logistics-web-app",
+  "name": "waypoint-freight-ops",
   "version": "0.1.0",
   "private": true,
-  "description": "Local full-stack Alphaway Logistics demo application.",
+  "description": "Local full-stack Waypoint Freight demo application.",
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js"

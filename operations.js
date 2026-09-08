@@ -1,6 +1,6 @@
 (() => {
-  const board = window.AlphawayLoadboard;
-  const boardStateKey = 'alphaway-loadboard-state';
+  const board = window.WaypointLoadboard;
+  const boardStateKey = 'waypoint-loadboard-state';
   const supportedEquipment = ['Dry Van', 'Reefer', 'Flatbed', 'Power Only'];
   const supportedStatuses = ['Hot', 'New', 'Available', 'Booked'];
   const defaultAssignments = [
@@ -143,8 +143,8 @@
             return field && safeValue ? `${formLabel(field)}: ${safeValue}` : null;
           })
           .filter(Boolean);
-        const subject = form.dataset.subject || 'Alphaway Logistics request';
-        const recipient = form.dataset.recipient || 'info@alphawaylogistics.com';
+        const subject = form.dataset.subject || 'Waypoint Freight request';
+        const recipient = form.dataset.recipient || 'support@waypoint-freight.invalid';
         const notice = form.dataset.notice || 'Opening a draft in your email app.';
 
         await board?.whenReady?.();
@@ -153,7 +153,7 @@
           try {
             await board.submitIntake({ type: form.dataset.requestType, fields });
             form.reset();
-            if (status) status.textContent = 'Request saved for the Alphaway team.';
+            if (status) status.textContent = 'Request saved for the Waypoint team.';
           } catch (error) {
             if (status) status.textContent = error.message || 'We could not save your request.';
           }
@@ -359,7 +359,7 @@
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = 'alphaway-demo-loads.json';
+      link.download = 'waypoint-demo-loads.json';
       link.click();
       window.setTimeout(() => URL.revokeObjectURL(url), 0);
       report(`${board.isServerConnected() ? 'Shared' : 'Local'} demo catalog exported.`);
@@ -386,7 +386,7 @@
     window.addEventListener('storage', (event) => {
       if (event.key === board.catalogStorageKey) updateTable();
     });
-    window.addEventListener('alphaway-app-updated', updateTable);
+    window.addEventListener('waypoint-app-updated', updateTable);
 
     clearForm();
     updateTable();
@@ -399,6 +399,6 @@
   window.addEventListener('storage', (event) => {
     if (event.key === boardStateKey || event.key === board?.catalogStorageKey) renderTmsOverview();
   });
-  window.addEventListener('alphaway-app-updated', renderTmsOverview);
+  window.addEventListener('waypoint-app-updated', renderTmsOverview);
   board?.whenReady?.().then(renderTmsOverview);
 })();

@@ -50,6 +50,7 @@ The server refuses hosted startup unless preview authentication, the private-net
 | `STRIPE_SECRET_KEY` | blank | Sandbox restricted/secret key, stored only in sealed host variables |
 | `STRIPE_ACCOUNT_ID` | sandbox account ID | `acct_1UDJTIKqpp58H3DU` |
 | `STRIPE_WEBHOOK_SECRET` | blank | signing secret for `POST /api/stripe/webhook` |
+| `STRIPE_PORTAL_CONFIGURATION_ID` | blank | reviewed sandbox customer-portal configuration ID |
 | `STRIPE_PRICE_CARRIER` | blank | recurring Stripe Price ID for the $599 Carrier plan |
 | `STRIPE_PRICE_SHIPPER` | blank | recurring Stripe Price ID for the $799 Shipper plan |
 | `STRIPE_PRICE_BROKER` | blank | recurring Stripe Price ID for the $299 Broker plan |

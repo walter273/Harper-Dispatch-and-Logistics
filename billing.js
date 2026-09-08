@@ -50,7 +50,6 @@ function createBilling(env = process.env, client) {
         const metadata = { plan, ...(actor ? { userId: actor.id, companyId: actor.companyId } : {}) };
         const session = await stripe.checkout.sessions.create({
           mode: 'subscription', ...urls,
-          integration_identifier: 'alphaway_tms_qmrxptza',
           line_items: [{ price: priceId, quantity: 1 }],
           metadata, subscription_data: { metadata },
           ...(actor ? { client_reference_id: actor.id } : {}),
@@ -85,7 +84,13 @@ function createBilling(env = process.env, client) {
         const account = await stripe.accounts.retrieve();
         if (account.id !== expectedAccount) throw fail(503, 'Stripe account configuration does not match this sandbox.');
         const returnUrl = new URL('/workspace.html', redirects().success_url).href;
-        const session = await stripe.billingPortal.sessions.create({ customer: customerId, return_url: returnUrl });
+        const configuration = env.STRIPE_PORTAL_CONFIGURATION_ID || '';
+        if (configuration && !/^bpc_[A-Za-z0-9]+$/.test(configuration)) throw fail(503, 'The Stripe customer portal configuration is invalid.');
+        const session = await stripe.billingPortal.sessions.create({
+          customer: customerId,
+          return_url: returnUrl,
+          ...(configuration ? { configuration } : {})
+        });
         const url = new URL(session.url);
         if (url.protocol !== 'https:' || !url.hostname.endsWith('.stripe.com')) throw new Error();
         return { url: session.url };

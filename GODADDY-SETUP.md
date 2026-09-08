@@ -34,6 +34,7 @@ Add these values in GoDaddy's environment or Secrets settings. Generate every pa
 | `STRIPE_SECRET_KEY` | sandbox secret or restricted key from account `acct_1UDJTIKqpp58H3DU` |
 | `STRIPE_ACCOUNT_ID` | `acct_1UDJTIKqpp58H3DU` |
 | `STRIPE_WEBHOOK_SECRET` | signing secret created for the exact hosted webhook endpoint |
+| `STRIPE_PORTAL_CONFIGURATION_ID` | sandbox portal configuration ID beginning with `bpc_` |
 | `STRIPE_PRICE_CARRIER` | `price_1UDWf7Kqpp58H3DU1oRYxBT0` |
 | `STRIPE_PRICE_SHIPPER` | `price_1UDWfCKqpp58H3DU1xjnfinA` |
 | `STRIPE_PRICE_BROKER` | `price_1UDWfGKqpp58H3DUgiOa6GtG` |

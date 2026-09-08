@@ -6,9 +6,9 @@ const { createBilling } = require('../billing');
 const env = { STRIPE_SECRET_KEY: ['sk', 'test', 'fixture'].join('_'), STRIPE_WEBHOOK_SECRET: crypto.randomBytes(32).toString('hex'), STRIPE_ACCOUNT_ID: 'acct_1UDJTIKqpp58H3DU', STRIPE_PRICE_CARRIER: 'price_fixture', STRIPE_PUBLIC_BASE_URL: 'https://app.example.com' };
 const id = crypto.randomUUID();
 function fixture(overrides = {}) {
-  const calls = [];
+  const calls = [], portalCalls = [];
   const price = { active: true, livemode: false, currency: 'usd', unit_amount: 59900, recurring: { interval: 'month', interval_count: 1, usage_type: 'licensed' }, ...overrides };
-  return { calls, accounts: { retrieve: async () => ({ id: 'acct_1UDJTIKqpp58H3DU' }) }, prices: { retrieve: async () => price }, checkout: { sessions: { create: async (...args) => { calls.push(args); return { id: 'cs_test_fixture', url: 'https://checkout.stripe.com/c/pay/fixture' }; } } }, billingPortal: { sessions: { create: async (params) => ({ id: 'bps_fixture', url: 'https://billing.stripe.com/p/session/fixture', params }) } } };
+  return { calls, portalCalls, accounts: { retrieve: async () => ({ id: 'acct_1UDJTIKqpp58H3DU' }) }, prices: { retrieve: async () => price }, checkout: { sessions: { create: async (...args) => { calls.push(args); return { id: 'cs_test_fixture', url: 'https://checkout.stripe.com/c/pay/fixture' }; } } }, billingPortal: { sessions: { create: async (params) => { portalCalls.push(params); return { id: 'bps_fixture', url: 'https://billing.stripe.com/p/session/fixture' }; } } } };
 }
 test('Checkout uses verified server price, account metadata and stable retry key', async () => {
   const client = fixture(); const billing = createBilling(env, client);
@@ -21,6 +21,7 @@ test('Checkout uses verified server price, account metadata and stable retry key
   assert.equal(params.subscription_data.metadata.companyId, 'company-1');
   assert.equal(params.client_reference_id, 'user-1');
   assert.equal(params.payment_method_types, undefined);
+  assert.equal(params.integration_identifier, undefined);
   assert.equal(options.idempotencyKey, client.calls[1][1].idempotencyKey);
 });
 test('missing configuration, live keys, wrong account, and incorrect prices cannot create Checkout', async () => {
@@ -42,6 +43,14 @@ test('redirect configuration cannot send users to another origin or hosted HTTP'
 test('Stripe failures are sanitized', async () => {
   const client = fixture(); client.checkout.sessions.create = async () => { throw new Error('confidential upstream payload'); };
   await assert.rejects(createBilling(env,client).checkout('carrier','',null,id), { statusCode: 502, message: 'Stripe Checkout is unavailable. Please retry shortly.' });
+});
+test('customer portal uses the reviewed configuration and same-origin return URL', async () => {
+  const client = fixture();
+  const billing = createBilling({ ...env, STRIPE_PORTAL_CONFIGURATION_ID: 'bpc_fixture' }, client);
+  const result = await billing.portal('cus_fixture');
+  assert.equal(result.url, 'https://billing.stripe.com/p/session/fixture');
+  assert.deepEqual(client.portalCalls, [{ customer: 'cus_fixture', return_url: 'https://app.example.com/workspace.html', configuration: 'bpc_fixture' }]);
+  await assert.rejects(createBilling({ ...env, STRIPE_PORTAL_CONFIGURATION_ID: 'invalid' }, fixture()).portal('cus_fixture'), { statusCode: 503 });
 });
 test('raw signed events support secret rotation and reject tampering, stale and live events', () => {
   const billing = createBilling({ STRIPE_WEBHOOK_SECRET: env.STRIPE_WEBHOOK_SECRET, STRIPE_ACCOUNT_ID: env.STRIPE_ACCOUNT_ID });

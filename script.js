@@ -531,14 +531,32 @@ const boardRoot = document.getElementById('originFilter');
 const signupForm = document.getElementById('signupForm');
 const signupStatus = document.getElementById('signupStatus');
 
-document.querySelectorAll('[data-plan].plan-request-button').forEach((button) => {
+document.querySelectorAll('[data-plan].plan-checkout-button').forEach((button) => {
   button.addEventListener('click', () => {
     const plan = button.dataset.plan;
     const planName = plan === 'carrier' ? 'Carrier Network' : plan === 'shipper' ? 'Shipper Control' : 'Broker Desk';
-    const planField = document.querySelector('#signupForm select[name=plan]');
-    if (planField) planField.value = planName;
-    window.location.hash = 'signup';
-    if (signupStatus) signupStatus.textContent = 'Request access for ' + planName + '; billing will be arranged manually.';
+    const email = document.querySelector('#signupForm input[name=email]')?.value.trim() || '';
+    button.disabled = true;
+    button.textContent = 'Opening secure checkout…';
+    fetch('/api/stripe/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ plan, email })
+    })
+      .then(async (response) => {
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.error || 'Checkout is unavailable.');
+        window.location.href = payload.url;
+      })
+      .catch((error) => {
+        button.disabled = false;
+        button.textContent = `Start ${planName} Checkout`;
+        if (signupStatus) {
+          signupStatus.textContent = error.message || 'Checkout is unavailable. Please request access instead.';
+          window.location.hash = 'signup';
+        }
+      });
   });
 });
 

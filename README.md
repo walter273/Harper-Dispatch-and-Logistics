@@ -59,6 +59,14 @@ The hosted preview also enables the private-network gate. Carriers must enter th
 | `ALPHAWAY_ACCOUNT_SESSION_SECRET` | derived local value | secret session-signing input |
 | `ALPHAWAY_ADMIN_EMAIL` | blank | initial administrator email |
 | `ALPHAWAY_ADMIN_PASSWORD` | blank | initial administrator password |
+| `STRIPE_SECRET_KEY` | blank | Stripe sandbox/live secret key, stored only in the host secret manager |
+| `STRIPE_WEBHOOK_SECRET` | blank | signing secret for `POST /api/stripe/webhook` |
+| `STRIPE_PRICE_CARRIER` | blank | recurring Stripe Price ID for the $599 Carrier plan |
+| `STRIPE_PRICE_SHIPPER` | blank | recurring Stripe Price ID for the $799 Shipper plan |
+| `STRIPE_PRICE_BROKER` | blank | recurring Stripe Price ID for the $299 Broker plan |
+| `STRIPE_PUBLIC_BASE_URL` | `http://127.0.0.1:4173` | public HTTPS app origin used for Checkout redirects |
+
+Stripe Checkout is server-side only. Configure all Stripe values in the hosting provider's secret environment UI; never place secret keys in HTML, browser JavaScript, Git, or GoDaddy DNS settings. Use the same Stripe account and mode for the secret key, Price IDs, and webhook endpoint.
 
 For a local password test in PowerShell, set the values only in the current shell before running `npm start`:
 

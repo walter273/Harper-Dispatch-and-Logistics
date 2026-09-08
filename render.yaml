@@ -43,17 +43,3 @@ services:
         sync: false
       - key: ALPHAWAY_ADMIN_PASSWORD
         sync: false
-      - key: STRIPE_SECRET_KEY
-        sync: false
-      - key: STRIPE_WEBHOOK_SECRET
-        sync: false
-      - key: STRIPE_PRICE_CARRIER
-        sync: false
-      - key: STRIPE_PRICE_SHIPPER
-        sync: false
-      - key: STRIPE_PRICE_BROKER
-        sync: false
-      - key: STRIPE_SUCCESS_URL
-        value: https://private-waypoint.invalid/workspace.html?billing=success
-      - key: STRIPE_CANCEL_URL
-        value: https://private-waypoint.invalid/#plans

@@ -21,15 +21,6 @@ const ACCOUNT_COOKIE = 'alphaway_account';
 const ACCOUNT_SESSION_DAYS = 7;
 const FMCSA_API_KEY = String(process.env.ALPHAWAY_FMCSA_QCMOBILE_KEY || '');
 const FMCSA_BASE_URL = String(process.env.ALPHAWAY_FMCSA_BASE_URL || 'https://mobile.fmcsa.dot.gov/qc/services').replace(/\/+$/, '');
-const STRIPE_SECRET_KEY = String(process.env.STRIPE_SECRET_KEY || '');
-const STRIPE_WEBHOOK_SECRET = String(process.env.STRIPE_WEBHOOK_SECRET || '');
-const STRIPE_PRICE_IDS = Object.freeze({
-  carrier: String(process.env.STRIPE_PRICE_CARRIER || ''),
-  shipper: String(process.env.STRIPE_PRICE_SHIPPER || ''),
-  broker: String(process.env.STRIPE_PRICE_BROKER || '')
-});
-const STRIPE_SUCCESS_URL = String(process.env.STRIPE_SUCCESS_URL || 'https://private-waypoint.invalid/workspace.html?billing=success');
-const STRIPE_CANCEL_URL = String(process.env.STRIPE_CANCEL_URL || 'https://private-waypoint.invalid/#plans');
 const HOME_PAGE = 'Waypoint Freight Operations _ Nationwide Freight & Dispatch.html';
 const MAX_JSON_BYTES = 1024 * 1024;
 const MAX_INTAKE_BYTES = 64 * 1024;
@@ -514,15 +505,7 @@ function normalizeOperations(candidate) {
     dueDate: cleanText(invoice?.dueDate, '', 10),
     createdAt: cleanNumber(invoice?.createdAt, Date.now(), 0, Number.MAX_SAFE_INTEGER)
   })).filter((invoice) => invoice.customer) : [];
-  const stripeEvents = Array.isArray(source.stripeEvents) ? source.stripeEvents.slice(-500).map((event) => ({
-    id: cleanText(event?.id, '', 100),
-    type: cleanText(event?.type, 'stripe.event', 100),
-    customerId: cleanText(event?.customerId, '', 100),
-    subscriptionId: cleanText(event?.subscriptionId, '', 100),
-    status: cleanText(event?.status, '', 40),
-    createdAt: cleanNumber(event?.createdAt, Date.now(), 0, Number.MAX_SAFE_INTEGER)
-  })).filter((event) => event.id) : [];
-  return { documents, assignments, invoices, brokerSearches: Array.isArray(source.brokerSearches) ? source.brokerSearches.slice(-100) : [], stripeEvents };
+  return { documents, assignments, invoices, brokerSearches: Array.isArray(source.brokerSearches) ? source.brokerSearches.slice(-100) : [] };
 }
 
 const ACCOUNT_ROLES = new Set(['admin', 'dispatcher', 'carrier-owner', 'driver', 'broker', 'shipper']);
@@ -727,41 +710,6 @@ function operationId(prefix) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-async function createStripeCheckout(plan, customerEmail = '') {
-  if (!STRIPE_SECRET_KEY) throw reject(503, 'Stripe is not configured yet.');
-  const priceId = STRIPE_PRICE_IDS[plan];
-  if (!priceId) throw reject(503, `Stripe price is not configured for the ${plan} plan.`);
-  const params = new URLSearchParams({
-    mode: 'subscription',
-    success_url: STRIPE_SUCCESS_URL,
-    cancel_url: STRIPE_CANCEL_URL,
-    'line_items[0][price]': priceId,
-    'line_items[0][quantity]': '1',
-    'subscription_data[metadata][plan]': plan
-  });
-  if (customerEmail) params.set('customer_email', customerEmail);
-  const upstream = await fetch('https://api.stripe.com/v1/checkout/sessions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${STRIPE_SECRET_KEY}`,
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-    body: params
-  });
-  const payload = await upstream.json().catch(() => ({}));
-  if (!upstream.ok || !payload.url) throw reject(502, payload.error?.message || 'Stripe could not create checkout.');
-  return { url: payload.url, sessionId: payload.id };
-}
-
-function verifyStripeSignature(payload, signature) {
-  if (!STRIPE_WEBHOOK_SECRET || !signature) return false;
-  const timestamp = signature.match(/t=(\d+)/)?.[1];
-  const received = [...signature.matchAll(/v1=([a-f0-9]+)/g)].map((match) => match[1]);
-  if (!timestamp || received.length === 0 || Math.abs(Date.now() / 1000 - Number(timestamp)) > 300) return false;
-  const expected = crypto.createHmac('sha256', STRIPE_WEBHOOK_SECRET).update(`${timestamp}.${payload}`).digest('hex');
-  return received.some((candidate) => timingSafeTextEqual(candidate, expected));
-}
-
 async function lookupFmcsaBroker(query) {
   if (!FMCSA_API_KEY) {
     return { configured: false, message: 'Set ALPHAWAY_FMCSA_QCMOBILE_KEY to enable live FMCSA lookup.' };
@@ -796,24 +744,6 @@ function readJson(request, maximumBytes) {
         rejectPromise(reject(400, 'Request body must be valid JSON.'));
       }
     });
-    request.on('error', rejectPromise);
-  });
-}
-
-function readRaw(request, maximumBytes) {
-  return new Promise((resolve, rejectPromise) => {
-    const chunks = [];
-    let byteCount = 0;
-    request.on('data', (chunk) => {
-      byteCount += chunk.length;
-      if (byteCount > maximumBytes) {
-        rejectPromise(reject(413, 'Request is too large.'));
-        request.destroy();
-        return;
-      }
-      chunks.push(chunk);
-    });
-    request.on('end', () => resolve(Buffer.concat(chunks)));
     request.on('error', rejectPromise);
   });
 }
@@ -897,41 +827,12 @@ const server = http.createServer(async (request, response) => {
       sendJson(response, 200, { ok: true });
       return;
     }
-    if (request.method === 'POST' && pathname === '/api/stripe/webhook') {
-      const raw = await readRaw(request, 256 * 1024);
-      const signature = headerValue(request, 'stripe-signature');
-      if (!verifyStripeSignature(raw.toString('utf8'), signature)) throw reject(400, 'Invalid Stripe webhook signature.');
-      const event = JSON.parse(raw.toString('utf8'));
-      if (event.type === 'checkout.session.completed' || event.type === 'customer.subscription.updated' || event.type === 'customer.subscription.deleted') {
-        store.operations.stripeEvents = [...(store.operations.stripeEvents || []), {
-          id: cleanText(event.id, operationId('stripe-event'), 100),
-          type: cleanText(event.type, 'stripe.event', 100),
-          customerId: cleanText(event.data?.object?.customer, '', 100),
-          subscriptionId: cleanText(event.data?.object?.subscription || event.data?.object?.id, '', 100),
-          status: cleanText(event.data?.object?.status, '', 40),
-          createdAt: Date.now()
-        }].slice(-500);
-        store.revision += 1;
-        persistStore();
-      }
-      sendJson(response, 200, { received: true });
-      return;
-    }
     if (!hasPreviewAccess(request)) {
       if (!consumeRateLimit(request, 'auth', AUTH_FAILURE_LIMIT, AUTH_FAILURE_WINDOW_MS)) {
         sendJson(response, 429, { error: 'Too many authentication attempts. Try again shortly.' });
       } else {
         sendUnauthorized(response);
       }
-      return;
-    }
-    if (request.method === 'POST' && pathname === '/api/stripe/checkout') {
-      requireJsonSameOrigin(request);
-      const body = await readJson(request, 16 * 1024);
-      const plan = cleanText(body?.plan, '', 20).toLowerCase();
-      if (!['carrier', 'shipper', 'broker'].includes(plan)) throw reject(400, 'Choose a supported subscription plan.');
-      const checkout = await createStripeCheckout(plan, cleanText(body?.email, '', 160));
-      sendJson(response, 200, checkout);
       return;
     }
     if (request.method === 'POST' && pathname === '/api/access') {

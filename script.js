@@ -531,27 +531,14 @@ const boardRoot = document.getElementById('originFilter');
 const signupForm = document.getElementById('signupForm');
 const signupStatus = document.getElementById('signupStatus');
 
-document.querySelectorAll('[data-plan].checkout-button').forEach((button) => {
-  button.addEventListener('click', async () => {
+document.querySelectorAll('[data-plan].plan-request-button').forEach((button) => {
+  button.addEventListener('click', () => {
     const plan = button.dataset.plan;
-    const email = document.querySelector('#signupForm input[name="email"]')?.value.trim() || '';
-    button.disabled = true;
-    button.textContent = 'Opening secure checkout…';
-    try {
-      const response = await fetch('./api/stripe/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan, email })
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload.error || 'Stripe checkout is not available yet.');
-      window.location.href = payload.url;
-    } catch (error) {
-      window.location.hash = 'signup';
-      if (signupStatus) signupStatus.textContent = error.message;
-      button.disabled = false;
-      button.textContent = plan === 'carrier' ? 'Choose Carrier Network' : plan === 'shipper' ? 'Choose Shipper Control' : 'Choose Broker Desk';
-    }
+    const planName = plan === 'carrier' ? 'Carrier Network' : plan === 'shipper' ? 'Shipper Control' : 'Broker Desk';
+    const planField = document.querySelector('#signupForm select[name=plan]');
+    if (planField) planField.value = planName;
+    window.location.hash = 'signup';
+    if (signupStatus) signupStatus.textContent = 'Request access for ' + planName + '; billing will be arranged manually.';
   });
 });
 

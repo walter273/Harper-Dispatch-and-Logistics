@@ -54,6 +54,7 @@ const STATIC_FILES = new Set([
   'broker-intake.html',
   'contact-portal.html',
   'style.css',
+  'assets/alphaway-dispatch-office.jpg',
   'script.js',
   'operations.js',
   'css2'

@@ -99,3 +99,22 @@ test('subscription webhook activates paid operations access for a linked account
   assert.equal(subscription.subscription.status,'active');
   assert.equal(subscription.subscription.customerId,undefined);
 });
+
+
+test('account auth protects intakes and catalog even without preview basic auth', async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'alphaway-access-test-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const password = crypto.randomBytes(24).toString('hex');
+  const app = await start({ ALPHAWAY_DATA_FILE: path.join(dir, 'store.json'), ALPHAWAY_ACCOUNT_AUTH: 'true', ALPHAWAY_ADMIN_EMAIL: 'admin@example.com', ALPHAWAY_ADMIN_PASSWORD: password, RAILWAY_ENVIRONMENT_ID: 'test-environment' });
+  t.after(() => app.stop());
+  const post = (route, body, cookie = '') => fetch(app.url + route, { method: 'POST', headers: { 'content-type': 'application/json', cookie }, body: JSON.stringify(body) });
+  assert.equal((await fetch(app.url + '/api/intakes')).status, 403);
+  assert.equal((await post('/api/events', { type: 'catalog.reset', baseRevision: 0 })).status, 401);
+  const signin = await post('/api/accounts/signin', { email: 'admin@example.com', password });
+  assert.equal(signin.status, 200);
+  assert.match(signin.headers.get('set-cookie'), /; Secure/);
+  const cookie = signin.headers.get('set-cookie').split(';')[0];
+  assert.equal((await fetch(app.url + '/api/intakes', { headers: { cookie } })).status, 200);
+  const snapshot = await (await fetch(app.url + '/api/app')).json();
+  assert.equal((await post('/api/events', { type: 'catalog.reset', baseRevision: snapshot.revision }, cookie)).status, 200);
+});

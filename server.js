@@ -6,7 +6,7 @@ const { URL } = require('node:url');
 const { createBilling } = require('./billing');
 const billing = createBilling();
 const HOSTED = process.env.NODE_ENV === 'production';
-const SECURE_COOKIES = HOSTED;
+const SECURE_COOKIES = HOSTED || Boolean(process.env.RAILWAY_ENVIRONMENT_ID);
 
 const ROOT_DIR = __dirname;
 const PORT = Number(process.env.PORT || 4173);
@@ -182,6 +182,7 @@ function hasPreviewAccess(request) {
 }
 
 function hasIntakeReadAccess(request) {
+  if (ACCOUNT_AUTH) return ['admin', 'dispatcher'].includes(accountFromRequest(request)?.role);
   if (!REQUIRE_PREVIEW_AUTH) return true;
   return Boolean(PREVIEW_ADMIN_TOKEN)
     && timingSafeTextEqual(headerValue(request, 'x-alphaway-admin-token'), PREVIEW_ADMIN_TOKEN);
@@ -1203,13 +1204,17 @@ const server = http.createServer(async (request, response) => {
       if (!consumeRateLimit(request, 'events', EVENT_LIMIT, EVENT_WINDOW_MS)) {
         throw reject(429, 'Too many updates. Try again shortly.');
       }
+      if (ACCOUNT_AUTH) requireAccount(request);
       const event = await readJson(request, MAX_JSON_BYTES);
+      if (ACCOUNT_AUTH && (event?.type?.startsWith('catalog.') || event?.type?.startsWith('tms.'))) {
+        requireAccount(request, ['admin', 'dispatcher']);
+      }
       sendJson(response, 200, { snapshot: acceptEvent(event) });
       return;
     }
     if (request.method === 'GET' && pathname === '/api/intakes') {
       if (!hasIntakeReadAccess(request)) {
-        sendJson(response, 403, { error: 'An administrator token is required to view intake requests.' });
+        sendJson(response, 403, { error: 'Authorized staff access is required to view intake requests.' });
         return;
       }
       sendJson(response, 200, { intakes: store.intakes.slice(-30).reverse() });

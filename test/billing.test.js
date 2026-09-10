@@ -67,8 +67,9 @@ test('raw signed events support secret rotation and reject tampering, stale and 
 
 
 test('live mode requires explicit server configuration and matching live resources', async () => {
-  const liveEnv = {...env, STRIPE_MODE:'live', STRIPE_SECRET_KEY:['sk','live','fixture'].join('_')};
+  const liveEnv = {...env, STRIPE_MODE:'live', STRIPE_SECRET_KEY:['sk','live','fixture'].join('_'), STRIPE_LIVE_PAYMENTS_ENABLED:'true', STRIPE_PORTAL_CONFIGURATION_ID:'bpc_fixture'};
   const client = fixture({livemode:true});
+  client.accounts.retrieve = async () => ({ id: env.STRIPE_ACCOUNT_ID, charges_enabled: true });
   await createBilling(liveEnv, client).checkout('dispatch-basic','', {id:'u',companyId:'c'}, id);
   assert.equal(client.calls.length,1);
   await assert.rejects(createBilling(liveEnv,fixture()).checkout('dispatch-basic','',null,id),{statusCode:503});
@@ -80,6 +81,35 @@ test('live mode requires explicit server configuration and matching live resourc
   assert.equal(billing.event(Buffer.from(raw),sign(raw)).id,'evt_live');
   const wrong=JSON.stringify({...payload,livemode:false});
   assert.throws(()=>billing.event(Buffer.from(wrong),sign(wrong)),{statusCode:400});
+});
+
+test('installing a live key does not enable collection, but preserves cancellation and webhooks', async () => {
+  const liveEnv = {...env, STRIPE_MODE:'live', STRIPE_SECRET_KEY:['sk','live','fixture'].join('_'), STRIPE_PORTAL_CONFIGURATION_ID:'bpc_fixture'};
+  const client = fixture({livemode:true});
+  client.accounts.retrieve = async () => ({ id: env.STRIPE_ACCOUNT_ID, charges_enabled: true });
+  for (const enabled of [undefined, 'false', 'TRUE']) {
+    const billing = createBilling({...liveEnv, STRIPE_LIVE_PAYMENTS_ENABLED:enabled}, client);
+    assert.equal(billing.ready, false);
+    await assert.rejects(billing.checkout('dispatch-basic', '', null, id), {statusCode:503});
+    await billing.portal('cus_fixture');
+  }
+  assert.equal(client.calls.length, 0);
+  assert.equal(client.portalCalls.length, 3);
+  const enabled = {...liveEnv, STRIPE_LIVE_PAYMENTS_ENABLED:'true'};
+  assert.equal(createBilling(enabled,client).ready, true);
+  for (const portalId of ['', 'invalid']) {
+    const billing = createBilling({...enabled, STRIPE_PORTAL_CONFIGURATION_ID:portalId}, client);
+    assert.equal(billing.ready, false);
+    await assert.rejects(billing.checkout('dispatch-basic', '', null, id), {statusCode:503});
+  }
+  client.accounts.retrieve = async () => ({ id: env.STRIPE_ACCOUNT_ID, charges_enabled: false });
+  await assert.rejects(createBilling(enabled,client).checkout('dispatch-basic', '', null, id), {statusCode:503});
+  assert.equal(client.calls.length, 0);
+  const billing = createBilling(liveEnv);
+  const payload = {id:'evt_live_disabled',type:'customer.subscription.deleted',created:Math.floor(Date.now()/1000),livemode:true,data:{object:{id:'sub_fixture'}}};
+  const raw = JSON.stringify(payload);
+  const signature = `t=${payload.created},v1=${crypto.createHmac('sha256',env.STRIPE_WEBHOOK_SECRET).update(`${payload.created}.${raw}`).digest('hex')}`;
+  assert.equal(billing.event(Buffer.from(raw),signature).id, payload.id);
 });
 
 

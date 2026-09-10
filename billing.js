@@ -9,6 +9,9 @@ const fail = (statusCode, message) => Object.assign(new Error(message), { status
 function createBilling(env = process.env, client) {
   const key = env.STRIPE_SECRET_KEY || '';
   const live = env.STRIPE_MODE === 'live';
+  // Installing credentials must not start collection before the launch checks pass.
+  const collectionEnabled = !live || env.STRIPE_LIVE_PAYMENTS_ENABLED === 'true';
+  const portalConfigured = /^bpc_[A-Za-z0-9]+$/.test(env.STRIPE_PORTAL_CONFIGURATION_ID || '');
   const keyMatchesMode = () => (live ? /^[sr]k_live_/ : /^[sr]k_test_/).test(key);
   const expectedAccount = env.STRIPE_ACCOUNT_ID || '';
   const stripe = client || (key ? new Stripe(key, { timeout: 10000, maxNetworkRetries: 1 }) : null);
@@ -32,7 +35,7 @@ function createBilling(env = process.env, client) {
     }
   }
   return {
-    ready: Boolean(stripe && key && keyMatchesMode() && expectedAccount && env.STRIPE_WEBHOOK_SECRET),
+    ready: Boolean(stripe && key && keyMatchesMode() && expectedAccount && env.STRIPE_WEBHOOK_SECRET && collectionEnabled && (!live || portalConfigured)),
     async checkout(plan, email, actor, requestId, options = {}) {
       const dispatch = isDispatchPlan(plan);
       if (dispatch && options.billingMethod !== undefined && options.billingMethod !== 'weekly') throw fail(400, 'Percentage billing requires a dispatch review request, not a weekly subscription.');
@@ -41,6 +44,8 @@ function createBilling(env = process.env, client) {
       if (!Object.hasOwn(AMOUNTS, plan)) throw fail(400, 'Choose a supported subscription plan.');
       if (!stripe || !key) throw fail(503, 'Stripe is not configured yet.');
       if (!keyMatchesMode()) throw fail(503, 'Stripe key does not match the configured payment mode.');
+      if (!collectionEnabled) throw fail(503, 'Live payments are awaiting the final billing and tax checks.');
+      if (live && !portalConfigured) throw fail(503, 'The Stripe customer portal must be configured before accepting live payments.');
       if (!/^acct_[A-Za-z0-9]+$/.test(expectedAccount)) throw fail(503, 'The Stripe account ID is not configured.');
       const priceId = env[`STRIPE_PRICE_${plan.toUpperCase().replaceAll('-', '_')}`];
       if (!priceId) throw fail(503, `Stripe price is not configured for the ${plan} plan.`);
@@ -49,7 +54,7 @@ function createBilling(env = process.env, client) {
       const urls = redirects();
       try {
         const [account, price] = await Promise.all([stripe.accounts.retrieve(), stripe.prices.retrieve(priceId)]);
-        if (account.id !== expectedAccount || price.livemode !== live || !price.active
+        if (account.id !== expectedAccount || (live && account.charges_enabled !== true) || price.livemode !== live || !price.active
           || price.currency !== 'usd' || price.unit_amount !== AMOUNTS[plan]
           || price.recurring?.interval !== (dispatch ? 'week' : 'month') || price.recurring?.interval_count !== 1
           || price.recurring?.usage_type !== 'licensed') {
@@ -104,6 +109,7 @@ function createBilling(env = process.env, client) {
         if (account.id !== expectedAccount) throw fail(503, 'Stripe account configuration does not match the configured payment mode.');
         const returnUrl = new URL('/workspace.html', redirects().success_url).href;
         const configuration = env.STRIPE_PORTAL_CONFIGURATION_ID || '';
+        if (live && !configuration) throw fail(503, 'The Stripe customer portal is not configured yet.');
         if (configuration && !/^bpc_[A-Za-z0-9]+$/.test(configuration)) throw fail(503, 'The Stripe customer portal configuration is invalid.');
         const session = await stripe.billingPortal.sessions.create({
           customer: customerId,

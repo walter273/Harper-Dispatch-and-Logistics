@@ -8,7 +8,9 @@
     "build": "node --check server.js && node --check billing.js && node --check script.js && node --check workspace.js && node --check account-nav.js && node --check storage.js && node --check subscription-state.js && node --check dispatch-plans.js && node --check dispatch-ui.js && node --check operations.js",
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "node --test"
+    "test": "node --test",
+    "stripe:review": "node scripts/stripe-readiness.js",
+    "stripe:configure-portal": "node scripts/stripe-readiness.js --configure-portal"
   },
   "engines": {
     "node": ">=20"

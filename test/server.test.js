@@ -12,7 +12,8 @@ async function start(extra = {}) {
   const child = spawn(process.execPath, ['--max-old-space-size=128', 'server.js'], { cwd: path.resolve(__dirname,'..'), env: {...env, PORT:'0', ALPHAWAY_HOST:'127.0.0.1', ...extra}, windowsHide: true });
   let output = '', errors = '';
   const url = await new Promise((resolve,reject) => {
-    const timer = setTimeout(() => { child.kill(); reject(new Error(`Server startup timed out: ${errors}`)); },45000);
+    const startupTimeout = Math.min(180000, Math.max(45000, Number(process.env.ALPHAWAY_TEST_STARTUP_TIMEOUT_MS) || 45000));
+    const timer = setTimeout(() => { child.kill(); reject(new Error(`Server startup timed out: ${errors || output}`)); },startupTimeout);
     child.stdout.on('data', chunk => { output += chunk; const match = output.match(/http:\/\/127\.0\.0\.1:\d+/); if (match) { clearTimeout(timer); resolve(match[0]); } });
     child.stderr.on('data', chunk => { errors += chunk; });
     child.once('exit', () => { clearTimeout(timer); reject(new Error(`Server exited before ready: ${errors}`)); });
@@ -84,7 +85,7 @@ test('hosted preview gates Checkout, secures cookies, and revokes signed-out ses
   assert.equal((await fetch(`${app.url}/api/stripe/webhook`,{method:'POST',body:'{}'})).status,503);
 });
 
-test('subscription webhook activates paid operations access for a linked account', async (t) => {
+test('subscription webhooks retain access until cancellation completes, then revoke it', async (t) => {
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'alphaway-subscription-test-')); t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
   const password=crypto.randomBytes(24).toString('hex'), inviteCode=crypto.randomBytes(24).toString('hex'), webhookSecret=crypto.randomBytes(32).toString('hex');
   const app=await start({NODE_ENV:'production',ALPHAWAY_DATA_FILE:path.join(dir,'store.json'),ALPHAWAY_REQUIRE_AUTH:'true',ALPHAWAY_PREVIEW_USERNAME:'review',ALPHAWAY_PREVIEW_PASSWORD:password,ALPHAWAY_PRIVATE_NETWORK:'true',ALPHAWAY_NETWORK_INVITE_CODE:inviteCode,ALPHAWAY_ACCOUNT_AUTH:'true',ALPHAWAY_REQUIRE_SUBSCRIPTION:'true',ALPHAWAY_ADMIN_EMAIL:'admin@example.com',ALPHAWAY_ADMIN_PASSWORD:password,STRIPE_ACCOUNT_ID:'acct_1UDJTIKqpp58H3DU',STRIPE_WEBHOOK_SECRET:webhookSecret});
@@ -105,6 +106,22 @@ test('subscription webhook activates paid operations access for a linked account
   const subscription=await (await fetch(`${app.url}/api/stripe/subscription`,{headers:{...basic,cookie:carrierCookie}})).json();
   assert.equal(subscription.subscription.status,'active');
   assert.equal(subscription.subscription.customerId,undefined);
+  async function deliver(value) {
+    const body=JSON.stringify(value), signedAt=Math.floor(Date.now()/1000);
+    const digest=crypto.createHmac('sha256',webhookSecret).update(`${signedAt}.${body}`).digest('hex');
+    return fetch(`${app.url}/api/stripe/webhook`,{method:'POST',headers:{'stripe-signature':`t=${signedAt},v1=${digest}`},body});
+  }
+  const scheduled={...event,id:'evt_cancel_scheduled',created:event.created+1,data:{object:{...event.data.object,cancel_at_period_end:true}}};
+  assert.equal((await deliver(scheduled)).status,200);
+  const pendingCancel=await (await fetch(`${app.url}/api/stripe/subscription`,{headers:{...basic,cookie:carrierCookie}})).json();
+  assert.equal(pendingCancel.subscription.cancelAtPeriodEnd,true);
+  assert.equal((await fetch(`${app.url}/api/operations`,{headers:{...basic,cookie:carrierCookie}})).status,200);
+  const ended={...scheduled,id:'evt_cancel_completed',type:'customer.subscription.deleted',created:event.created+2,data:{object:{...scheduled.data.object,status:'canceled'}}};
+  assert.equal((await deliver(ended)).status,200);
+  assert.equal((await fetch(`${app.url}/api/operations`,{headers:{...basic,cookie:carrierCookie}})).status,402);
+  assert.equal((await deliver({...event,id:'evt_late_active'})).status,200);
+  assert.equal((await fetch(`${app.url}/api/operations`,{headers:{...basic,cookie:carrierCookie}})).status,402);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dir,'store.json'))).operations.billingSubscriptions[0].status,'canceled');
 });
 
 

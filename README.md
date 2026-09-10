@@ -47,6 +47,7 @@ Account authentication protects private operations. Public pages and the public 
 | `ALPHAWAY_ADMIN_PASSWORD` | blank | initial administrator password |
 | `STRIPE_SECRET_KEY` | blank | Server-only key matching STRIPE_MODE, stored in host variables |
 | `STRIPE_MODE` | `test` | `live` only with reviewed live resources |
+| `STRIPE_LIVE_PAYMENTS_ENABLED` | `false` | Set to `true` only after tax review and a real sandbox payment/cancellation test; leaves existing customer portals and webhooks available |
 | `STRIPE_ACCOUNT_ID` | blank | Stripe account matching the configured mode |
 | `STRIPE_WEBHOOK_SECRET` | blank | signing secret for `POST /api/stripe/webhook` |
 | `STRIPE_PORTAL_CONFIGURATION_ID` | blank | reviewed customer-portal configuration ID matching the configured mode |
@@ -94,3 +95,5 @@ Hosting references and the current setup steps are in [GODADDY-SETUP.md](./GODAD
 Basic is $300 per truck per week or 5%; Standard is $500 or 7%; Premium is $700 or 10%. Customers choose one billing method. App access is included, with $150 one-time fleet onboarding. The former Carrier Network offer is unavailable for new checkout; existing subscription records remain readable.
 
 Weekly billing uses Stripe subscription Checkout. Percentage billing uses a persistent, company-scoped review request and does not create a Stripe subscription, charge, customer, or paid entitlement. Staff review public onboarding requests in Admin and signed-in percentage requests in the workspace. Revenue import, invoice issuance and contract activation are not automated. Refer to carrier-agreement.html for the selected revenue basis and pause terms. Approve customer accounts for billing only after the signed agreement and service capacity are confirmed.
+
+Run `npm run stripe:review` on a trusted server with its Stripe environment variables to check account activation, configured prices, the portal, and tax settings without changing Stripe. `npm run stripe:configure-portal` creates or updates a dedicated Alphaway portal with invoice access, payment-method updates, and cancellation at the end of the paid period. It prints the configuration ID to install as `STRIPE_PORTAL_CONFIGURATION_ID`; it does not enable payments, register for tax, or claim an end-to-end test. The setup command needs additional Billing Portal configuration write and Tax read permissions beyond the runtime key's Checkout/portal-session permissions. See [STRIPE-LAUNCH-REVIEW.md](STRIPE-LAUNCH-REVIEW.md) for verified findings and remaining acceptance tests.

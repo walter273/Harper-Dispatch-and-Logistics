@@ -1,6 +1,6 @@
 # Alphaway Logistics (private prototype)
 
-> This is a private prototype. Keep the first GoDaddy deployment protected and use non-sensitive sandbox data.
+> The current Railway app has account protection and persistent storage. Customer billing still requires a server-side Stripe key, portal setup, and end-to-end acceptance testing.
 
 # Alphaway Logistics web app
 
@@ -18,13 +18,11 @@ Open [http://127.0.0.1:4173/](http://127.0.0.1:4173/). Do not open the downloade
 
 Local mode binds only to `127.0.0.1` and leaves preview authentication off. Runtime data is stored in `data/alphaway-store.json`, which is intentionally ignored by Git.
 
-## Intended private host: GoDaddy
+## Current host: Railway
 
-GoDaddy Node.js Hosting is the intended application host and domain provider. See [the GoDaddy setup guide](./GODADDY-SETUP.md) for the verified sandbox Price IDs, required secrets, private-storage requirement, webhook setup, domain steps, and acceptance checks.
+The deployed application is https://alphaway-tms-staging-app-production.up.railway.app, from `walter273/Alphaway-Logistics` branch `main`. The `alphaway-tms-staging-app` service mounts its 500 MB volume at `/app/data`; use one replica. See [operations readiness](./OPERATIONS-READINESS.md) for persistence, migration, company boundaries and launch limitations. `GODADDY-SETUP.md` is a historical alternative-host guide, not the current deployment configuration.
 
-The existing public site remains at `https://alphawaylogistics.com`. The prepared private application origin is `https://app.alphawaylogistics.com`.
-
-The server refuses hosted startup unless preview authentication, the private-network gate, and account authentication are enabled. Health is intentionally unauthenticated. Stripe webhooks bypass browser authentication and require a valid raw-body signature. Checkout requires the configured preview, invitation, and account gates.
+Account authentication protects private operations. Public pages and the public load catalog remain accessible. Stripe webhooks require a valid signature over the original request body.
 
 ## Environment settings
 
@@ -47,11 +45,13 @@ The server refuses hosted startup unless preview authentication, the private-net
 | `ALPHAWAY_ACCOUNT_SESSION_SECRET` | derived local value | secret session-signing input |
 | `ALPHAWAY_ADMIN_EMAIL` | blank | initial administrator email |
 | `ALPHAWAY_ADMIN_PASSWORD` | blank | initial administrator password |
-| `STRIPE_SECRET_KEY` | blank | Sandbox restricted/secret key, stored only in sealed host variables |
-| `STRIPE_ACCOUNT_ID` | sandbox account ID | `acct_1UDJTIKqpp58H3DU` |
+| `STRIPE_SECRET_KEY` | blank | Server-only key matching STRIPE_MODE, stored in host variables |
+| `STRIPE_MODE` | `test` | `live` only with reviewed live resources |
+| `STRIPE_ACCOUNT_ID` | blank | Stripe account matching the configured mode |
 | `STRIPE_WEBHOOK_SECRET` | blank | signing secret for `POST /api/stripe/webhook` |
-| `STRIPE_PORTAL_CONFIGURATION_ID` | blank | reviewed sandbox customer-portal configuration ID |
-| `STRIPE_PRICE_CARRIER` | blank | recurring Stripe Price ID for the $599 Carrier plan |
+| `STRIPE_PORTAL_CONFIGURATION_ID` | blank | reviewed customer-portal configuration ID matching the configured mode |
+| `STRIPE_PRICE_CARRIER` | blank | monthly USD 500 Price ID per truck |
+| `STRIPE_PRICE_CARRIER_ONBOARDING` | blank | one-time USD 150 Price ID per fleet |
 | `STRIPE_PRICE_SHIPPER` | blank | recurring Stripe Price ID for the $799 Shipper plan |
 | `STRIPE_PRICE_BROKER` | blank | recurring Stripe Price ID for the $299 Broker plan |
 | `STRIPE_PUBLIC_BASE_URL` | `http://127.0.0.1:4173` | approved HTTPS app origin used for Checkout redirects |
@@ -72,7 +72,7 @@ npm start
 
 The review checkout enables the staged Stripe credential scanner through `git config core.hooksPath .githooks`. Run that command in each new clone to enable the same pre-commit check. It prints filenames only, never matched credentials, and is an additional safeguard rather than a complete secret audit.
 
-Run `npm ci` and `npm test`. Stripe uses the pinned official Node SDK. Checkout checks the selected sandbox account, test mode, exact USD monthly plan amounts, safe same-origin return URLs, and a retry idempotency key. Webhook verification uses the original body and supports rotated signatures. The event audit retains 500 records, suppresses duplicates within that window across restarts, and rolls back memory state on failed persistence. Billing audit records are withheld from non-admin operations responses.
+Run `npm ci` and `npm test`. Stripe uses the pinned official Node SDK. Checkout checks the selected account, configured payment mode, exact USD monthly plan amounts, safe same-origin return URLs, and a retry idempotency key. Webhook verification uses the original body and supports rotated signatures. The event audit retains 500 records, suppresses duplicates within that window across restarts, and rolls back memory state on failed persistence. Billing audit records are withheld from non-admin operations responses.
 
 The integration is sandbox-only. Signed webhook events maintain each linked user's subscription status, the workspace can open Stripe's customer portal, and `ALPHAWAY_REQUIRE_SUBSCRIPTION=true` enforces active or trialing status for non-admin operations access. Enable that flag only after the hosted webhook flow passes end-to-end testing.
 

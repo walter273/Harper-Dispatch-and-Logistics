@@ -36,7 +36,7 @@ function createStorage(file, env = process.env) {
     write(value) {
       if (fs.existsSync(file)) {
         const old = fs.readFileSync(file, 'utf8'); validate(old);
-        const backup = `${file}.backup`; 
+        const backup = `${file}.backup`;
         if (!fs.existsSync(backup) || Date.now() - fs.statSync(backup).mtimeMs >= 3600000) atomicWrite(backup, old);
       }
       atomicWrite(file, JSON.stringify(value, null, 2));

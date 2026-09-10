@@ -350,6 +350,7 @@ function cloneDefaultLoads() {
 
 const APP_UPDATED_EVENT = 'alphaway-app-updated';
 let remoteAppSnapshot = null;
+let appHydrationGeneration = 0;
 let appEventStream = null;
 let privateAccessLocked = false;
 let resolveAppReady;
@@ -427,6 +428,7 @@ function connectAppEvents() {
 }
 
 async function hydrateApp() {
+  const generation = ++appHydrationGeneration;
   if (!hasServerTransport()) {
     resolveAppReady(null);
     return;
@@ -441,7 +443,9 @@ async function hydrateApp() {
       throw new Error('Server snapshot unavailable.');
     }
     privateAccessLocked = false;
-    applyRemoteSnapshot(await response.json());
+    const snapshot = await response.json();
+    if (generation !== appHydrationGeneration) return;
+    applyRemoteSnapshot(snapshot);
     connectAppEvents();
   } catch (error) {
     // Opening a downloaded HTML file or a basic static host still uses the explicit local demo fallback.

@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Browse Alphaway TMS freight opportunities.">
-  <title>Load Board | Alphaway TMS</title>
+  <meta name="description" content="Browse AlphaWay Logistics freight opportunities.">
+  <title>Load Board | AlphaWay Logistics</title>
   <link href="./css2" rel="stylesheet">
   <link rel="stylesheet" href="./style.css">
   <script src="./script.js" defer></script>
@@ -12,8 +12,8 @@
 <body>
   <main class="page-shell">
     <header class="topbar">
-      <a class="brand" href="./index.html" aria-label="Alphaway home">
-        <span class="brand-mark">A</span><span class="brand-copy"><span class="brand-name">Alphaway</span><small>TMS</small></span>
+      <a class="brand" href="./index.html" aria-label="AlphaWay Logistics home">
+        <span class="brand-mark">A</span><span class="brand-copy"><span class="brand-name">AlphaWay</span><small>Logistics</small></span>
       </a>
       <nav class="main-nav" aria-label="Main navigation"><a href="./index.html#services">Services</a><a href="./index.html#plans">Plans</a><a href="./tms.html">Operations</a><a href="./carrier-onboarding.html">Carrier portal</a><a href="./index.html#contact">Contact</a></nav>
       <div class="header-actions"><button class="ghost-button" id="accountButton" type="button">Carrier workspace preview</button><a class="primary-button" href="./index.html#signup">Request access</a></div>
@@ -28,7 +28,7 @@
     </section>
 
     <section class="private-network-banner" aria-labelledby="privateNetworkTitle">
-      <div><p class="eyebrow">Alphaway TMS carrier network</p><h2 id="privateNetworkTitle">Exclusive freight access for invited carriers</h2><p>This board is being built as a private network for Alphaway TMS dispatch clients, contracted carriers, and direct shipper freight. Access is granted by invitation code.</p></div>
+      <div><p class="eyebrow">AlphaWay Logistics carrier network</p><h2 id="privateNetworkTitle">Exclusive freight access for invited carriers</h2><p>This board is being built as a private network for AlphaWay Logistics dispatch clients, contracted carriers, and direct shipper freight. Access is granted by invitation code.</p></div>
       <button class="ghost-button" id="networkAccessButton" type="button">Enter invitation code</button>
     </section>
 
@@ -53,7 +53,7 @@
         </section>
         <section class="tms-fleet" aria-labelledby="fleetTitle"><div class="panel-header"><div><p class="eyebrow">Fleet status</p><h2 id="fleetTitle">Driver assignments</h2></div><span id="gpsStatus" class="tms-sync-status" role="status">Updating</span></div><div class="tms-driver-list" id="tmsDriverList"></div></section>
       </div>
-      <p class="tms-note">Demo GPS positions are simulated for this local load board. Connect an authorized ELD or telematics provider to track real drivers.</p>
+      <p class="tms-note">Demo GPS positions are simulated for this load board. Connect an authorized ELD or telematics provider to track real drivers.</p>
     </section>
 
     <section class="board-wrapper">
@@ -68,85 +68,34 @@
         <header class="list-header"><div><p class="eyebrow">Live freight opportunities</p><h1>Load board</h1></div><div class="results-meta"><strong id="resultsCount">0</strong><span>loads found</span></div></header>
         <div class="summary-row"><article><span>Hot loads</span><strong id="liveCount">0</strong></article><article><span>Booked</span><strong id="bookedCount">0</strong></article><article><span>Average rate</span><strong id="avgRate">$0</strong></article><article><span>Average miles</span><strong id="avgMiles">0 mi</strong></article></div>
         <div class="book-toast" id="bookToast" role="status" aria-live="polite"></div>
-        <nav class="load-pagination" data-pagination aria-label="Load board page navigation">
-          <button class="outline-button" type="button" data-page-action="previous">← Back</button><span data-page-status>Page 1 of 1</span><button class="outline-button" type="button" data-page-action="next">Next →</button>
-        </nav>
+        <nav class="load-pagination" data-pagination aria-label="Load board page navigation"><button class="outline-button" type="button" data-page-action="previous">← Back</button><span data-page-status>Page 1 of 1</span><button class="outline-button" type="button" data-page-action="next">Next →</button></nav>
         <div class="load-rows" id="loadRows"></div>
-        <nav class="load-pagination" data-pagination aria-label="Load board page navigation">
-          <button class="outline-button" type="button" data-page-action="previous">← Back</button><span data-page-status>Page 1 of 1</span><button class="outline-button" type="button" data-page-action="next">Next →</button>
-        </nav>
+        <nav class="load-pagination" data-pagination aria-label="Load board page navigation"><button class="outline-button" type="button" data-page-action="previous">← Back</button><span data-page-status>Page 1 of 1</span><button class="outline-button" type="button" data-page-action="next">Next →</button></nav>
       </section>
 
       <aside class="map-panel" aria-live="polite">
         <div class="panel-header"><h2>Selected route</h2></div>
-        <div class="route-summary">
-          <div><span>Origin</span><strong id="mapOriginCode">N/A</strong></div>
-          <div><span>Destination</span><strong id="mapDestinationCode">N/A</strong></div>
-        </div>
-        <div class="map-route">
-          <strong id="mapRouteLabel">No route selected</strong>
-          <span id="mapBrokerLabel">No broker</span>
-        </div>
+        <div class="route-summary"><div><span>Origin</span><strong id="mapOriginCode">N/A</strong></div><div><span>Destination</span><strong id="mapDestinationCode">N/A</strong></div></div>
+        <div class="map-route"><strong id="mapRouteLabel">No route selected</strong><span id="mapBrokerLabel">AlphaWay Logistics</span></div>
         <section class="communication-panel" aria-labelledby="communicationTitle">
-          <header class="communication-header">
-            <div><p class="eyebrow">Live communication</p><h2 id="communicationTitle">Driver &amp; dispatch</h2></div>
-            <span class="live-status" title="Uses the shared app when the server is running; otherwise it syncs open copies on this device"><i aria-hidden="true"></i><span id="chatSyncStatus">Local sync</span></span>
-          </header>
+          <header class="communication-header"><div><p class="eyebrow">Live communication</p><h2 id="communicationTitle">Driver &amp; dispatch</h2></div><span class="live-status" title="Uses the shared app when the server is running; otherwise it syncs open copies on this device"><i aria-hidden="true"></i><span id="chatSyncStatus">Local sync</span></span></header>
           <p class="chat-load-context" id="chatLoadContext">Select a load to discuss its route.</p>
           <div class="chat-messages" id="chatMessages" role="log" aria-live="polite" aria-label="Driver and dispatch messages"></div>
           <form class="chat-form" id="chatForm">
-            <label class="visually-hidden" for="chatSender">Message sender</label>
-            <select id="chatSender" aria-label="Message sender"><option value="Dispatcher">Dispatcher</option><option value="Driver">Driver</option></select>
-            <label class="visually-hidden" for="chatMessage">Message</label>
-            <input id="chatMessage" name="message" type="text" maxlength="500" autocomplete="off" placeholder="Type a message…" required>
-            <button class="primary-button" type="submit">Send</button>
+            <label class="visually-hidden" for="chatSender">Message sender</label><select id="chatSender" aria-label="Message sender"><option value="Dispatcher">Dispatcher</option><option value="Driver">Driver</option></select>
+            <label class="visually-hidden" for="chatMessage">Message</label><input id="chatMessage" name="message" type="text" maxlength="500" autocomplete="off" placeholder="Type a message…" required><button class="primary-button" type="submit">Send</button>
           </form>
           <div class="live-call-panel" aria-live="polite">
-            <div class="call-row">
-              <div>
-                <span class="call-label">Dispatch hotline</span>
-                <strong>+1 (303) 502-5008</strong>
-              </div>
-              <div class="call-actions">
-                <a id="dispatchCallLink" class="call-button call-button-primary" href="tel:+13035025008" aria-label="Call Alphaway dispatch hotline">Call dispatch</a>
-                <a id="dispatchSmsLink" class="call-button call-button-secondary" href="sms:+13035025008" aria-label="Text Alphaway dispatch hotline">Text dispatch</a>
-              </div>
-            </div>
-            <div class="call-row">
-              <div>
-                <span class="call-label">Driver direct line</span>
-                <strong id="driverCallLabel">+1 (303) 502-5009</strong>
-              </div>
-              <div class="call-actions">
-                <a id="driverCallLink" class="call-button call-button-primary" href="tel:+13035025009" aria-label="Call driver direct line">Call driver</a>
-                <a id="driverSmsLink" class="call-button call-button-secondary" href="sms:+13035025009" aria-label="Text driver direct line">Text driver</a>
-              </div>
-            </div>
+            <div class="call-row"><div><span class="call-label">Dispatch hotline</span><strong>+1 (303) 502-5008</strong></div><div class="call-actions"><a id="dispatchCallLink" class="call-button call-button-primary" href="tel:+13035025008" aria-label="Call AlphaWay Logistics dispatch hotline">Call dispatch</a><a id="dispatchSmsLink" class="call-button call-button-secondary" href="sms:+13035025008" aria-label="Text AlphaWay Logistics dispatch hotline">Text dispatch</a></div></div>
+            <div class="call-row"><div><span class="call-label">Driver direct line</span><strong id="driverCallLabel">+1 (303) 502-5009</strong></div><div class="call-actions"><a id="driverCallLink" class="call-button call-button-primary" href="tel:+13035025009" aria-label="Call driver direct line">Call driver</a><a id="driverSmsLink" class="call-button call-button-secondary" href="sms:+13035025009" aria-label="Text driver direct line">Text driver</a></div></div>
           </div>
         </section>
       </aside>
     </section>
   </main>
 
-  <div class="modal hidden" id="accountModal" aria-hidden="true" data-close-modal="true">
-    <div class="modal-backdrop" aria-hidden="true" data-close-modal="true"></div>
-    <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="accountTitle">
-      <div class="modal-header"><h2 id="accountTitle">Preview carrier workspace</h2><button class="modal-close" id="closeModalButton" type="button" aria-label="Close">×</button></div>
-      <form class="account-form" id="accountForm"><label><span>Work email</span><input name="email" type="email" autocomplete="email" required></label><p class="account-preview-note">Preview only — this does not sign you in or create an account.</p><button class="primary-button modal-submit" type="submit">Continue to preview</button></form>
-    </section>
-  </div>
+  <div class="modal hidden" id="accountModal" aria-hidden="true" data-close-modal="true"><div class="modal-backdrop" aria-hidden="true" data-close-modal="true"></div><section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="accountTitle"><div class="modal-header"><h2 id="accountTitle">Preview carrier workspace</h2><button class="modal-close" id="closeModalButton" type="button" aria-label="Close">×</button></div><form class="account-form" id="accountForm"><label><span>Work email</span><input name="email" type="email" autocomplete="email" required></label><p class="account-preview-note">Preview only — this does not sign you in or create an account.</p><button class="primary-button modal-submit" type="submit">Continue to preview</button></form></section></div>
 
-  <div class="modal hidden" id="networkAccessModal" aria-hidden="true" data-close-network-modal="true">
-    <div class="modal-backdrop" aria-hidden="true" data-close-network-modal="true"></div>
-    <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="networkAccessTitle">
-      <div class="modal-header"><h2 id="networkAccessTitle">Private carrier network</h2><button class="modal-close" id="closeNetworkAccessButton" type="button" aria-label="Close">×</button></div>
-      <form class="account-form" id="networkAccessForm">
-        <p class="account-preview-note">Enter the invitation code provided by Alphaway TMS dispatch. Don’t have one yet? <a href="./index.html#signup">Request access</a>.</p>
-        <label><span>Invitation code</span><input name="code" type="password" autocomplete="one-time-code" required></label>
-        <p id="networkAccessStatus" class="form-status" role="status" aria-live="polite"></p>
-        <button class="primary-button modal-submit" type="submit">Unlock private board</button>
-      </form>
-    </section>
-  </div>
+  <div class="modal hidden" id="networkAccessModal" aria-hidden="true" data-close-network-modal="true"><div class="modal-backdrop" aria-hidden="true" data-close-network-modal="true"></div><section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="networkAccessTitle"><div class="modal-header"><h2 id="networkAccessTitle">Private carrier network</h2><button class="modal-close" id="closeNetworkAccessButton" type="button" aria-label="Close">×</button></div><form class="account-form" id="networkAccessForm"><p class="account-preview-note">Enter the invitation code provided by AlphaWay Logistics dispatch. Don’t have one yet? <a href="./index.html#signup">Request access</a>.</p><label><span>Invitation code</span><input name="code" type="password" autocomplete="one-time-code" required></label><p id="networkAccessStatus" class="form-status" role="status" aria-live="polite"></p><button class="primary-button modal-submit" type="submit">Unlock private board</button></form></section></div>
 </body>
 </html>

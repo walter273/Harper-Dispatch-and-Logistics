@@ -1582,3 +1582,10 @@ if (isBoardPage) {
   renderLoads();
   startGpsDemo();
 }
+
+window.addEventListener('alphaway:account-changed', () => {
+  appEventStream?.close();
+  appEventStream = null;
+  remoteAppSnapshot = null;
+  hydrateApp();
+});

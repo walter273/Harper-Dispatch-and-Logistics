@@ -5,6 +5,8 @@ const path = require('node:path');
 const { URL } = require('node:url');
 const { createBilling } = require('./billing');
 const billing = createBilling();
+const { createStorage } = require('./storage');
+const { reduceSubscription } = require('./subscription-state');
 const HOSTED = process.env.NODE_ENV === 'production';
 const SECURE_COOKIES = HOSTED || Boolean(process.env.RAILWAY_ENVIRONMENT_ID);
 
@@ -12,6 +14,8 @@ const ROOT_DIR = __dirname;
 const PORT = Number(process.env.PORT || 4173);
 const BIND_HOST = String(process.env.ALPHAWAY_HOST || process.env.HOST || '127.0.0.1').trim();
 const DATA_FILE = process.env.ALPHAWAY_DATA_FILE || path.join(ROOT_DIR, 'data', 'alphaway-store.json');
+const storage = createStorage(DATA_FILE);
+let committedStore = null;
 const REQUIRE_PREVIEW_AUTH = String(process.env.ALPHAWAY_REQUIRE_AUTH || '').trim().toLowerCase() === 'true';
 const PREVIEW_USERNAME = String(process.env.ALPHAWAY_PREVIEW_USERNAME || process.env.ALPHAWAY_ACCESS_USER || '').trim();
 const PREVIEW_PASSWORD = String(process.env.ALPHAWAY_PREVIEW_PASSWORD || process.env.ALPHAWAY_ACCESS_PASSWORD || '');
@@ -425,6 +429,7 @@ function normalizeStore(candidate) {
     revision: cleanNumber(candidate?.revision, 1, 1, Number.MAX_SAFE_INTEGER),
     loads,
     state: normalizeState(candidate?.state, loads),
+    companyStates: Object.fromEntries(Object.entries(candidate?.companyStates || {}).map(([id, state]) => [id, normalizeState(state, loads)])),
     intakes: Array.isArray(candidate?.intakes) ? candidate.intakes.slice(-200).map(normalizeIntake).filter(Boolean) : [],
     operations: normalizeOperations(candidate?.operations),
     accounts: normalizeAccounts(candidate?.accounts)
@@ -432,25 +437,32 @@ function normalizeStore(candidate) {
 }
 
 function readStore() {
-  try {
-    if (!fs.existsSync(DATA_FILE)) return createStore();
-    return normalizeStore(JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')));
-  } catch (error) {
-    console.warn('Could not read the local data store; starting from safe demo data.', error.message);
-    return createStore();
-  }
+  const saved = storage.read();
+  // Corrupt data must fail startup rather than silently resetting customer records.
+  return saved ? normalizeStore(saved) : { ...createStore(), companyStates: {} };
 }
 
 function persistStore() {
-  const directory = path.dirname(DATA_FILE);
-  fs.mkdirSync(directory, { recursive: true });
-  const temporaryFile = `${DATA_FILE}.${process.pid}.tmp`;
-  fs.writeFileSync(temporaryFile, JSON.stringify(store, null, 2), 'utf8');
-  fs.renameSync(temporaryFile, DATA_FILE);
+  try {
+    storage.write(store);
+    committedStore = structuredClone(store);
+  } catch {
+    if (committedStore) store = structuredClone(committedStore);
+    throw reject(503, 'Data could not be saved. Please retry.');
+  }
 }
 
-function publicSnapshot() {
-  return { revision: store.revision, loads: store.loads, state: store.state };
+function staff(user) { return ['admin', 'dispatcher'].includes(user?.role); }
+function emptyPrivateState() {
+  return { savedSearches: [], bookedLoads: [], messages: [], tms: { demoRunning: false, assignments: [] } };
+}
+function companyState(user) {
+  if (!user?.companyId) return emptyPrivateState();
+  return Object.hasOwn(store.companyStates, user.companyId) ? store.companyStates[user.companyId] : emptyPrivateState();
+}
+function publicSnapshot(user = null) {
+  const state = !ACCOUNT_AUTH || staff(user) ? store.state : companyState(user);
+  return { revision: store.revision, loads: store.loads, state };
 }
 
 function normalizeIntake(candidate) {
@@ -528,7 +540,7 @@ function normalizeOperations(candidate) {
     eventCreated: cleanNumber(event?.eventCreated, 0, 0, Number.MAX_SAFE_INTEGER),
     createdAt: cleanNumber(event?.createdAt, Date.now(), 0, Number.MAX_SAFE_INTEGER)
   })) : [];
-  const billingSubscriptions = Array.isArray(source.billingSubscriptions) ? source.billingSubscriptions.slice(-500).map((subscription, index) => ({
+  const billingSubscriptions = Array.isArray(source.billingSubscriptions) ? source.billingSubscriptions.map((subscription, index) => ({
     id: cleanText(subscription?.id, `subscription-${index}`, 100),
     customerId: cleanText(subscription?.customerId, '', 100),
     userId: cleanText(subscription?.userId, '', 100),
@@ -537,6 +549,8 @@ function normalizeOperations(candidate) {
     status: cleanText(subscription?.status, 'pending', 40),
     currentPeriodEnd: cleanNumber(subscription?.currentPeriodEnd, 0, 0, Number.MAX_SAFE_INTEGER),
     cancelAtPeriodEnd: Boolean(subscription?.cancelAtPeriodEnd),
+    eventCreated: cleanNumber(subscription?.eventCreated, 0, 0, Number.MAX_SAFE_INTEGER),
+    eventId: cleanText(subscription?.eventId, '', 100),
     updatedAt: cleanNumber(subscription?.updatedAt, Date.now(), 0, Number.MAX_SAFE_INTEGER)
   })).filter((subscription) => /^sub_[A-Za-z0-9]+$/.test(subscription.id)) : [];
   return { documents, assignments, invoices, brokerSearches: Array.isArray(source.brokerSearches) ? source.brokerSearches.slice(-100) : [], billingEvents, billingSubscriptions };
@@ -617,7 +631,10 @@ function requireCurrentCatalogRevision(event) {
   }
 }
 
-function acceptEvent(event) {
+function acceptEvent(event, actor = null) {
+  const tenant = ACCOUNT_AUTH && !staff(actor);
+  if (tenant && !actor?.companyId) throw reject(403, 'A company assignment is required.');
+  const state = tenant ? structuredClone(companyState(actor)) : store.state;
   if (!event || typeof event !== 'object' || typeof event.type !== 'string') throw reject(400, 'A valid app event is required.');
   const validLoadIds = new Set(store.loads.map((load) => load.id));
 
@@ -639,13 +656,13 @@ function acceptEvent(event) {
     case 'booking.add': {
       const loadId = cleanText(event.loadId, '', 28);
       if (!validLoadIds.has(loadId)) throw reject(404, 'The selected load is no longer available.');
-      store.state.bookedLoads = [...new Set([loadId, ...store.state.bookedLoads])].slice(0, 100);
+      state.bookedLoads = [...new Set([loadId, ...state.bookedLoads])].slice(0, 100);
       break;
     }
     case 'saved-search.add': {
       const search = event.search || {};
-      const normalized = normalizeState({ savedSearches: [search], bookedLoads: [], messages: [], tms: store.state.tms }, store.loads).savedSearches[0];
-      store.state.savedSearches = [normalized, ...store.state.savedSearches.filter((item) => item.id !== normalized.id)].slice(0, 20);
+      const normalized = normalizeState({ savedSearches: [search], bookedLoads: [], messages: [], tms: state.tms }, store.loads).savedSearches[0];
+      state.savedSearches = [normalized, ...state.savedSearches.filter((item) => item.id !== normalized.id)].slice(0, 20);
       break;
     }
     case 'message.send': {
@@ -653,7 +670,7 @@ function acceptEvent(event) {
       const loadId = message.loadId === 'general' || validLoadIds.has(message.loadId) ? message.loadId : null;
       const text = cleanText(message.text, '', 500);
       if (!loadId || !text) throw reject(400, 'A valid load and message are required.');
-      store.state.messages = [...store.state.messages, {
+      state.messages = [...state.messages, {
         id: `message-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         loadId,
         sender: message.sender === 'Driver' ? 'Driver' : 'Dispatcher',
@@ -663,7 +680,7 @@ function acceptEvent(event) {
       break;
     }
     case 'tms.set-demo-running': {
-      store.state.tms.demoRunning = event.demoRunning !== false;
+      state.tms.demoRunning = event.demoRunning !== false;
       break;
     }
     case 'tms.refresh': {
@@ -674,11 +691,12 @@ function acceptEvent(event) {
       throw reject(400, 'Unsupported app event.');
   }
 
-  store.state = normalizeState(store.state, store.loads);
+  if (tenant) Object.defineProperty(store.companyStates, actor.companyId, { value: normalizeState(state, store.loads), writable: true, enumerable: true, configurable: true });
+  else store.state = normalizeState(store.state, store.loads);
   store.revision += 1;
   persistStore();
   broadcastSnapshot();
-  return publicSnapshot();
+  return publicSnapshot(actor);
 }
 
 function refreshTracking(loadId = null) {
@@ -702,10 +720,10 @@ function refreshTracking(loadId = null) {
 }
 
 function broadcastSnapshot() {
-  const message = `event: snapshot\ndata: ${JSON.stringify(publicSnapshot())}\n\n`;
   for (const response of sseClients) {
     try {
-      response.write(message);
+      const user = accountFromRequest(response.accountRequest);
+      response.write(`event: snapshot\ndata: ${JSON.stringify(publicSnapshot(user))}\n\n`);
     } catch (error) {
       sseClients.delete(response);
     }
@@ -724,18 +742,19 @@ function sendJson(response, statusCode, payload, headers = {}) {
 function operationSnapshot(user = null) {
   const role = user?.role || 'admin';
   const companyId = user?.companyId || null;
-  const canSeeAll = ['admin', 'dispatcher', 'shipper', 'broker'].includes(role);
+  const canSeeAll = ['admin', 'dispatcher'].includes(role);
+  const sameCompany = item => Boolean(companyId) && item.companyId === companyId;
   const assignments = canSeeAll
     ? store.operations.assignments
-    : store.operations.assignments.filter((item) => role === 'driver' ? (item.driverUserId === user.id || item.driverName === user.name) : item.companyId === companyId);
+    : store.operations.assignments.filter((item) => sameCompany(item) && (role !== 'driver' || item.driverUserId === user.id));
   return {
     operations: {
-      ...store.operations,
+      brokerSearches: canSeeAll ? store.operations.brokerSearches : [],
       billingEvents: role === 'admin' ? store.operations.billingEvents : [],
       billingSubscriptions: role === 'admin' ? store.operations.billingSubscriptions : [],
       assignments,
-      documents: canSeeAll ? store.operations.documents : store.operations.documents.filter((item) => item.companyId === companyId),
-      invoices: canSeeAll ? store.operations.invoices : store.operations.invoices.filter((item) => item.companyId === companyId)
+      documents: canSeeAll ? store.operations.documents : store.operations.documents.filter(item => sameCompany(item) && (role !== 'driver' || assignments.some(a => a.loadId === item.loadId))),
+      invoices: canSeeAll ? store.operations.invoices : store.operations.invoices.filter(item => role !== 'driver' && sameCompany(item))
     },
     fmcsaConfigured: Boolean(FMCSA_API_KEY),
     account: user ? { id: user.id, name: user.name, email: user.email, role: user.role, companyId: user.companyId } : null
@@ -745,8 +764,8 @@ function operationSnapshot(user = null) {
 function subscriptionForUser(user) {
   if (!user) return null;
   return store.operations.billingSubscriptions
-    .filter((subscription) => subscription.userId === user.id)
-    .sort((left, right) => right.updatedAt - left.updatedAt)[0] || null;
+    .filter((subscription) => subscription.userId === user.id && subscription.companyId === user.companyId)
+    .sort((left, right) => Number(['active','trialing'].includes(right.status)) - Number(['active','trialing'].includes(left.status)) || right.updatedAt - left.updatedAt)[0] || null;
 }
 
 function publicSubscription(subscription) {
@@ -882,6 +901,8 @@ function serveStatic(request, response, pathname) {
 }
 
 let store = readStore();
+committedStore = structuredClone(store);
+persistStore();
 
 if (ACCOUNT_AUTH && store.accounts.users.length === 0 && process.env.ALPHAWAY_ADMIN_EMAIL && process.env.ALPHAWAY_ADMIN_PASSWORD) {
   const credentials = hashPassword(process.env.ALPHAWAY_ADMIN_PASSWORD);
@@ -905,7 +926,7 @@ const server = http.createServer(async (request, response) => {
     if (request.method === 'POST' && pathname === '/api/stripe/webhook') {
       const raw = await readRaw(request, 256 * 1024);
       const event = billing.event(raw, headerValue(request, 'stripe-signature'));
-      const tracked = ['checkout.session.completed', 'customer.subscription.updated', 'customer.subscription.deleted'];
+      const tracked = ['checkout.session.completed', 'customer.subscription.created', 'customer.subscription.updated', 'customer.subscription.deleted'];
       if (tracked.includes(event.type) && !store.operations.billingEvents.some((entry) => entry.id === event.id)) {
         const object = event.data.object;
         const stripeId = (value) => cleanText(typeof value === 'string' ? value : value?.id, '', 100);
@@ -927,20 +948,10 @@ const server = http.createServer(async (request, response) => {
           createdAt: Date.now()
         }].slice(-500);
         if (subscriptionId) {
-          const nextSubscription = {
-            id: subscriptionId,
-            customerId: stripeId(object.customer) || existingSubscription?.customerId || '',
-            userId: cleanText(metadata.userId, existingSubscription?.userId || '', 100),
-            companyId: cleanText(metadata.companyId, existingSubscription?.companyId || '', 100),
-            plan: ['carrier', 'shipper', 'broker'].includes(metadata.plan) ? metadata.plan : existingSubscription?.plan || '',
-            status: event.type === 'customer.subscription.deleted'
-              ? 'canceled'
-              : cleanText(object.status, object.payment_status === 'paid' ? 'active' : existingSubscription?.status || 'pending', 40),
-            currentPeriodEnd: cleanNumber(object.current_period_end, existingSubscription?.currentPeriodEnd || 0, 0, Number.MAX_SAFE_INTEGER),
-            cancelAtPeriodEnd: Boolean(object.cancel_at_period_end),
-            updatedAt: Date.now()
-          };
-          store.operations.billingSubscriptions = [...previousSubscriptions.filter((entry) => entry.id !== subscriptionId), nextSubscription].slice(-500);
+          const nextSubscription = reduceSubscription(existingSubscription, event);
+          if (nextSubscription && nextSubscription !== existingSubscription) {
+            store.operations.billingSubscriptions = [...previousSubscriptions.filter(entry => entry.id !== subscriptionId), nextSubscription];
+          }
         }
         store.revision += 1;
         try { persistStore(); }
@@ -1077,6 +1088,7 @@ const server = http.createServer(async (request, response) => {
       const email = cleanText(body?.email, '', 160).toLowerCase();
       const role = cleanText(body?.role, '', 40);
       const companyId = cleanText(body?.companyId, actor.companyId, 80);
+      if (actor.role !== 'admin' && (['admin','dispatcher'].includes(role) || companyId !== actor.companyId)) throw reject(403, 'Only administrators can grant staff or other-company access.');
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !ACCOUNT_ROLES.has(role) || !companyId) throw reject(400, 'A valid email, role, and company are required.');
       const rawToken = crypto.randomBytes(24).toString('hex');
       store.accounts.invitations = [...store.accounts.invitations, { id: operationId('invite'), email, role, companyId, tokenHash: crypto.createHash('sha256').update(rawToken).digest('hex'), status: 'pending', expiresAt: Date.now() + 7 * 86400000 }].slice(-500);
@@ -1088,7 +1100,7 @@ const server = http.createServer(async (request, response) => {
     if (request.method === 'GET' && pathname === '/api/accounts/users') {
       const actor = requireAccount(request, ['admin', 'dispatcher']);
       const users = store.accounts.users.filter((user) => actor.role === 'admin' || user.companyId === actor.companyId).map(({ passwordHash, passwordSalt, ...safe }) => safe);
-      sendJson(response, 200, { users, companies: store.accounts.companies });
+      sendJson(response, 200, { users, companies: actor.role === 'admin' ? store.accounts.companies : store.accounts.companies.filter(company => company.id === actor.companyId) });
       return;
     }
     if (request.method === 'GET' && pathname === '/api/accounts/audit') {
@@ -1149,6 +1161,7 @@ const server = http.createServer(async (request, response) => {
         const assignment = normalizeOperations({ assignments: [payload.assignment] }).assignments[0];
         if (!assignment) throw reject(400, 'A load, driver name, and truck are required.');
         assignment.companyId = actor?.companyId || 'demo';
+        if (assignment.driverUserId && !store.accounts.users.some(user => user.id === assignment.driverUserId && user.role === 'driver' && user.companyId === assignment.companyId)) throw reject(403, 'Driver must belong to the same company.');
         store.operations.assignments = [assignment, ...store.operations.assignments].slice(0, 200);
       } else if (type === 'invoice.create') {
         const invoice = normalizeOperations({ invoices: [payload.invoice] }).invoices[0];
@@ -1178,7 +1191,7 @@ const server = http.createServer(async (request, response) => {
       return;
     }
     if (request.method === 'GET' && pathname === '/api/app') {
-      sendJson(response, 200, publicSnapshot());
+      sendJson(response, 200, publicSnapshot(accountFromRequest(request)));
       return;
     }
     if (request.method === 'GET' && pathname === '/api/events') {
@@ -1193,8 +1206,9 @@ const server = http.createServer(async (request, response) => {
         Vary: 'Authorization',
         'X-Accel-Buffering': 'no'
       }));
+      response.accountRequest = request;
       sseClients.add(response);
-      response.write(`event: snapshot\ndata: ${JSON.stringify(publicSnapshot())}\n\n`);
+      response.write(`event: snapshot\ndata: ${JSON.stringify(publicSnapshot(accountFromRequest(request)))}\n\n`);
       request.on('close', () => sseClients.delete(response));
       response.on('error', () => sseClients.delete(response));
       return;
@@ -1209,7 +1223,7 @@ const server = http.createServer(async (request, response) => {
       if (ACCOUNT_AUTH && (event?.type?.startsWith('catalog.') || event?.type?.startsWith('tms.'))) {
         requireAccount(request, ['admin', 'dispatcher']);
       }
-      sendJson(response, 200, { snapshot: acceptEvent(event) });
+      sendJson(response, 200, { snapshot: acceptEvent(event, accountFromRequest(request)) });
       return;
     }
     if (request.method === 'GET' && pathname === '/api/intakes') {
@@ -1257,10 +1271,12 @@ const server = http.createServer(async (request, response) => {
 
 setInterval(() => {
   if (!store.state.tms.demoRunning || sseClients.size === 0) return;
-  refreshTracking();
-  store.revision += 1;
-  persistStore();
-  broadcastSnapshot();
+  try {
+    refreshTracking();
+    store.revision += 1;
+    persistStore();
+    broadcastSnapshot();
+  } catch { console.error('Demo tracking update could not be saved.'); }
 }, 5000).unref();
 
 setInterval(() => {

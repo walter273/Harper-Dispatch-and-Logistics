@@ -50,11 +50,15 @@ test('HTTP health, missing config, signature validation, retry persistence and s
   assert.equal((await send(event)).status,200);
   saved=JSON.parse(fs.readFileSync(file)); assert.equal(saved.operations.billingEvents.length,1);
   assert.equal(saved.operations.billingEvents[0].companyId,'company-1');
+  assert.equal((await send({...event,id:'evt_older',created:event.created-1,type:'customer.subscription.deleted'})).status,200);
+  assert.equal(JSON.parse(fs.readFileSync(file)).operations.billingSubscriptions[0].status,'active');
+  assert.equal((await send({...event,id:'evt_checkout',type:'checkout.session.completed',data:{object:{id:'cs_test',subscription:'sub_http',status:'complete',payment_status:'paid'}}})).status,200);
+  assert.equal(JSON.parse(fs.readFileSync(file)).operations.billingSubscriptions[0].status,'active');
   fs.renameSync(file,`${file}.backup`); fs.mkdirSync(file);
-  assert.equal((await send({...event,id:'evt_retry'})).status,500);
+  assert.equal((await send({...event,id:'evt_retry'})).status,503);
   fs.rmdirSync(file); fs.renameSync(`${file}.backup`,file);
   assert.equal((await send({...event,id:'evt_retry'})).status,200);
-  assert.equal(JSON.parse(fs.readFileSync(file)).operations.billingEvents.length,2);
+  assert.equal(JSON.parse(fs.readFileSync(file)).operations.billingEvents.length,4);
 });
 test('hosted preview gates Checkout, secures cookies, and revokes signed-out sessions', async (t) => {
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'alphaway-auth-test-')); t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
@@ -117,4 +121,58 @@ test('account auth protects intakes and catalog even without preview basic auth'
   assert.equal((await fetch(app.url + '/api/intakes', { headers: { cookie } })).status, 200);
   const snapshot = await (await fetch(app.url + '/api/app')).json();
   assert.equal((await post('/api/events', { type: 'catalog.reset', baseRevision: snapshot.revision }, cookie)).status, 200);
+});
+
+
+test('company boundaries apply to HTTP snapshots, stream updates, invitations and restart', async t => {
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'alphaway-tenants-')); t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
+  const file=path.join(dir,'store.json'), password=crypto.randomBytes(24).toString('hex');
+  const config={ALPHAWAY_DATA_FILE:file,ALPHAWAY_ACCOUNT_AUTH:'true',ALPHAWAY_ADMIN_EMAIL:'admin@example.com',ALPHAWAY_ADMIN_PASSWORD:password};
+  let app=await start(config); t.after(()=>app.stop());
+  const post=(route,body,cookie='')=>fetch(app.url+route,{method:'POST',headers:{'content-type':'application/json',cookie},body:JSON.stringify(body)});
+  const get=(route,cookie='')=>fetch(app.url+route,{headers:{cookie}});
+  const admin=(await post('/api/accounts/signin',{email:'admin@example.com',password})).headers.get('set-cookie').split(';')[0];
+  async function account(email,role,companyId,name=email) {
+    const invite=await (await post('/api/accounts/invitations',{email,role,companyId},admin)).json();
+    const response=await post('/api/accounts/accept',{token:invite.invitation.token,name,password});
+    assert.equal(response.status,201);
+    return {cookie:response.headers.get('set-cookie').split(';')[0],user:(await response.json()).account};
+  }
+  const a=await account('shipper@example.com','shipper','a');
+  const b=await account('broker@example.com','broker','b');
+  const driver=await account('driver@example.com','driver','a','Same Name');
+  const otherDriver=await account('driver2@example.com','driver','b','Same Name');
+  const dispatcher=await account('staff@example.com','dispatcher','a');
+  assert.equal((await post('/api/accounts/invitations',{email:'escalate@example.com',role:'admin',companyId:'a'},dispatcher.cookie)).status,403);
+  assert.equal((await post('/api/accounts/invitations',{email:'cross@example.com',role:'driver',companyId:'b'},dispatcher.cookie)).status,403);
+  for(const actor of [a,b]) {
+    assert.equal((await post('/api/operations',{type:'invoice.create',invoice:{customer:actor.user.companyId,amount:100,companyId:'spoofed'}},actor.cookie)).status,201);
+    assert.equal((await post('/api/events',{type:'message.send',message:{loadId:'general',text:actor.user.companyId}},actor.cookie)).status,200);
+    assert.equal((await post('/api/events',{type:'booking.add',loadId:'LB-48201'},actor.cookie)).status,200);
+  }
+  assert.equal((await post('/api/operations',{type:'assignment.create',assignment:{loadId:'LB-48201',driverName:'Same Name',driverUserId:otherDriver.user.id,truckId:'T1'}},a.cookie)).status,403);
+  assert.equal((await post('/api/operations',{type:'assignment.create',assignment:{loadId:'LB-48201',driverName:'Same Name',driverUserId:driver.user.id,truckId:'T1'}},a.cookie)).status,201);
+  for(const actor of [a,b]) {
+    const snapshot=await (await get('/api/operations',actor.cookie)).json();
+    assert.equal(snapshot.operations.invoices.length,1);
+    assert.equal(snapshot.operations.invoices[0].companyId,actor.user.companyId);
+    const board=await (await get('/api/app',actor.cookie)).json();
+    assert.deepEqual(board.state.messages.map(m=>m.text),[actor.user.companyId]);
+  }
+  assert.equal((await (await get('/api/operations',driver.cookie)).json()).operations.assignments.length,1);
+  assert.equal((await (await get('/api/operations',otherDriver.cookie)).json()).operations.assignments.length,0);
+  assert.deepEqual((await (await get('/api/app')).json()).state.messages,[]);
+  const abort=new AbortController();
+  const stream=await fetch(app.url+'/api/events',{headers:{cookie:b.cookie},signal:abort.signal});
+  const reader=stream.body.getReader();
+  const initial=new TextDecoder().decode((await reader.read()).value);
+  assert.ok(initial.includes('"text":"b"')); assert.ok(!initial.includes('"text":"a"'));
+  await post('/api/events',{type:'message.send',message:{loadId:'general',text:'private-a'}},a.cookie);
+  const update=new TextDecoder().decode((await reader.read()).value);
+  assert.ok(!update.includes('private-a'));
+  abort.abort();
+  await app.stop(); app=await start(config);
+  const restored=await (await get('/api/app',a.cookie)).json();
+  assert.deepEqual(restored.state.messages.map(m=>m.text),['a','private-a']);
+  assert.equal((await (await get('/api/operations',b.cookie)).json()).operations.invoices.length,1);
 });

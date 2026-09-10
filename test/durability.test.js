@@ -1,0 +1,42 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { createStorage } = require('../storage');
+const { reduceSubscription } = require('../subscription-state');
+const event = (type, created, status = 'active') => ({ id: `evt_${type.split('.').pop()}_${created}_${status}`, type, created, data: { object: { id: 'sub_test', customer: 'cus_test', status, metadata: { userId: 'u', companyId: 'a', plan: 'carrier' }, items: { data: [{ current_period_end: 2000 }] } } } });
+test('subscription ordering, cancellation, Checkout linkage and duplicate delivery', () => {
+ const active = reduceSubscription(null, event('customer.subscription.created', 100));
+ assert.equal(active.status, 'active'); assert.equal(active.currentPeriodEnd, 2000);
+ assert.equal(reduceSubscription(active, event('customer.subscription.updated', 90, 'past_due')), active);
+ const checkout = event('checkout.session.completed', 120, 'complete'); checkout.data.object.subscription = 'sub_test';
+ assert.equal(reduceSubscription(active, checkout), active);
+ assert.equal(reduceSubscription(null, checkout).status, 'pending');
+ const canceled = reduceSubscription(active, event('customer.subscription.deleted', 130));
+ assert.equal(canceled.status, 'canceled');
+ assert.equal(reduceSubscription(canceled, event('customer.subscription.updated', 100)), canceled);
+ assert.equal(reduceSubscription(canceled, event('customer.subscription.updated', 130)), canceled);
+ assert.equal(reduceSubscription(active, event('customer.subscription.created', 100)), active);
+ assert.equal(reduceSubscription(active, event('customer.subscription.updated', 101, 'past_due')).status, 'past_due');
+});
+test('storage migration preserves records once, survives restart and keeps backup', t => {
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'alphaway-storage-')); t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
+ const file=path.join(dir,'store.json');
+ const original={loads:[], accounts:{users:[{id:'preserved'}]}, operations:{}, revision:1};
+ const disk=createStorage(file,{ALPHAWAY_MIGRATION_JSON:JSON.stringify(original)});
+ assert.deepEqual(disk.read(),original);
+ disk.write({...original,revision:2});
+ assert.equal(createStorage(file,{ALPHAWAY_MIGRATION_JSON:JSON.stringify(original)}).read().revision,2);
+ assert.equal(JSON.parse(fs.readFileSync(file+'.migration-backup')).accounts.users[0].id,'preserved');
+ assert.equal(JSON.parse(fs.readFileSync(file+'.backup')).revision,1);
+ fs.writeFileSync(file,'broken');
+ assert.throws(()=>disk.read());
+ assert.equal(fs.readFileSync(file,'utf8'),'broken');
+});
+test('bad migration checksum fails without creating store',t=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'alphaway-checksum-')); t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
+ const file=path.join(dir,'store.json');
+ assert.throws(()=>createStorage(file,{ALPHAWAY_MIGRATION_JSON:JSON.stringify({loads:[],accounts:{},operations:{}}),ALPHAWAY_MIGRATION_SHA256:'wrong'}).read(),/checksum/);
+ assert.equal(fs.existsSync(file),false);
+});

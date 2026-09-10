@@ -1,0 +1,90 @@
+name: AlphaWay one-time brand cleanup
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: ${{ !contains(github.event.head_commit.message, '[brand-cleanup]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply AlphaWay branding and office photo
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          root = Path('.')
+          index = root / 'index.html'
+          text = index.read_text(encoding='utf-8-sig')
+
+          # Use the approved AlphaWay dispatch-office photo in the company section.
+          photo = '<img class="why-company-illustration" src="./assets/alphaway-dispatch-office.jpg" alt="AlphaWay Logistics dispatch office with a dispatcher coordinating freight operations">'
+          text, count = re.subn(r'<svg\s+class="why-company-illustration".*?</svg>', photo, text, count=1, flags=re.S)
+          if count == 0:
+              # Handle any older image implementation of this same section.
+              text = re.sub(r'<img\s+[^>]*class="why-company-illustration"[^>]*>', photo, text, count=1, flags=re.S)
+
+          exact_replacements = {
+              'AlphaWay Logistics LLC': 'AlphaWay Logistics',
+              'Alphaway Logistics LLC': 'AlphaWay Logistics',
+              'Alphaway Logistics': 'AlphaWay Logistics',
+              'Alphaway TMS': 'AlphaWay Logistics',
+              'ALPHAWAY LOGISTICS LLC': 'ALPHAWAY LOGISTICS',
+              'Alphaway coordinator': 'AlphaWay Logistics coordinator',
+              'how Alphaway fits': 'how AlphaWay Logistics fits',
+              'Alphaway home': 'AlphaWay Logistics home',
+          }
+          for old, new in exact_replacements.items():
+              text = text.replace(old, new)
+          index.write_text(text, encoding='utf-8')
+
+          # Standardize visible company branding across all HTML pages.
+          for page in root.glob('*.html'):
+              if page.name == 'index.html':
+                  continue
+              t = page.read_text(encoding='utf-8-sig')
+              for old, new in exact_replacements.items():
+                  t = t.replace(old, new)
+              page.write_text(t, encoding='utf-8')
+
+          # Allow the Node preview server to serve the approved office image.
+          server = root / 'server.js'
+          s = server.read_text(encoding='utf-8')
+          asset = "  'assets/alphaway-dispatch-office.jpg',\n"
+          if "'assets/alphaway-dispatch-office.jpg'" not in s:
+              marker = "  'style.css',\n"
+              if marker not in s:
+                  raise SystemExit('Could not locate static file allowlist marker in server.js')
+              s = s.replace(marker, marker + asset, 1)
+          server.write_text(s, encoding='utf-8')
+
+          # Remove any remaining legacy Waypoint-branded HTML artifact if present.
+          legacy = root / 'Waypoint Freight Operations _ Nationwide Freight & Dispatch.html'
+          if legacy.exists():
+              legacy.unlink()
+          PY
+
+          # This workflow is intentionally one-shot.
+          rm -f .github/workflows/alphaway-brand-cleanup.yml
+
+      - name: Commit cleanup
+        shell: bash
+        run: |
+          git config user.name "AlphaWay Staging Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No cleanup changes needed."
+            exit 0
+          fi
+          git commit -m "[brand-cleanup] Use approved AlphaWay photo and branding"
+          git push origin HEAD:main

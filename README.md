@@ -1,10 +1,10 @@
-# Alphaway TMS (private prototype)
+# Alphaway Logistics (private prototype)
 
 > This is a private prototype. Keep the first GoDaddy deployment protected and use non-sensitive sandbox data.
 
-# Alphaway TMS web app
+# Alphaway Logistics web app
 
-This folder runs a small Node web app for the Alphaway TMS demo load board, shared dispatch messages, simulated GPS updates, and non-sensitive intake requests. The app stores its demo state in one JSON file so browser sessions connected to the same server see the same data.
+This folder runs a small Node web app for the Alphaway Logistics demo load board, shared dispatch messages, simulated GPS updates, and non-sensitive intake requests. The app stores its demo state in one JSON file so browser sessions connected to the same server see the same data.
 
 ## Run locally
 

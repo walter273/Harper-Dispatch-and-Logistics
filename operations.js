@@ -143,7 +143,7 @@
             return field && safeValue ? `${formLabel(field)}: ${safeValue}` : null;
           })
           .filter(Boolean);
-        const subject = form.dataset.subject || 'Alphaway TMS request';
+        const subject = form.dataset.subject || 'Alphaway Logistics request';
         const recipient = form.dataset.recipient || 'support@alphaway-tms.invalid';
         const notice = form.dataset.notice || 'Opening a draft in your email app.';
 

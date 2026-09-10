@@ -27,6 +27,10 @@ test('HTTP health, missing config, signature validation, retry persistence and s
   const config = {ALPHAWAY_DATA_FILE:file, STRIPE_WEBHOOK_SECRET:secret, STRIPE_ACCOUNT_ID:'acct_1UDJTIKqpp58H3DU'};
   let app = await start(config); t.after(() => app.stop());
   assert.equal((await fetch(`${app.url}/api/health`)).status,200);
+  const navigation = await fetch(`${app.url}/account-nav.js`);
+  assert.equal(navigation.status, 200);
+  assert.match(navigation.headers.get('content-type'), /javascript/);
+  assert.match(await navigation.text(), /data-admin-nav/);
   assert.equal((await fetch(`${app.url}/api/stripe/checkout`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({plan:'carrier'})})).status,503);
   assert.equal((await fetch(`${app.url}/api/stripe/checkout`,{method:'POST',headers:{'content-type':'application/json',origin:'https://evil.example'},body:'{}'})).status,403);
   const event = { id:'evt_http',type:'customer.subscription.updated',created:Math.floor(Date.now()/1000),livemode:false,data:{object:{id:'sub_http',customer:'cus_http',status:'active',metadata:{userId:'user-1',companyId:'company-1'}}} };

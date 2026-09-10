@@ -43,6 +43,7 @@ const sseClients = new Set();
 const rateLimitBuckets = new Map();
 
 const STATIC_FILES = new Set([
+  'account-nav.js',
   HOME_PAGE,
   'loadboard.html',
   'workspace.html',
@@ -410,7 +411,7 @@ function createStore() {
     intakes: [],
     operations: normalizeOperations(),
     accounts: normalizeAccounts(seeded ? {
-      companies: [{ id: 'alphaway', name: 'Alphaway TMS', type: 'organization', status: 'active' }],
+      companies: [{ id: 'alphaway', name: 'Alphaway Logistics', type: 'organization', status: 'active' }],
       users: [{ id: 'user-admin', email: adminEmail, name: 'Alphaway Administrator', role: 'admin', companyId: 'alphaway', status: 'active', passwordSalt: seeded.salt, passwordHash: seeded.hash }]
     } : {})
   };
@@ -757,7 +758,7 @@ function requirePaidSubscription(user) {
   if (!REQUIRE_SUBSCRIPTION || !user || ['admin', 'dispatcher'].includes(user.role)) return;
   const subscription = subscriptionForUser(user);
   if (!subscription || !['active', 'trialing'].includes(subscription.status)) {
-    throw reject(402, 'An active Alphaway TMS subscription is required for operations access.');
+    throw reject(402, 'An active Alphaway Logistics subscription is required for operations access.');
   }
 }
 
@@ -883,7 +884,7 @@ let store = readStore();
 
 if (ACCOUNT_AUTH && store.accounts.users.length === 0 && process.env.ALPHAWAY_ADMIN_EMAIL && process.env.ALPHAWAY_ADMIN_PASSWORD) {
   const credentials = hashPassword(process.env.ALPHAWAY_ADMIN_PASSWORD);
-  store.accounts.companies.push({ id: 'alphaway', name: 'Alphaway TMS', type: 'organization', status: 'active', createdAt: Date.now() });
+  store.accounts.companies.push({ id: 'alphaway', name: 'Alphaway Logistics', type: 'organization', status: 'active', createdAt: Date.now() });
   store.accounts.users.push({ id: 'user-admin', email: process.env.ALPHAWAY_ADMIN_EMAIL.trim().toLowerCase(), name: 'Alphaway Administrator', role: 'admin', companyId: 'alphaway', status: 'active', passwordSalt: credentials.salt, passwordHash: credentials.hash, createdAt: Date.now() });
   persistStore();
 }

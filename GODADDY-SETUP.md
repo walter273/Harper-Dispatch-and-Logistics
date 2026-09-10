@@ -1,4 +1,4 @@
-# GoDaddy setup for Alphaway TMS
+# GoDaddy setup for Alphaway Logistics
 
 This repository is prepared for GoDaddy Node.js Hosting. Keep the first deployment private while Stripe remains in sandbox mode.
 

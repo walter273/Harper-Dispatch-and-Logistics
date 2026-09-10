@@ -48,6 +48,7 @@
   };
 
   const renderAccount = () => {
+    window.dispatchEvent(new CustomEvent('alphaway:account-changed', { detail: signedInAccount }));
     const summary = byId('accountSummary');
     if (summary) {
       summary.textContent = signedInAccount
@@ -112,6 +113,10 @@
       const payload = await accountRequest('./api/accounts/signin', { method: 'POST', body: JSON.stringify(formFields(form)) });
       signedInAccount = payload.account;
       form.reset();
+      if (signedInAccount?.role === 'admin') {
+        window.location.assign('./admin.html');
+        return;
+      }
       status.textContent = 'Signed in. Workspace permissions applied.';
       renderAccount();
       loadUsers();

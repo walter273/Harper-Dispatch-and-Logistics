@@ -1,3 +1,5 @@
+> Historical alternative-host guide. The active app uses Railway; see README.md and OPERATIONS-READINESS.md. Old example Price IDs require replacement with prices matching the current carrier terms.
+
 # GoDaddy setup for Alphaway Logistics
 
 This repository is prepared for GoDaddy Node.js Hosting. Keep the first deployment private while Stripe remains in sandbox mode.
@@ -90,7 +92,7 @@ The Stripe sandbox webhook URL for this configuration is `https://app.alphawaylo
 
 - Hosted startup succeeds with all three access controls enabled.
 - No secrets appear in repository files, browser source, deployment ZIP, or DNS.
-- The three Price IDs resolve to active, licensed, monthly USD sandbox prices for $599, $799, and $299.
+- The three Price IDs resolve to active, licensed, monthly USD sandbox prices for $500 per truck, $799, and $299, plus a one-time $150 fleet onboarding price.
 - A repeated Checkout click with the same request ID does not create duplicate sessions.
 - Invalid webhook signatures return HTTP 400.
 - Valid events are deduplicated and update the linked user's subscription.

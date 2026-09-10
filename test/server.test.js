@@ -31,7 +31,7 @@ test('HTTP health, missing config, signature validation, retry persistence and s
   assert.equal(navigation.status, 200);
   assert.match(navigation.headers.get('content-type'), /javascript/);
   assert.match(await navigation.text(), /data-admin-nav/);
-  assert.equal((await fetch(`${app.url}/api/stripe/checkout`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({plan:'carrier'})})).status,503);
+  assert.equal((await fetch(`${app.url}/api/stripe/checkout`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({plan:'broker'})})).status,503);
   assert.equal((await fetch(`${app.url}/api/stripe/checkout`,{method:'POST',headers:{'content-type':'application/json',origin:'https://evil.example'},body:'{}'})).status,403);
   const event = { id:'evt_http',type:'customer.subscription.updated',created:Math.floor(Date.now()/1000),livemode:false,data:{object:{id:'sub_http',customer:'cus_http',status:'active',metadata:{userId:'user-1',companyId:'company-1'}}} };
   async function send(value, valid = true) {
@@ -52,7 +52,10 @@ test('HTTP health, missing config, signature validation, retry persistence and s
   assert.equal(saved.operations.billingEvents[0].companyId,'company-1');
   assert.equal((await send({...event,id:'evt_older',created:event.created-1,type:'customer.subscription.deleted'})).status,200);
   assert.equal(JSON.parse(fs.readFileSync(file)).operations.billingSubscriptions[0].status,'active');
-  assert.equal((await send({...event,id:'evt_checkout',type:'checkout.session.completed',data:{object:{id:'cs_test',subscription:'sub_http',status:'complete',payment_status:'paid'}}})).status,200);
+  assert.equal((await send({...event,id:'evt_checkout',type:'checkout.session.completed',data:{object:{id:'cs_test',subscription:'sub_http',status:'complete',payment_status:'paid',metadata:{plan:'carrier',onboardingCharged:'true',companyId:'company-1'}}}})).status,200);
+  assert.deepEqual(JSON.parse(fs.readFileSync(file)).carrierOnboardedCompanies,['company-1']);
+  await app.stop(); app=await start(config);
+  assert.deepEqual(JSON.parse(fs.readFileSync(file)).carrierOnboardedCompanies,['company-1']);
   assert.equal(JSON.parse(fs.readFileSync(file)).operations.billingSubscriptions[0].status,'active');
   fs.renameSync(file,`${file}.backup`); fs.mkdirSync(file);
   assert.equal((await send({...event,id:'evt_retry'})).status,503);
@@ -175,4 +178,31 @@ test('company boundaries apply to HTTP snapshots, stream updates, invitations an
   const restored=await (await get('/api/app',a.cookie)).json();
   assert.deepEqual(restored.state.messages.map(m=>m.text),['a','private-a']);
   assert.equal((await (await get('/api/operations',b.cookie)).json()).operations.invoices.length,1);
+});
+
+test('carrier checkout retry survives restart and preserves the fleet onboarding decision', async (t) => {
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'alphaway-checkout-retry-'));
+  t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
+  const file=path.join(dir,'store.json'), log=path.join(dir,'calls.json'), preload=path.join(dir,'mock.cjs');
+  const billingPath=path.resolve(__dirname,'../billing.js');
+  fs.writeFileSync(preload, `const fs=require('node:fs'); require(${JSON.stringify(billingPath)}).createBilling=()=>({checkout:async(plan,email,actor,requestId,options)=>{ const file=${JSON.stringify(log)}; const calls=fs.existsSync(file)?JSON.parse(fs.readFileSync(file)):[]; calls.push({requestId,options}); fs.writeFileSync(file,JSON.stringify(calls)); if(calls.length===1) throw Object.assign(new Error('Simulated lost Stripe response'),{statusCode:502}); return {url:'https://checkout.stripe.com/c/pay/fixture',sessionId:'cs_fixture'}; }});`);
+  const password=crypto.randomBytes(24).toString('hex');
+  const config={ALPHAWAY_DATA_FILE:file,ALPHAWAY_ACCOUNT_AUTH:'true',ALPHAWAY_ADMIN_EMAIL:'admin@example.com',ALPHAWAY_ADMIN_PASSWORD:password,NODE_OPTIONS:`--require="${preload.replaceAll('\\','/')}"`};
+  let app=await start(config); t.after(()=>app.stop());
+  const signin=async()=> (await fetch(`${app.url}/api/accounts/signin`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:'admin@example.com',password})})).headers.get('set-cookie').split(';')[0];
+  let cookie=await signin();
+  const checkout=async(truckCount=3)=>fetch(`${app.url}/api/stripe/checkout`,{method:'POST',headers:{'content-type':'application/json',cookie},body:JSON.stringify({plan:'carrier',truckCount,requestId:crypto.randomUUID()})});
+  assert.equal((await checkout()).status,502);
+  const draft=JSON.parse(fs.readFileSync(file)).billingCheckouts[0];
+  assert.equal(draft.onboardingRequired,true);
+  assert.equal((await checkout(4)).status,409);
+  await app.stop(); app=await start(config); cookie=await signin();
+  assert.equal((await checkout()).status,200);
+  const calls=JSON.parse(fs.readFileSync(log));
+  assert.equal(calls.length,2);
+  assert.equal(calls[0].requestId,calls[1].requestId);
+  assert.deepEqual(calls[0].options,calls[1].options);
+  assert.equal(calls[1].options.truckCount,3);
+  assert.equal((await checkout()).status,200);
+  assert.equal(JSON.parse(fs.readFileSync(log)).length,2);
 });

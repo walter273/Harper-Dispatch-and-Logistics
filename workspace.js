@@ -34,7 +34,7 @@
       if (!subscription) {
         status.textContent = payload.required
           ? 'No subscription is linked. Choose a plan to activate operations access.'
-          : 'No subscription is linked. Choose a plan to test Stripe Checkout.';
+          : 'No subscription is linked. Choose a plan to open secure Stripe Checkout.';
         return;
       }
       const renewal = subscription.currentPeriodEnd
@@ -146,7 +146,7 @@
         status.textContent = 'Opening secure Stripe Checkout…';
         const payload = await accountRequest('./api/stripe/checkout', {
           method: 'POST',
-          body: JSON.stringify({ plan: button.dataset.workspacePlan, requestId: crypto.randomUUID() })
+          body: JSON.stringify({ plan: button.dataset.workspacePlan, requestId: crypto.randomUUID(), ...(button.dataset.workspacePlan === 'carrier' ? { truckCount: Number(byId('carrierTruckCount')?.value || 1) } : {}) })
         });
         window.location.assign(payload.url);
       } catch (error) {

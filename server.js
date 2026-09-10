@@ -45,6 +45,7 @@ const INTAKE_LIMIT = 12;
 const OPERATION_LIMIT = 60;
 const sseClients = new Set();
 const rateLimitBuckets = new Map();
+const checkoutLocks = new Set();
 
 const STATIC_FILES = new Set([
   'account-nav.js',
@@ -432,6 +433,8 @@ function normalizeStore(candidate) {
     companyStates: Object.fromEntries(Object.entries(candidate?.companyStates || {}).map(([id, state]) => [id, normalizeState(state, loads)])),
     intakes: Array.isArray(candidate?.intakes) ? candidate.intakes.slice(-200).map(normalizeIntake).filter(Boolean) : [],
     operations: normalizeOperations(candidate?.operations),
+    carrierOnboardedCompanies: Array.isArray(candidate?.carrierOnboardedCompanies) ? [...new Set(candidate.carrierOnboardedCompanies.filter(id => typeof id === 'string'))] : [],
+    billingCheckouts: Array.isArray(candidate?.billingCheckouts) ? candidate.billingCheckouts : [],
     accounts: normalizeAccounts(candidate?.accounts)
   };
 }
@@ -439,7 +442,7 @@ function normalizeStore(candidate) {
 function readStore() {
   const saved = storage.read();
   // Corrupt data must fail startup rather than silently resetting customer records.
-  return saved ? normalizeStore(saved) : { ...createStore(), companyStates: {} };
+  return saved ? normalizeStore(saved) : { ...createStore(), companyStates: {}, carrierOnboardedCompanies: [], billingCheckouts: [] };
 }
 
 function persistStore() {
@@ -926,16 +929,20 @@ const server = http.createServer(async (request, response) => {
     if (request.method === 'POST' && pathname === '/api/stripe/webhook') {
       const raw = await readRaw(request, 256 * 1024);
       const event = billing.event(raw, headerValue(request, 'stripe-signature'));
-      const tracked = ['checkout.session.completed', 'customer.subscription.created', 'customer.subscription.updated', 'customer.subscription.deleted'];
+      const tracked = ['checkout.session.completed', 'checkout.session.async_payment_succeeded', 'customer.subscription.created', 'customer.subscription.updated', 'customer.subscription.deleted'];
       if (tracked.includes(event.type) && !store.operations.billingEvents.some((entry) => entry.id === event.id)) {
         const object = event.data.object;
         const stripeId = (value) => cleanText(typeof value === 'string' ? value : value?.id, '', 100);
         const previousEvents = store.operations.billingEvents;
         const previousSubscriptions = store.operations.billingSubscriptions;
         const previousRevision = store.revision;
-        const subscriptionId = stripeId(event.type === 'checkout.session.completed' ? object.subscription : object.id);
+        const previousOnboarded = store.carrierOnboardedCompanies;
+        const subscriptionId = stripeId(event.type.startsWith('checkout.session.') ? object.subscription : object.id);
         const existingSubscription = previousSubscriptions.find((entry) => entry.id === subscriptionId);
         const metadata = object.metadata || {};
+        if (event.type.startsWith('checkout.session.') && object.payment_status === 'paid' && metadata.plan === 'carrier' && metadata.onboardingCharged === 'true' && metadata.companyId) {
+          store.carrierOnboardedCompanies = [...new Set([...previousOnboarded, metadata.companyId])];
+        }
         store.operations.billingEvents = [...previousEvents, {
           id: event.id, type: event.type,
           customerId: stripeId(object.customer),
@@ -960,6 +967,7 @@ const server = http.createServer(async (request, response) => {
           store.operations.billingEvents = previousEvents;
           store.operations.billingSubscriptions = previousSubscriptions;
           store.revision = previousRevision;
+          store.carrierOnboardedCompanies = previousOnboarded;
           throw error;
         }
       }
@@ -984,8 +992,36 @@ const server = http.createServer(async (request, response) => {
       if (!['carrier', 'shipper', 'broker'].includes(plan)) throw reject(400, 'Choose a supported subscription plan.');
       const email = actor?.email || cleanText(body?.email, '', 160);
       if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw reject(400, 'Enter a valid email address.');
-      const checkout = await billing.checkout(plan, email, actor, body?.requestId);
-      sendJson(response, 200, checkout);
+      const companyId = actor?.companyId;
+      if (plan === 'carrier' && !companyId) throw reject(400, 'An approved fleet account is required.');
+      const truckCount = plan === 'carrier' ? Number(body?.truckCount ?? 1) : 1;
+      if (!Number.isInteger(truckCount) || truckCount < 1 || truckCount > 100) throw reject(400, 'Choose a whole-number truck count from 1 to 100.');
+      const lock = companyId || actor?.id || 'preview';
+      if (checkoutLocks.has(lock)) throw reject(409, 'Checkout is already being prepared for this company.');
+      if (store.operations.billingSubscriptions.some(sub => sub.companyId === companyId && ['active','trialing','past_due','unpaid','incomplete','paused'].includes(sub.status))) throw reject(409, 'This company already has a subscription. Use billing management.');
+      let pending = store.billingCheckouts.find(entry => entry.companyId === lock && entry.createdAt > Date.now() - 24 * 60 * 60 * 1000);
+      if (pending) {
+        if (pending.plan !== plan || pending.truckCount !== truckCount) throw reject(409, 'An existing checkout is pending. Complete it or contact dispatch before changing quantities.');
+        if (pending.url) {
+          sendJson(response, 200, { url: pending.url, sessionId: pending.sessionId });
+          return;
+        }
+        if (pending.userId !== (actor?.id || 'preview')) throw reject(409, 'Another company member has a checkout in progress.');
+      }
+      checkoutLocks.add(lock);
+      try {
+        // Save the retry identity before contacting Stripe. A lost response or failed final write
+        // must reuse the same remote session, including its one-time onboarding item.
+        if (!pending) {
+          pending = { companyId: lock, userId: actor?.id || 'preview', email, plan, truckCount, onboardingRequired: plan === 'carrier' && !store.carrierOnboardedCompanies.includes(companyId), requestId: crypto.randomUUID(), createdAt: Date.now() };
+          store.billingCheckouts = [...store.billingCheckouts.filter(entry => entry.companyId !== lock), pending];
+          persistStore();
+        }
+        const checkout = await billing.checkout(plan, pending.email, actor, pending.requestId, { truckCount, onboardingRequired: pending.onboardingRequired });
+        store.billingCheckouts = [...store.billingCheckouts.filter(entry => entry.companyId !== lock), { ...pending, ...checkout }];
+        persistStore();
+        sendJson(response, 200, checkout);
+      } finally { checkoutLocks.delete(lock); }
       return;
     }
     if (request.method === 'GET' && pathname === '/api/stripe/subscription') {

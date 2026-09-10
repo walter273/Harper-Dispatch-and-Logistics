@@ -50,11 +50,15 @@
         <h2 id="subscriptionTitle">Plan and billing management</h2>
         <p id="subscriptionStatus" class="tool-note">Sign in to view your subscription.</p>
       </div>
-      <div class="workspace-actions" id="subscriptionActions">
-        <button class="ghost-button" type="button" data-workspace-plan="carrier">Carrier · $599/month</button>
+      <div class="billing-options" id="subscriptionActions">
+        <label><span>Number of trucks</span><input id="carrierTruckCount" type="number" min="1" max="100" step="1" value="1"></label>
+        <p class="tool-note">$500 per truck per month + 3% of gross revenue invoiced separately. $150 one-time onboarding per fleet.</p>
+        <div class="workspace-actions">
+        <button class="ghost-button" type="button" data-workspace-plan="carrier">Carrier · $500/truck/month</button>
         <button class="ghost-button" type="button" data-workspace-plan="shipper">Shipper · $799/month</button>
         <button class="ghost-button" type="button" data-workspace-plan="broker">Broker · $299/month</button>
         <button class="primary-button" id="manageBillingButton" type="button" hidden>Manage billing</button>
+        </div>
       </div>
     </section>
 

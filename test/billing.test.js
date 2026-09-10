@@ -7,7 +7,7 @@ const env = { STRIPE_SECRET_KEY: ['sk', 'test', 'fixture'].join('_'), STRIPE_WEB
 const id = crypto.randomUUID();
 function fixture(overrides = {}) {
   const calls = [], portalCalls = [];
-  const price = { active: true, livemode: false, currency: 'usd', unit_amount: 59900, recurring: { interval: 'month', interval_count: 1, usage_type: 'licensed' }, ...overrides };
+  const price = { active: true, livemode: false, currency: 'usd', unit_amount: 50000, recurring: { interval: 'month', interval_count: 1, usage_type: 'licensed' }, ...overrides };
   return { calls, portalCalls, accounts: { retrieve: async () => ({ id: 'acct_1UDJTIKqpp58H3DU' }) }, prices: { retrieve: async () => price }, checkout: { sessions: { create: async (...args) => { calls.push(args); return { id: 'cs_test_fixture', url: 'https://checkout.stripe.com/c/pay/fixture' }; } } }, billingPortal: { sessions: { create: async (params) => { portalCalls.push(params); return { id: 'bps_fixture', url: 'https://billing.stripe.com/p/session/fixture' }; } } } };
 }
 test('Checkout uses verified server price, account metadata and stable retry key', async () => {
@@ -62,4 +62,34 @@ test('raw signed events support secret rotation and reject tampering, stale and 
   assert.throws(() => billing.event(raw,sign(raw,event.created-600)), { statusCode: 400 });
   const live = Buffer.from(JSON.stringify({...event,livemode:true}));
   assert.throws(() => billing.event(live,sign(live)), { statusCode: 400 });
+});
+
+
+test('live mode requires explicit server configuration and matching live resources', async () => {
+  const liveEnv = {...env, STRIPE_MODE:'live', STRIPE_SECRET_KEY:['sk','live','fixture'].join('_')};
+  const client = fixture({livemode:true});
+  await createBilling(liveEnv, client).checkout('carrier','', {id:'u',companyId:'c'}, id);
+  assert.equal(client.calls.length,1);
+  await assert.rejects(createBilling(liveEnv,fixture()).checkout('carrier','',null,id),{statusCode:503});
+  await assert.rejects(createBilling({...liveEnv,STRIPE_SECRET_KEY:env.STRIPE_SECRET_KEY},client).checkout('carrier','',null,id),{statusCode:503});
+  const billing = createBilling(liveEnv);
+  const payload={id:'evt_live',type:'customer.subscription.updated',created:Math.floor(Date.now()/1000),livemode:true,data:{object:{id:'sub_live'}}};
+  const sign=raw=>`t=${payload.created},v1=${crypto.createHmac('sha256',env.STRIPE_WEBHOOK_SECRET).update(`${payload.created}.${raw}`).digest('hex')}`;
+  const raw=JSON.stringify(payload);
+  assert.equal(billing.event(Buffer.from(raw),sign(raw)).id,'evt_live');
+  const wrong=JSON.stringify({...payload,livemode:false});
+  assert.throws(()=>billing.event(Buffer.from(wrong),sign(wrong)),{statusCode:400});
+});
+
+
+test('carrier checkout uses truck quantity and one onboarding fee per fleet', async () => {
+  const client=fixture(); const oldRetrieve=client.prices.retrieve;
+  client.prices.retrieve=async price=>price==='price_onboarding' ? {active:true,livemode:false,currency:'usd',unit_amount:15000,type:'one_time'} : oldRetrieve(price);
+  const billing=createBilling({...env,STRIPE_PRICE_CARRIER_ONBOARDING:'price_onboarding'},client);
+  await billing.checkout('carrier','',{id:'owner',companyId:'fleet'},id,{truckCount:4,onboardingRequired:true});
+  assert.deepEqual(client.calls[0][0].line_items,[{price:'price_fixture',quantity:4},{price:'price_onboarding',quantity:1}]);
+  assert.equal(client.calls[0][0].metadata.revenueFeePercent,'3');
+  await billing.checkout('carrier','',{id:'owner',companyId:'fleet'},crypto.randomUUID(),{truckCount:4,onboardingRequired:false});
+  assert.equal(client.calls[1][0].line_items.length,1);
+  for (const truckCount of [0, -1, 1.5, 101, 'invalid']) await assert.rejects(billing.checkout('carrier','',null,id,{truckCount}),{statusCode:400});
 });

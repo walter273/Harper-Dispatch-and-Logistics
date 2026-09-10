@@ -3,7 +3,7 @@ const rank = { active: 0, trialing: 0, pending: 1, incomplete: 2, past_due: 3, p
 const stripeId = value => typeof value === 'string' ? value : value?.id || '';
 function reduceSubscription(previous, event) {
   const object = event.data.object;
-  const checkout = event.type === 'checkout.session.completed';
+  const checkout = event.type.startsWith('checkout.session.');
   const id = stripeId(checkout ? object.subscription : object.id);
   if (!/^sub_[A-Za-z0-9]+$/.test(id)) return previous;
   if (checkout && previous) return previous;

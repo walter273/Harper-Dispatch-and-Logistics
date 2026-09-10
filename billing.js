@@ -1,12 +1,14 @@
 const crypto = require('node:crypto');
 const Stripe = require('stripe');
 
-const AMOUNTS = Object.freeze({ carrier: 59900, shipper: 79900, broker: 29900 });
+const AMOUNTS = Object.freeze({ carrier: 50000, shipper: 79900, broker: 29900 });
 const fail = (statusCode, message) => Object.assign(new Error(message), { statusCode });
 
-// Test-mode only while launch authorization is pending. Never infer mode from a browser request.
+// Mode is configured server-side. Test mode remains the default; never trust browser input.
 function createBilling(env = process.env, client) {
   const key = env.STRIPE_SECRET_KEY || '';
+  const live = env.STRIPE_MODE === 'live';
+  const keyMatchesMode = () => (live ? /^[sr]k_live_/ : /^[sr]k_test_/).test(key);
   const expectedAccount = env.STRIPE_ACCOUNT_ID || '';
   const stripe = client || (key ? new Stripe(key, { timeout: 10000, maxNetworkRetries: 1 }) : null);
   const webhookStripe = stripe || new Stripe('unused-webhook-verifier');
@@ -29,10 +31,12 @@ function createBilling(env = process.env, client) {
     }
   }
   return {
-    async checkout(plan, email, actor, requestId) {
+    async checkout(plan, email, actor, requestId, options = {}) {
+      const truckCount = plan === 'carrier' ? Number(options.truckCount ?? 1) : 1;
+      if (!Number.isInteger(truckCount) || truckCount < 1 || truckCount > 100) throw fail(400, 'Choose a whole-number truck count from 1 to 100.');
       if (!Object.hasOwn(AMOUNTS, plan)) throw fail(400, 'Choose a supported subscription plan.');
       if (!stripe || !key) throw fail(503, 'Stripe is not configured yet.');
-      if (!/^[sr]k_test_/.test(key)) throw fail(503, 'Only the authorized Stripe sandbox is enabled.');
+      if (!keyMatchesMode()) throw fail(503, 'Stripe key does not match the configured payment mode.');
       if (!/^acct_[A-Za-z0-9]+$/.test(expectedAccount)) throw fail(503, 'The Stripe account ID is not configured.');
       const priceId = env[`STRIPE_PRICE_${plan.toUpperCase()}`];
       if (!priceId) throw fail(503, `Stripe price is not configured for the ${plan} plan.`);
@@ -41,16 +45,26 @@ function createBilling(env = process.env, client) {
       const urls = redirects();
       try {
         const [account, price] = await Promise.all([stripe.accounts.retrieve(), stripe.prices.retrieve(priceId)]);
-        if (account.id !== expectedAccount || price.livemode !== false || !price.active
+        if (account.id !== expectedAccount || price.livemode !== live || !price.active
           || price.currency !== 'usd' || price.unit_amount !== AMOUNTS[plan]
           || price.recurring?.interval !== 'month' || price.recurring?.interval_count !== 1
           || price.recurring?.usage_type !== 'licensed') {
-          throw fail(503, 'Stripe account or monthly plan configuration does not match this sandbox.');
+          throw fail(503, 'Stripe account or monthly plan configuration does not match the configured payment mode.');
         }
-        const metadata = { plan, ...(actor ? { userId: actor.id, companyId: actor.companyId } : {}) };
+        const onboardingRequired = plan === 'carrier' && options.onboardingRequired === true;
+        const lineItems = [{ price: priceId, quantity: truckCount }];
+        if (onboardingRequired) {
+          const onboardingId = env.STRIPE_PRICE_CARRIER_ONBOARDING;
+          if (!onboardingId) throw fail(503, 'Carrier onboarding price is not configured.');
+          const onboarding = await stripe.prices.retrieve(onboardingId);
+          if (!onboarding.active || onboarding.livemode !== live || onboarding.currency !== 'usd' || onboarding.unit_amount !== 15000 || onboarding.type !== 'one_time') throw fail(503, 'Carrier onboarding price must be a one-time USD 150 fee.');
+          lineItems.push({ price: onboardingId, quantity: 1 });
+        }
+        const metadata = { plan, ...(plan === 'carrier' ? { truckCount: String(truckCount), onboardingCharged: String(onboardingRequired), revenueFeePercent: '3' } : {}), ...(actor ? { userId: actor.id, companyId: actor.companyId } : {}) };
         const session = await stripe.checkout.sessions.create({
           mode: 'subscription', ...urls,
-          line_items: [{ price: priceId, quantity: 1 }],
+          line_items: lineItems,
+          ...(plan === 'carrier' ? { custom_text: { submit: { message: 'Carrier service also includes 3% of gross revenue, invoiced separately after revenue review.' } } } : {}),
           metadata, subscription_data: { metadata },
           ...(actor ? { client_reference_id: actor.id } : {}),
           ...(email ? { customer_email: email } : {})
@@ -72,17 +86,17 @@ function createBilling(env = process.env, client) {
       catch { throw fail(400, 'Invalid Stripe webhook signature or payload.'); }
       if (!event || !/^evt_/.test(event.id || '') || typeof event.type !== 'string'
         || !event.data?.object || !Number.isSafeInteger(event.created)) throw fail(400, 'Invalid Stripe event.');
-      if (event.livemode !== false || (event.account && event.account !== expectedAccount)) {
-        throw fail(400, 'This endpoint accepts only authorized sandbox events.');
+      if (event.livemode !== live || (event.account && event.account !== expectedAccount)) {
+        throw fail(400, 'This endpoint accepts only events from the configured account and payment mode.');
       }
       return event;
     },
     async portal(customerId) {
       if (!stripe || !key || !/^acct_[A-Za-z0-9]+$/.test(expectedAccount)) throw fail(503, 'Stripe is not configured yet.');
-      if (!/^[sr]k_test_/.test(key) || !/^cus_[A-Za-z0-9]+$/.test(customerId || '')) throw fail(400, 'No Stripe customer is linked to this account.');
+      if (!keyMatchesMode() || !/^cus_[A-Za-z0-9]+$/.test(customerId || '')) throw fail(400, 'No Stripe customer is linked to this account.');
       try {
         const account = await stripe.accounts.retrieve();
-        if (account.id !== expectedAccount) throw fail(503, 'Stripe account configuration does not match this sandbox.');
+        if (account.id !== expectedAccount) throw fail(503, 'Stripe account configuration does not match the configured payment mode.');
         const returnUrl = new URL('/workspace.html', redirects().success_url).href;
         const configuration = env.STRIPE_PORTAL_CONFIGURATION_ID || '';
         if (configuration && !/^bpc_[A-Za-z0-9]+$/.test(configuration)) throw fail(503, 'The Stripe customer portal configuration is invalid.');

@@ -307,6 +307,11 @@ a { color: inherit; text-decoration: none; }
   margin-top: auto;
 }
 
+.billing-options { display: grid; gap: 12px; }
+.billing-options label { display: grid; gap: 7px; max-width: 180px; }
+.billing-options label span { color: var(--muted); font-size: 0.85rem; }
+.billing-options .tool-note { margin: 0; }
+
 .module-status {
   color: var(--success);
   font-size: 0.72rem;

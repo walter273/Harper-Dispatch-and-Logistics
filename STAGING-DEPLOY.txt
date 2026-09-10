@@ -1,0 +1,2 @@
+AlphaWay TMS staging deployment trigger.
+Railway service should auto-deploy from the staging branch.

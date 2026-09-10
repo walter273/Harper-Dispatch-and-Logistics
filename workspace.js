@@ -40,7 +40,7 @@
       const renewal = subscription.currentPeriodEnd
         ? ` Current period ends ${new Date(subscription.currentPeriodEnd * 1000).toLocaleDateString()}.`
         : '';
-      status.textContent = `${subscription.plan || 'Stripe'} plan · ${subscription.status}.${renewal}`;
+      status.textContent = `${window.AlphawayDispatch?.plans?.[subscription.plan]?.name || subscription.plan || 'Stripe'} plan · ${subscription.status}.${renewal}`;
       manage.hidden = !['carrier-owner', 'shipper', 'broker'].includes(signedInAccount.role);
     } catch (error) {
       status.textContent = error.message;
@@ -146,7 +146,7 @@
         status.textContent = 'Opening secure Stripe Checkout…';
         const payload = await accountRequest('./api/stripe/checkout', {
           method: 'POST',
-          body: JSON.stringify({ plan: button.dataset.workspacePlan, requestId: crypto.randomUUID(), ...(button.dataset.workspacePlan === 'carrier' ? { truckCount: Number(byId('carrierTruckCount')?.value || 1) } : {}) })
+          body: JSON.stringify({ plan: button.dataset.workspacePlan, requestId: crypto.randomUUID() })
         });
         window.location.assign(payload.url);
       } catch (error) {

@@ -536,33 +536,7 @@ const signupForm = document.getElementById('signupForm');
 const signupStatus = document.getElementById('signupStatus');
 
 document.querySelectorAll('[data-plan].plan-checkout-button').forEach((button) => {
-  button.addEventListener('click', () => {
-    const plan = button.dataset.plan;
-    const planName = plan === 'carrier' ? 'Carrier Network' : plan === 'shipper' ? 'Shipper Control' : 'Broker Desk';
-    const email = document.querySelector('#signupForm input[name=email]')?.value.trim() || '';
-    button.dataset.checkoutRequestId ||= crypto.randomUUID();
-    button.disabled = true;
-    button.textContent = 'Opening secure checkout…';
-    fetch('/api/stripe/checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'same-origin',
-      body: JSON.stringify({ plan, email, requestId: button.dataset.checkoutRequestId })
-    })
-      .then(async (response) => {
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(payload.error || 'Checkout is unavailable.');
-        window.location.href = payload.url;
-      })
-      .catch((error) => {
-        button.disabled = false;
-        button.textContent = `Start ${planName} Checkout`;
-        if (signupStatus) {
-          signupStatus.textContent = error.message || 'Checkout is unavailable. Please request access instead.';
-          window.location.hash = 'signup';
-        }
-      });
-  });
+  button.addEventListener('click', () => { window.location.assign('./workspace.html'); });
 });
 
 if (signupForm && signupStatus) {

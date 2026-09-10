@@ -50,7 +50,9 @@ Account authentication protects private operations. Public pages and the public 
 | `STRIPE_ACCOUNT_ID` | blank | Stripe account matching the configured mode |
 | `STRIPE_WEBHOOK_SECRET` | blank | signing secret for `POST /api/stripe/webhook` |
 | `STRIPE_PORTAL_CONFIGURATION_ID` | blank | reviewed customer-portal configuration ID matching the configured mode |
-| `STRIPE_PRICE_CARRIER` | blank | monthly USD 500 Price ID per truck |
+| `STRIPE_PRICE_DISPATCH_BASIC` | blank | weekly USD 300 Price ID per truck |
+| `STRIPE_PRICE_DISPATCH_STANDARD` | blank | weekly USD 500 Price ID per truck |
+| `STRIPE_PRICE_DISPATCH_PREMIUM` | blank | weekly USD 700 Price ID per truck |
 | `STRIPE_PRICE_CARRIER_ONBOARDING` | blank | one-time USD 150 Price ID per fleet |
 | `STRIPE_PRICE_SHIPPER` | blank | recurring Stripe Price ID for the $799 Shipper plan |
 | `STRIPE_PRICE_BROKER` | blank | recurring Stripe Price ID for the $299 Broker plan |
@@ -72,7 +74,7 @@ npm start
 
 The review checkout enables the staged Stripe credential scanner through `git config core.hooksPath .githooks`. Run that command in each new clone to enable the same pre-commit check. It prints filenames only, never matched credentials, and is an additional safeguard rather than a complete secret audit.
 
-Run `npm ci` and `npm test`. Stripe uses the pinned official Node SDK. Checkout checks the selected account, configured payment mode, exact USD monthly plan amounts, safe same-origin return URLs, and a retry idempotency key. Webhook verification uses the original body and supports rotated signatures. The event audit retains 500 records, suppresses duplicates within that window across restarts, and rolls back memory state on failed persistence. Billing audit records are withheld from non-admin operations responses.
+Run `npm ci` and `npm test`. Stripe uses the pinned official Node SDK. Checkout checks the selected account, configured payment mode, exact USD amounts and weekly or monthly intervals, safe same-origin return URLs, and a retry idempotency key. Webhook verification uses the original body and supports rotated signatures. The event audit retains 500 records, suppresses duplicates within that window across restarts, and rolls back memory state on failed persistence. Billing audit records are withheld from non-admin operations responses.
 
 The integration is sandbox-only. Signed webhook events maintain each linked user's subscription status, the workspace can open Stripe's customer portal, and `ALPHAWAY_REQUIRE_SUBSCRIPTION=true` enforces active or trialing status for non-admin operations access. Enable that flag only after the hosted webhook flow passes end-to-end testing.
 
@@ -86,3 +88,9 @@ When account auth is enabled, users sign in through the Freight Command Center. 
 
 
 Hosting references and the current setup steps are in [GODADDY-SETUP.md](./GODADDY-SETUP.md).
+
+## Owner-operator dispatch packages
+
+Basic is $300 per truck per week or 5%; Standard is $500 or 7%; Premium is $700 or 10%. Customers choose one billing method. App access is included, with $150 one-time fleet onboarding. The former Carrier Network offer is unavailable for new checkout; existing subscription records remain readable.
+
+Weekly billing uses Stripe subscription Checkout. Percentage billing uses a persistent, company-scoped review request and does not create a Stripe subscription, charge, customer, or paid entitlement. Staff review public onboarding requests in Admin and signed-in percentage requests in the workspace. Revenue import, invoice issuance and contract activation are not automated. Refer to carrier-agreement.html for the selected revenue basis and pause terms. Approve customer accounts for billing only after the signed agreement and service capacity are confirmed.

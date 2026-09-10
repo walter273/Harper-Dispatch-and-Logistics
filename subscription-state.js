@@ -1,3 +1,4 @@
+const { isDispatchPlan } = require('./dispatch-plans');
 const statuses = new Set(['incomplete','incomplete_expired','trialing','active','past_due','canceled','unpaid','paused']);
 const rank = { active: 0, trialing: 0, pending: 1, incomplete: 2, past_due: 3, paused: 4, unpaid: 5, incomplete_expired: 6, canceled: 7 };
 const stripeId = value => typeof value === 'string' ? value : value?.id || '';
@@ -20,7 +21,7 @@ function reduceSubscription(previous, event) {
     id, customerId: stripeId(object.customer) || previous?.customerId || '',
     userId: previous?.userId || String(metadata.userId || ''),
     companyId: previous?.companyId || String(metadata.companyId || ''),
-    plan: ['carrier','shipper','broker'].includes(metadata.plan) ? metadata.plan : previous?.plan || '',
+    plan: (['carrier','shipper','broker'].includes(metadata.plan) || isDispatchPlan(metadata.plan)) ? metadata.plan : previous?.plan || '',
     status, currentPeriodEnd: checkout ? 0 : object.current_period_end || (periods.length ? Math.min(...periods) : previous?.currentPeriodEnd || 0),
     cancelAtPeriodEnd: checkout ? false : Boolean(object.cancel_at_period_end),
     eventCreated: checkout ? 0 : event.created,

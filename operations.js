@@ -160,6 +160,10 @@
           return;
         }
 
+        if (form.dataset.requestType === 'carrier-onboarding') {
+          if (status) status.textContent = 'The request could not reach the app. Please retry when the connection is restored.';
+          return;
+        }
         if (status) status.textContent = notice;
         window.location.href = `mailto:${recipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(values.join('\n'))}`;
       });

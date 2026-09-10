@@ -9,6 +9,8 @@
   <link rel="stylesheet" href="./style.css">
   <script src="./script.js" defer></script>
   <script src="./operations.js" defer></script>
+  <script src="./dispatch-plans.js" defer></script>
+  <script src="./dispatch-ui.js" defer></script>
   <script src="./account-nav.js" defer></script>
 </head>
 <body>
@@ -37,6 +39,7 @@
       </aside>
     </section>
 
+    <section class="portal-panel" id="dispatchIntakePanel" hidden><h2>Carrier onboarding requests</h2><p class="tool-note">Review the selected package and billing method, confirm staffing, then complete the signed agreement before activating service.</p><div id="dispatchIntakeList" class="dispatch-intake-grid"></div><a class="ghost-button" href="./workspace.html">Review account dispatch requests</a></section>
     <section class="admin-layout">
       <section class="portal-panel admin-form-panel">
         <header class="section-panel-header"><div><p class="eyebrow">Demo catalog</p><h2 id="adminFormTitle">Add a demo load</h2></div></header>

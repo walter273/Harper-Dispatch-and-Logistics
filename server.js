@@ -7,6 +7,7 @@ const { createBilling } = require('./billing');
 const billing = createBilling();
 const { createStorage } = require('./storage');
 const { reduceSubscription } = require('./subscription-state');
+const { plans: dispatchPlans, isDispatchPlan, termsVersion: dispatchTermsVersion } = require('./dispatch-plans');
 const HOSTED = process.env.NODE_ENV === 'production';
 const SECURE_COOKIES = HOSTED || Boolean(process.env.RAILWAY_ENVIRONMENT_ID);
 
@@ -49,6 +50,8 @@ const checkoutLocks = new Set();
 
 const STATIC_FILES = new Set([
   'account-nav.js',
+  'dispatch-plans.js',
+  'dispatch-ui.js',
   HOME_PAGE,
   'loadboard.html',
   'workspace.html',
@@ -111,7 +114,7 @@ const ASSIGNMENT_STATUSES = new Set(['Dispatched', 'In transit', 'Attention']);
 const INTAKE_TYPES = new Set(['access-request', 'carrier-onboarding', 'broker-intake', 'contact']);
 const INTAKE_FIELD_ALLOWLIST = Object.freeze({
   'access-request': new Set(['name', 'email', 'company', 'plan']),
-  'carrier-onboarding': new Set(['legal_carrier_name', 'primary_contact', 'business_email', 'business_phone', 'mc_number', 'dot_number', 'equipment_type', 'available_units', 'preferred_lanes', 'availability', 'operational_notes']),
+  'carrier-onboarding': new Set(['legal_carrier_name', 'primary_contact', 'business_email', 'business_phone', 'mc_number', 'dot_number', 'equipment_type', 'available_units', 'preferred_lanes', 'availability', 'operational_notes', 'dispatch_package', 'billing_method', 'dispatch_terms']),
   'broker-intake': new Set(['broker_company', 'primary_contact', 'business_email', 'business_phone', 'load_reference', 'equipment', 'origin', 'destination', 'pickup_date', 'delivery_date', 'weight', 'target_rate', 'load_notes']),
   contact: new Set(['name', 'email', 'company', 'topic', 'message'])
 });
@@ -434,6 +437,7 @@ function normalizeStore(candidate) {
     intakes: Array.isArray(candidate?.intakes) ? candidate.intakes.slice(-200).map(normalizeIntake).filter(Boolean) : [],
     operations: normalizeOperations(candidate?.operations),
     carrierOnboardedCompanies: Array.isArray(candidate?.carrierOnboardedCompanies) ? [...new Set(candidate.carrierOnboardedCompanies.filter(id => typeof id === 'string'))] : [],
+    dispatchRequests: Array.isArray(candidate?.dispatchRequests) ? candidate.dispatchRequests.filter(entry => isDispatchPlan(entry?.plan) && entry.companyId && entry.billingMethod === 'percentage') : [],
     billingCheckouts: Array.isArray(candidate?.billingCheckouts) ? candidate.billingCheckouts : [],
     accounts: normalizeAccounts(candidate?.accounts)
   };
@@ -442,7 +446,7 @@ function normalizeStore(candidate) {
 function readStore() {
   const saved = storage.read();
   // Corrupt data must fail startup rather than silently resetting customer records.
-  return saved ? normalizeStore(saved) : { ...createStore(), companyStates: {}, carrierOnboardedCompanies: [], billingCheckouts: [] };
+  return saved ? normalizeStore(saved) : { ...createStore(), companyStates: {}, carrierOnboardedCompanies: [], billingCheckouts: [], dispatchRequests: [] };
 }
 
 function persistStore() {
@@ -548,7 +552,7 @@ function normalizeOperations(candidate) {
     customerId: cleanText(subscription?.customerId, '', 100),
     userId: cleanText(subscription?.userId, '', 100),
     companyId: cleanText(subscription?.companyId, '', 100),
-    plan: ['carrier', 'shipper', 'broker'].includes(subscription?.plan) ? subscription.plan : '',
+    plan: ['carrier', 'shipper', 'broker', ...Object.keys(dispatchPlans)].includes(subscription?.plan) ? subscription.plan : '',
     status: cleanText(subscription?.status, 'pending', 40),
     currentPeriodEnd: cleanNumber(subscription?.currentPeriodEnd, 0, 0, Number.MAX_SAFE_INTEGER),
     cancelAtPeriodEnd: Boolean(subscription?.cancelAtPeriodEnd),
@@ -940,7 +944,7 @@ const server = http.createServer(async (request, response) => {
         const subscriptionId = stripeId(event.type.startsWith('checkout.session.') ? object.subscription : object.id);
         const existingSubscription = previousSubscriptions.find((entry) => entry.id === subscriptionId);
         const metadata = object.metadata || {};
-        if (event.type.startsWith('checkout.session.') && object.payment_status === 'paid' && metadata.plan === 'carrier' && metadata.onboardingCharged === 'true' && metadata.companyId) {
+        if (event.type.startsWith('checkout.session.') && object.payment_status === 'paid' && (metadata.plan === 'carrier' || isDispatchPlan(metadata.plan)) && metadata.onboardingCharged === 'true' && metadata.companyId) {
           store.carrierOnboardedCompanies = [...new Set([...previousOnboarded, metadata.companyId])];
         }
         store.operations.billingEvents = [...previousEvents, {
@@ -982,6 +986,42 @@ const server = http.createServer(async (request, response) => {
       }
       return;
     }
+    if (pathname === '/api/dispatch/requests') {
+      const actor = requireAccount(request, ['admin', 'dispatcher', 'carrier-owner']);
+      if (request.method === 'GET') {
+        sendJson(response, 200, { requests: store.dispatchRequests.filter(entry => staff(actor) || entry.companyId === actor.companyId) });
+        return;
+      }
+      if (request.method !== 'POST') throw reject(405, 'Method not allowed.');
+      requireJsonSameOrigin(request);
+      if (!['admin', 'carrier-owner'].includes(actor.role) || !actor.companyId) throw reject(403, 'A carrier owner account is required.');
+      if (!consumeRateLimit(request, 'dispatch-request', 12, AUTH_FAILURE_WINDOW_MS)) throw reject(429, 'Too many requests. Try again shortly.');
+      const body = await readJson(request, 8192);
+      const previous = store.dispatchRequests.find(entry => entry.companyId === actor.companyId && entry.status === 'pending_review');
+      if (body.action === 'withdraw') {
+        if (!previous || body.id !== previous.id) throw reject(404, 'Request not found.');
+        previous.status = 'withdrawn';
+        previous.updatedAt = Date.now();
+        persistStore();
+        sendJson(response, 200, { request: previous });
+        return;
+      }
+      if (!isDispatchPlan(body.plan) || body.billingMethod !== 'percentage' || body.termsVersion !== dispatchTermsVersion) throw reject(400, 'Choose a dispatch package and acknowledge the percentage billing terms.');
+      const truckCount = Number(body.truckCount);
+      if (!Number.isInteger(truckCount) || truckCount < 1 || truckCount > 100) throw reject(400, 'Choose a whole-number truck count from 1 to 100.');
+      if (store.operations.billingSubscriptions.some(sub => sub.companyId === actor.companyId && ['active', 'trialing', 'past_due', 'unpaid', 'incomplete', 'paused'].includes(sub.status))) throw reject(409, 'Contact dispatch to change an existing subscription.');
+      if (store.billingCheckouts.some(entry => entry.companyId === actor.companyId && entry.createdAt > Date.now() - 86400000)) throw reject(409, 'A checkout is pending. Contact dispatch before changing billing methods.');
+      if (previous) {
+        if (previous.plan !== body.plan || previous.truckCount !== truckCount) throw reject(409, 'Withdraw the pending request before choosing different terms.');
+        sendJson(response, 200, { request: previous });
+        return;
+      }
+      const entry = { id: crypto.randomUUID(), companyId: actor.companyId, userId: actor.id, email: actor.email, plan: body.plan, truckCount, billingMethod: 'percentage', percent: dispatchPlans[body.plan].percent, termsVersion: dispatchTermsVersion, status: 'pending_review', createdAt: Date.now() };
+      store.dispatchRequests.push(entry);
+      persistStore();
+      sendJson(response, 201, { request: entry });
+      return;
+    }
     if (request.method === 'POST' && pathname === '/api/stripe/checkout') {
       requireJsonSameOrigin(request);
       if (!hasNetworkAccess(request)) throw reject(403, 'An invitation code is required before Checkout.');
@@ -989,14 +1029,19 @@ const server = http.createServer(async (request, response) => {
       if (!consumeRateLimit(request, 'checkout', 12, AUTH_FAILURE_WINDOW_MS)) throw reject(429, 'Too many checkout attempts. Try again shortly.');
       const body = await readJson(request, 16 * 1024);
       const plan = cleanText(body?.plan, '', 20).toLowerCase();
-      if (!['carrier', 'shipper', 'broker'].includes(plan)) throw reject(400, 'Choose a supported subscription plan.');
+      if (!['shipper', 'broker', ...Object.keys(dispatchPlans)].includes(plan)) throw reject(400, 'Choose a supported subscription plan.');
       const email = actor?.email || cleanText(body?.email, '', 160);
       if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw reject(400, 'Enter a valid email address.');
       const companyId = actor?.companyId;
-      if (plan === 'carrier' && !companyId) throw reject(400, 'An approved fleet account is required.');
-      const truckCount = plan === 'carrier' ? Number(body?.truckCount ?? 1) : 1;
+      const dispatch = isDispatchPlan(plan);
+      if (dispatch && (body.billingMethod !== 'weekly' || body.termsVersion !== dispatchTermsVersion)) throw reject(400, 'Review the dispatch terms and choose weekly billing to open Checkout.');
+      if (dispatch && !['admin', 'carrier-owner'].includes(actor?.role)) throw reject(403, 'A carrier owner account is required.');
+      if (dispatch && store.dispatchRequests.some(entry => entry.companyId === companyId && entry.status === 'pending_review')) throw reject(409, 'Withdraw your percentage request before choosing weekly billing.');
+      if (dispatch && !companyId) throw reject(400, 'An approved fleet account is required.');
+      const truckCount = dispatch ? Number(body?.truckCount ?? 1) : 1;
       if (!Number.isInteger(truckCount) || truckCount < 1 || truckCount > 100) throw reject(400, 'Choose a whole-number truck count from 1 to 100.');
       const lock = companyId || actor?.id || 'preview';
+      if (billing.ready === false) throw reject(503, 'Stripe Checkout is not configured yet. Dispatch can review your onboarding request.');
       if (checkoutLocks.has(lock)) throw reject(409, 'Checkout is already being prepared for this company.');
       if (store.operations.billingSubscriptions.some(sub => sub.companyId === companyId && ['active','trialing','past_due','unpaid','incomplete','paused'].includes(sub.status))) throw reject(409, 'This company already has a subscription. Use billing management.');
       let pending = store.billingCheckouts.find(entry => entry.companyId === lock && entry.createdAt > Date.now() - 24 * 60 * 60 * 1000);
@@ -1013,11 +1058,11 @@ const server = http.createServer(async (request, response) => {
         // Save the retry identity before contacting Stripe. A lost response or failed final write
         // must reuse the same remote session, including its one-time onboarding item.
         if (!pending) {
-          pending = { companyId: lock, userId: actor?.id || 'preview', email, plan, truckCount, onboardingRequired: plan === 'carrier' && !store.carrierOnboardedCompanies.includes(companyId), requestId: crypto.randomUUID(), createdAt: Date.now() };
+          pending = { companyId: lock, userId: actor?.id || 'preview', email, plan, truckCount, onboardingRequired: dispatch && !store.carrierOnboardedCompanies.includes(companyId), requestId: crypto.randomUUID(), createdAt: Date.now() };
           store.billingCheckouts = [...store.billingCheckouts.filter(entry => entry.companyId !== lock), pending];
           persistStore();
         }
-        const checkout = await billing.checkout(plan, pending.email, actor, pending.requestId, { truckCount, onboardingRequired: pending.onboardingRequired });
+        const checkout = await billing.checkout(plan, pending.email, actor, pending.requestId, { truckCount, onboardingRequired: pending.onboardingRequired, billingMethod: dispatch ? 'weekly' : undefined });
         store.billingCheckouts = [...store.billingCheckouts.filter(entry => entry.companyId !== lock), { ...pending, ...checkout }];
         persistStore();
         sendJson(response, 200, checkout);
@@ -1277,6 +1322,7 @@ const server = http.createServer(async (request, response) => {
       }
       const candidate = normalizeIntake(await readJson(request, MAX_INTAKE_BYTES));
       if (!candidate) throw reject(400, 'A supported request type is required.');
+      if (candidate.type === 'carrier-onboarding' && (!isDispatchPlan(candidate.fields.dispatch_package) || !['weekly', 'percentage'].includes(candidate.fields.billing_method) || candidate.fields.dispatch_terms !== dispatchTermsVersion || !Number.isInteger(Number(candidate.fields.available_units)) || Number(candidate.fields.available_units) < 1 || Number(candidate.fields.available_units) > 100)) throw reject(400, 'Choose a dispatch package, billing method, 1 to 100 trucks and acknowledge the current terms.');
       candidate.id = `intake-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       candidate.createdAt = Date.now();
       store.intakes = [...store.intakes, candidate].slice(-200);

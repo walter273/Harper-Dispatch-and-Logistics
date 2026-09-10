@@ -9,10 +9,10 @@ const { once } = require('node:events');
 
 async function start(extra = {}) {
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(ALPHAWAY_|STRIPE_|NODE_ENV$|PORT$|HOST$)/.test(key)));
-  const child = spawn(process.execPath, ['server.js'], { cwd: path.resolve(__dirname,'..'), env: {...env, PORT:'0', ALPHAWAY_HOST:'127.0.0.1', ...extra}, windowsHide: true });
+  const child = spawn(process.execPath, ['--max-old-space-size=128', 'server.js'], { cwd: path.resolve(__dirname,'..'), env: {...env, PORT:'0', ALPHAWAY_HOST:'127.0.0.1', ...extra}, windowsHide: true });
   let output = '', errors = '';
   const url = await new Promise((resolve,reject) => {
-    const timer = setTimeout(() => { child.kill(); reject(new Error('Server startup timed out')); },10000);
+    const timer = setTimeout(() => { child.kill(); reject(new Error(`Server startup timed out: ${errors}`)); },45000);
     child.stdout.on('data', chunk => { output += chunk; const match = output.match(/http:\/\/127\.0\.0\.1:\d+/); if (match) { clearTimeout(timer); resolve(match[0]); } });
     child.stderr.on('data', chunk => { errors += chunk; });
     child.once('exit', () => { clearTimeout(timer); reject(new Error(`Server exited before ready: ${errors}`)); });
@@ -71,16 +71,16 @@ test('hosted preview gates Checkout, secures cookies, and revokes signed-out ses
   const headers={'content-type':'application/json',authorization:`Basic ${Buffer.from(`review:${password}`).toString('base64')}`};
   const post=(route,body={},cookie='')=>fetch(`${app.url}${route}`,{method:'POST',headers:{...headers,cookie},body:JSON.stringify(body)});
   assert.equal((await fetch(`${app.url}/`)).status,401);
-  assert.equal((await post('/api/stripe/checkout',{plan:'carrier'})).status,403);
+  assert.equal((await post('/api/stripe/checkout',{plan:'dispatch-basic',billingMethod:'weekly',termsVersion:'dispatch-2026-09-10-v1'})).status,403);
   const access=await post('/api/access',{code:invite}); const inviteCookie=access.headers.get('set-cookie');
   assert.match(inviteCookie,/; Secure/);
-  assert.equal((await post('/api/stripe/checkout',{plan:'carrier'},inviteCookie.split(';')[0])).status,401);
+  assert.equal((await post('/api/stripe/checkout',{plan:'dispatch-basic',billingMethod:'weekly',termsVersion:'dispatch-2026-09-10-v1'},inviteCookie.split(';')[0])).status,401);
   const signin=await post('/api/accounts/signin',{email:'admin@example.com',password}); const accountCookie=signin.headers.get('set-cookie');
   assert.match(accountCookie,/; Secure/);
   const cookies=`${inviteCookie.split(';')[0]}; ${accountCookie.split(';')[0]}`;
-  assert.equal((await post('/api/stripe/checkout',{plan:'carrier'},cookies)).status,503);
+  assert.equal((await post('/api/stripe/checkout',{plan:'dispatch-basic',billingMethod:'weekly',termsVersion:'dispatch-2026-09-10-v1'},cookies)).status,503);
   assert.equal((await post('/api/accounts/signout',{},cookies)).status,200);
-  assert.equal((await post('/api/stripe/checkout',{plan:'carrier'},cookies)).status,401);
+  assert.equal((await post('/api/stripe/checkout',{plan:'dispatch-basic',billingMethod:'weekly',termsVersion:'dispatch-2026-09-10-v1'},cookies)).status,401);
   assert.equal((await fetch(`${app.url}/api/stripe/webhook`,{method:'POST',body:'{}'})).status,503);
 });
 
@@ -191,7 +191,7 @@ test('carrier checkout retry survives restart and preserves the fleet onboarding
   let app=await start(config); t.after(()=>app.stop());
   const signin=async()=> (await fetch(`${app.url}/api/accounts/signin`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:'admin@example.com',password})})).headers.get('set-cookie').split(';')[0];
   let cookie=await signin();
-  const checkout=async(truckCount=3)=>fetch(`${app.url}/api/stripe/checkout`,{method:'POST',headers:{'content-type':'application/json',cookie},body:JSON.stringify({plan:'carrier',truckCount,requestId:crypto.randomUUID()})});
+  const checkout=async(truckCount=3)=>fetch(`${app.url}/api/stripe/checkout`,{method:'POST',headers:{'content-type':'application/json',cookie},body:JSON.stringify({plan:'dispatch-basic',billingMethod:'weekly',termsVersion:'dispatch-2026-09-10-v1',truckCount,requestId:crypto.randomUUID()})});
   assert.equal((await checkout()).status,502);
   const draft=JSON.parse(fs.readFileSync(file)).billingCheckouts[0];
   assert.equal(draft.onboardingRequired,true);
@@ -205,4 +205,45 @@ test('carrier checkout retry survives restart and preserves the fleet onboarding
   assert.equal(calls[1].options.truckCount,3);
   assert.equal((await checkout()).status,200);
   assert.equal(JSON.parse(fs.readFileSync(log)).length,2);
+});
+
+test('dispatch requests validate terms, isolate companies, deduplicate and survive restart', async (t) => {
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'alphaway-dispatch-'));
+  t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
+  const file=path.join(dir,'store.json'), password=crypto.randomBytes(24).toString('hex');
+  const config={ALPHAWAY_DATA_FILE:file,ALPHAWAY_ACCOUNT_AUTH:'true',ALPHAWAY_ADMIN_EMAIL:'admin@example.com',ALPHAWAY_ADMIN_PASSWORD:password};
+  let app=await start(config); t.after(()=>app.stop());
+  const post=(url,body,cookie)=>fetch(app.url+url,{method:'POST',headers:{'content-type':'application/json',...(cookie?{cookie}:{})},body:JSON.stringify(body)});
+  const get=(url,cookie)=>fetch(app.url+url,{headers:cookie?{cookie}:{}});
+  const login=async email=>(await post('/api/accounts/signin',{email,password})).headers.get('set-cookie').split(';')[0];
+  const admin=await login('admin@example.com');
+  async function owner(company) {
+    const email=company+'@example.com';
+    const invite=await (await post('/api/accounts/invitations',{email,role:'carrier-owner',companyId:company},admin)).json();
+    const token=invite.invitation.token;
+    assert.equal((await post('/api/accounts/accept',{token,password,name:company})).status,201);
+    return login(email);
+  }
+  const a=await owner('fleet-a'), b=await owner('fleet-b');
+  const body={plan:'dispatch-standard',billingMethod:'percentage',truckCount:2,termsVersion:'dispatch-2026-09-10-v1',percent:1,companyId:'fleet-b'};
+  assert.equal((await post('/api/dispatch/requests',body)).status,401);
+  assert.equal((await post('/api/dispatch/requests',{...body,termsVersion:'old'},a)).status,400);
+  assert.equal((await post('/api/dispatch/requests',{...body,truckCount:1.5},a)).status,400);
+  const first=await post('/api/dispatch/requests',body,a); assert.equal(first.status,201);
+  const saved=(await first.json()).request; assert.equal(saved.companyId,'fleet-a'); assert.equal(saved.percent,7); assert.equal(saved.status,'pending_review');
+  const repeated=await post('/api/dispatch/requests',body,a); assert.equal(repeated.status,200); assert.equal((await repeated.json()).request.id,saved.id);
+  assert.equal((await (await get('/api/dispatch/requests',b)).json()).requests.length,0);
+  assert.equal((await (await get('/api/dispatch/requests',admin)).json()).requests.length,1);
+  assert.equal((await post('/api/dispatch/requests',{action:'withdraw',id:saved.id},b)).status,404);
+  assert.equal((await post('/api/stripe/checkout',{...body,billingMethod:'weekly'},a)).status,409);
+  await app.stop(); app=await start(config);
+  assert.equal((await (await get('/api/dispatch/requests',a)).json()).requests[0].id,saved.id);
+  assert.equal(JSON.parse(fs.readFileSync(file)).operations.billingSubscriptions.length,0);
+  const intake={type:'carrier-onboarding',fields:{legal_carrier_name:'Test Carrier',primary_contact:'Test Owner',business_email:'public@example.com',available_units:'2',dispatch_package:'dispatch-premium',billing_method:'percentage',dispatch_terms:'dispatch-2026-09-10-v1'}};
+  assert.equal((await post('/api/intakes',{...intake,fields:{...intake.fields,dispatch_package:'invented'}})).status,400);
+  assert.equal((await post('/api/intakes',intake)).status,201);
+  assert.equal((await get('/api/intakes')).status,403);
+  assert.equal((await (await get('/api/intakes',admin)).json()).intakes[0].fields.dispatch_package,'dispatch-premium');
+  assert.equal((await post('/api/dispatch/requests',{action:'withdraw',id:saved.id},a)).status,200);
+  assert.equal((await post('/api/stripe/checkout',{...body,billingMethod:'percentage'},a)).status,400);
 });

@@ -9,6 +9,8 @@
   <link rel="stylesheet" href="./style.css">
   <script src="./script.js" defer></script>
   <script src="./operations.js" defer></script>
+  <script src="./dispatch-plans.js" defer></script>
+  <script src="./dispatch-ui.js" defer></script>
   <script src="./account-nav.js" defer></script>
 </head>
 <body>
@@ -29,7 +31,7 @@
     <section class="portal-hero compact-portal-hero">
       <div>
         <p class="eyebrow">Carrier portal</p>
-        <h1>Start your onboarding request</h1>
+        <h1>Choose your dispatch package</h1>
         <p>Share the operating details dispatch needs to begin a conversation about lanes, equipment, and availability.</p>
       </div>
       <aside class="portal-callout warning-callout">
@@ -42,6 +44,8 @@
       <header class="section-panel-header"><div><p class="eyebrow">Initial request</p><h2>Carrier details</h2></div></header>
       <form class="operations-form" data-request-form data-request-type="carrier-onboarding" data-subject="Carrier onboarding request" data-notice="The app server is unavailable, so an email draft is opening with this non-sensitive onboarding summary.">
         <div class="operations-form-grid">
+          <label><span>Dispatch package</span><select name="dispatch_package" id="onboardingDispatchPlan" required><option value="dispatch-basic">Basic Dispatch - $300/truck/week or 5%</option><option value="dispatch-standard" selected>Standard Dispatch - $500/truck/week or 7%</option><option value="dispatch-premium">Premium Dispatch - $700/truck/week or 10%</option></select></label>
+          <label><span>Billing method</span><select name="billing_method" id="onboardingBillingMethod" required><option value="weekly">Fixed weekly fee per truck</option><option value="percentage">Percentage of eligible revenue</option></select></label>
           <label><span>Legal carrier name</span><input name="legal_carrier_name" type="text" autocomplete="organization" required></label>
           <label><span>Primary contact</span><input name="primary_contact" type="text" autocomplete="name" required></label>
           <label><span>Business email</span><input name="business_email" type="email" autocomplete="email" required></label>
@@ -49,11 +53,14 @@
           <label><span>MC number</span><input name="mc_number" type="text" inputmode="numeric"></label>
           <label><span>DOT number</span><input name="dot_number" type="text" inputmode="numeric"></label>
           <label><span>Equipment type</span><select name="equipment_type"><option>Dry Van</option><option>Reefer</option><option>Flatbed</option><option>Power Only</option><option>Other</option></select></label>
-          <label><span>Available units</span><input name="available_units" type="number" min="0" max="1000" step="1"></label>
+          <label><span>Available units</span><input name="available_units" type="number" min="1" max="100" step="1" value="1" required></label>
           <label><span>Preferred lanes</span><input name="preferred_lanes" type="text" placeholder="e.g., CO / AZ / TX"></label>
           <label><span>Availability</span><select name="availability"><option>Available now</option><option>Available this week</option><option>Future availability</option></select></label>
         </div>
         <label class="full-field"><span>Operational notes</span><textarea name="operational_notes" rows="5" maxlength="1000" placeholder="Dispatch preferences, lane interests, or non-sensitive equipment details"></textarea></label>
+        <p class="tool-note" id="onboardingDispatchSummary" aria-live="polite"></p>
+        <p class="tool-note">App access is included. $150 one-time onboarding per fleet. Percentage fees use collected line-haul revenue on Alphaway-dispatched loads and are reviewed weekly. This request starts no subscription or charge.</p>
+        <label class="dispatch-consent"><input type="checkbox" name="dispatch_terms" value="dispatch-2026-09-10-v1" required><span>I have read the <a href="./carrier-agreement.html">dispatch billing and service overview</a>. Service requires approval and a signed agreement.</span></label>
         <div class="portal-actions"><button class="primary-button" type="submit">Submit request</button><a class="ghost-button" href="./carrier-agreement.html">Read agreement overview</a></div>
         <p class="form-status" data-form-status role="status" aria-live="polite"></p>
       </form>

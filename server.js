@@ -57,6 +57,9 @@ const STATIC_FILES = new Set([
   'loadboard.html',
   'workspace.html',
   'workspace.js',
+  'accept-invitation.html',
+  'accept-invitation.js',
+  'account-setup.css',
   'tms.html',
   'admin.html',
   'intake-review.html',
@@ -1131,21 +1134,32 @@ const server = http.createServer(async (request, response) => {
       });
       return;
     }
+    if (request.method === 'POST' && pathname === '/api/accounts/invitations/preview') {
+      requireJsonSameOrigin(request);
+      if (!consumeRateLimit(request, 'invitation-preview', 30, AUTH_FAILURE_WINDOW_MS)) throw reject(429, 'Too many attempts. Try again in a minute.');
+      const body = await readJson(request, 16 * 1024);
+      const tokenHash = crypto.createHash('sha256').update(String(body?.token || '')).digest('hex');
+      const invitation = store.accounts.invitations.find(entry => entry.tokenHash === tokenHash && entry.status === 'pending' && entry.expiresAt > Date.now());
+      if (!invitation) throw reject(400, 'This invitation has expired or has already been used. Ask your administrator for a new link, or sign in if you already created your account.');
+      if (store.accounts.users.some(user => user.email === invitation.email)) throw reject(409, 'An account already exists for this email. Sign in with that account.');
+      sendJson(response, 200, { invitation: { email: invitation.email, role: invitation.role, expiresAt: invitation.expiresAt } });
+      return;
+    }
     if (request.method === 'POST' && pathname === '/api/accounts/accept') {
       requireJsonSameOrigin(request);
+      if (!consumeRateLimit(request, 'invitation-accept', 12, AUTH_FAILURE_WINDOW_MS)) throw reject(429, 'Too many attempts. Try again in a minute.');
       const body = await readJson(request, 16 * 1024);
       const tokenHash = crypto.createHash('sha256').update(String(body?.token || '')).digest('hex');
       const invitation = store.accounts.invitations.find((entry) => entry.tokenHash === tokenHash && entry.status === 'pending' && entry.expiresAt > Date.now());
       const name = cleanText(body?.name, '', 120);
       const password = String(body?.password || '');
-      if (!invitation || !name || password.length < 10) throw reject(400, 'A valid invitation, name, and password of at least 10 characters are required.');
+      if (!invitation || !name || password.length < 10 || password.length > 256) throw reject(400, 'A valid invitation, name, and password of 10 to 256 characters are required.');
       if (store.accounts.users.some((user) => user.email === invitation.email)) throw reject(409, 'An account already exists for this email.');
       const credentials = hashPassword(password);
       const user = { id: operationId('user'), email: invitation.email, name, role: invitation.role, companyId: invitation.companyId, status: 'active', passwordSalt: credentials.salt, passwordHash: credentials.hash, createdAt: Date.now() };
       store.accounts.users.push(user);
       invitation.status = 'accepted';
       addAudit(user.id, 'account.accept-invitation', user.id);
-      persistStore();
       const rawToken = crypto.randomBytes(32).toString('hex');
       store.accounts.sessions.push({ tokenHash: crypto.createHash('sha256').update(rawToken).digest('hex'), userId: user.id, expiresAt: Date.now() + ACCOUNT_SESSION_DAYS * 86400000 });
       persistStore();
@@ -1169,14 +1183,16 @@ const server = http.createServer(async (request, response) => {
       return;
     }
     if (request.method === 'POST' && pathname === '/api/accounts/invitations') {
-      const actor = requireAccount(request, ['admin', 'dispatcher']);
+      requireAccount(request, ['admin', 'dispatcher']);
       requireJsonSameOrigin(request);
       const body = await readJson(request, 16 * 1024);
+      const actor = requireAccount(request, ['admin', 'dispatcher']);
       const email = cleanText(body?.email, '', 160).toLowerCase();
       const role = cleanText(body?.role, '', 40);
       const companyId = cleanText(body?.companyId, actor.companyId, 80);
       if (actor.role !== 'admin' && (['admin','dispatcher'].includes(role) || companyId !== actor.companyId)) throw reject(403, 'Only administrators can grant staff or other-company access.');
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !ACCOUNT_ROLES.has(role) || !companyId) throw reject(400, 'A valid email, role, and company are required.');
+      if (store.accounts.users.some(user => user.email === email)) throw reject(409, 'An account already exists for this email. Use Account management to review the existing account.');
       const rawToken = crypto.randomBytes(24).toString('hex');
       store.accounts.invitations = [...store.accounts.invitations, { id: operationId('invite'), email, role, companyId, tokenHash: crypto.createHash('sha256').update(rawToken).digest('hex'), status: 'pending', expiresAt: Date.now() + 7 * 86400000 }].slice(-500);
       addAudit(actor.id, 'account.invite', email);

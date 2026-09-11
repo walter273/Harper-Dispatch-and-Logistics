@@ -1,6 +1,7 @@
 (() => {
   const byId = (id) => document.getElementById(id);
   let signedInAccount = null;
+  let invitationOwnerId = null;
   const accountRequest = async (path, options = {}) => {
     const response = await fetch(path, { ...options, headers: { 'Content-Type': 'application/json', ...(options.headers || {}) } });
     const payload = await response.json().catch(() => ({}));
@@ -63,6 +64,21 @@
     const invitePanel = inviteForm?.closest('.admin-tool');
     if (invitePanel) {
       invitePanel.hidden = !signedInAccount || !['admin', 'dispatcher'].includes(signedInAccount.role);
+      const roles = inviteForm.elements.role;
+      roles.setAttribute('aria-label', 'Role');
+      roles.querySelectorAll('option[value="admin"], option[value="dispatcher"]').forEach(option => { if (signedInAccount?.role !== 'admin') option.remove(); });
+      if (signedInAccount?.role === 'admin') {
+        for (const [value, text] of [['dispatcher', 'Dispatcher'], ['admin', 'Admin']]) {
+          if (!roles.querySelector(`option[value="${value}"]`)) { const option = document.createElement('option'); option.value = value; option.textContent = text; roles.append(option); }
+        }
+      }
+      updateInvitationRole();
+      if (!invitePanel.hidden && window.location.hash === '#inviteTeam') invitePanel.scrollIntoView({ block: 'start' });
+      if (invitationOwnerId !== signedInAccount?.id) {
+        if (byId('inviteResult')) byId('inviteResult').hidden = true;
+        if (byId('inviteLink')) byId('inviteLink').value = '';
+        if (byId('inviteStatus')) byId('inviteStatus').textContent = '';
+      }
     }
 
     const accountManagementPanel = byId('accountManagementPanel');
@@ -169,18 +185,56 @@
     }
   });
 
+  function updateInvitationRole() {
+    const form = byId('inviteForm');
+    if (!form || !signedInAccount) return;
+    const staffRole = ['admin', 'dispatcher'].includes(form.elements.role.value);
+    const company = form.elements.companyId;
+    if (staffRole || signedInAccount.role !== 'admin' || !company.value) company.value = signedInAccount.companyId || '';
+    company.readOnly = staffRole || signedInAccount.role !== 'admin';
+    if (byId('inviteCompanyLabel')) byId('inviteCompanyLabel').hidden = staffRole;
+    if (byId('inviteRoleHelp')) byId('inviteRoleHelp').textContent = form.elements.role.value === 'admin'
+      ? 'Admins can manage accounts, grant access, and record final intake decisions. This invitation uses your company.'
+      : staffRole ? 'Dispatchers can prepare intake reviews and manage operations. Your company is selected automatically.' : 'Choose the company this person is authorized to access.';
+  }
+  byId('inviteForm')?.elements.role.addEventListener('change', updateInvitationRole);
+  byId('copyInviteLink')?.addEventListener('click', async () => {
+    const link = byId('inviteLink');
+    if (!link?.value) return;
+    try {
+      await navigator.clipboard.writeText(link.value);
+      byId('inviteStatus').textContent = 'Invitation link copied. Share it directly with your teammate.';
+    } catch {
+      link.focus(); link.select();
+      byId('inviteStatus').textContent = 'Select and copy the invitation link, then share it directly with your teammate.';
+    }
+  });
   byId('inviteForm')?.addEventListener('submit', async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
     const status = byId('inviteStatus');
     if (!form || !status) return;
+    const submit = form.querySelector('button[type="submit"]');
+    if (submit.disabled) return;
+    submit.disabled = true;
+    const requestOwnerId = signedInAccount?.id;
+    byId('inviteResult').hidden = true;
+    byId('inviteLink').value = '';
+    status.textContent = 'Creating invitation…';
     try {
       const payload = await accountRequest('./api/accounts/invitations', { method: 'POST', body: JSON.stringify(formFields(form)) });
+      if (!signedInAccount || signedInAccount.id !== requestOwnerId) return;
+      const link = new URL('./accept-invitation.html', window.location.href);
+      link.hash = `token=${payload.invitation.token}`;
+      byId('inviteLink').value = link.href;
+      byId('inviteResult').hidden = false;
+      invitationOwnerId = signedInAccount?.id;
       form.reset();
-      status.textContent = `Invitation created for ${payload.invitation.email}. Token: ${payload.invitation.token}`;
+      updateInvitationRole();
+      status.textContent = `Invitation created for ${payload.invitation.email} as ${payload.invitation.role}. Copy and share the link below.`;
     } catch (error) {
       status.textContent = error.message;
-    }
+    } finally { submit.disabled = false; }
   });
 
   byId('fmcsaBrokerForm')?.addEventListener('submit', async (event) => {

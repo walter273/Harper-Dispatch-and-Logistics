@@ -100,4 +100,12 @@ Weekly billing uses Stripe subscription Checkout. Percentage billing uses a pers
 
 Admins and dispatchers can open **Intake review** in the navigation. The queue retains original submissions, assigned reviewers, supporting evidence notes, and a complete review history. Only admins can approve, reject, suspend, or reopen a review. Approval requires completed supporting checks and records the decision maker, time, reason, and evidence snapshot. It does not create accounts, activate service, or charge customers. See [INTAKE-REVIEW.md](INTAKE-REVIEW.md) for the workflow, retention and backup limitations, and API details.
 
+## Invite another administrator
+
+Sign in as an admin, open **Admin → Invite a team member**, enter the person's email, and choose **Admin**. The app selects your company for staff invitations. Click **Create invitation**, then **Copy invitation link** and share it directly with that person. The app does not automatically send invitation emails.
+
+The recipient opens the link, enters their name, creates and confirms a password of at least 10 characters, and clicks **Create my account**. They are signed in and sent to Admin. Later they use their own email and password on `/workspace.html`.
+
+Invitations expire after seven days and are single-use. The role is fixed by the server-side invitation; recipients cannot choose a higher role. Only existing admins can invite admins or dispatchers. Invitation tokens are stored hashed and placed in the setup link's fragment, so the token is not sent in the page URL to the server. Passwords are hashed, and account activation and session creation are saved together.
+
 Run `npm run stripe:review` on a trusted server with its Stripe environment variables to check account activation, configured prices, the portal, and tax settings without changing Stripe. `npm run stripe:configure-portal` creates or updates a dedicated Alphaway portal with invoice access, payment-method updates, and cancellation at the end of the paid period. It prints the configuration ID to install as `STRIPE_PORTAL_CONFIGURATION_ID`; it does not enable payments, register for tax, or claim an end-to-end test. The setup command needs additional Billing Portal configuration write and Tax read permissions beyond the runtime key's Checkout/portal-session permissions. See [STRIPE-LAUNCH-REVIEW.md](STRIPE-LAUNCH-REVIEW.md) for verified findings and remaining acceptance tests.

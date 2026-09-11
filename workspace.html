@@ -7,6 +7,7 @@
   <title>Freight Command Center | Alphaway Logistics</title>
   <link href="./css2" rel="stylesheet">
   <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./account-setup.css">
   <script src="./script.js" defer></script>
   <script src="./dispatch-plans.js" defer></script>
   <script src="./workspace.js" defer></script>
@@ -81,9 +82,11 @@
     </section>
 
     <section class="operations-tool-grid" aria-label="Connected operations tools">
-      <article class="portal-panel tool-card admin-tool">
+      <article class="portal-panel tool-card admin-tool" id="inviteTeam" hidden>
         <p class="eyebrow">Administration</p><h2>Invite a team member</h2>
-        <form id="inviteForm" class="operations-form"><label><span>Email</span><input name="email" type="email" required></label><label><span>Role</span><select name="role"><option value="dispatcher">Dispatcher</option><option value="carrier-owner">Carrier owner</option><option value="driver">Driver</option><option value="broker">Broker</option><option value="shipper">Shipper</option></select></label><label><span>Company ID</span><input name="companyId" placeholder="carrier-acme" required></label><button class="primary-button" type="submit">Create invitation</button><p id="inviteStatus" class="form-status" role="status"></p></form>
+        <p class="tool-note">Create a private invitation link. Your teammate will choose their own password when they accept it.</p>
+        <form id="inviteForm" class="operations-form"><label><span>Email</span><input name="email" type="email" autocomplete="email" required></label><label><span>Role</span><select name="role"><option value="dispatcher">Dispatcher</option><option value="carrier-owner">Carrier owner</option><option value="driver">Driver</option><option value="broker">Broker</option><option value="shipper">Shipper</option></select></label><label id="inviteCompanyLabel"><span>Company ID</span><input name="companyId" placeholder="carrier-acme" required></label><p id="inviteRoleHelp" class="tool-note"></p><button class="primary-button" type="submit">Create invitation</button><p id="inviteStatus" class="form-status" role="status"></p></form>
+        <div id="inviteResult" class="invitation-result" hidden><label for="inviteLink">Private invitation link</label><input id="inviteLink" type="text" readonly spellcheck="false"><button id="copyInviteLink" type="button" class="ghost-button">Copy invitation link</button><p class="tool-note">Share this link directly with the invited person. It expires after 7 days and can be used once. Invitation emails are not sent automatically.</p></div>
       </article>
       <article class="portal-panel tool-card">
         <p class="eyebrow">FMCSA QCMobile</p><h2>Verify a broker</h2>

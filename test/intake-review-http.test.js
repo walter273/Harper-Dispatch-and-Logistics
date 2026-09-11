@@ -1,0 +1,86 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { randomUUID } = require('node:crypto');
+const { start } = require('../test-support/server');
+const { seed } = require('../test-support/review-fixture');
+
+test('staff queue: private APIs, immutable originals, approval, durable history, conflicts and failed-write retry', { timeout: 300000 }, async t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'alphaway-review-test-'));
+  const file = path.join(dir, 'store.json');
+  const { tokens, original } = seed(file);
+  const config = { ALPHAWAY_DATA_FILE: file, ALPHAWAY_ACCOUNT_AUTH: 'true' };
+  let app;
+  t.after(async () => { if (app) await app.stop(); fs.rmSync(dir, { recursive: true, force: true }); });
+  app = await start(config);
+  const cookie = role => role ? `alphaway_account=${tokens[`user-${role}`]}` : '';
+  const get = (route, role = 'admin') => fetch(app.url + route, { headers: { cookie: cookie(role) } });
+  const post = (route, body, role = 'admin', headers = {}) => fetch(app.url + route, { method: 'POST', headers: { 'content-type': 'application/json', cookie: cookie(role), ...headers }, body: JSON.stringify(body) });
+  const recordPath = '/api/intakes/legacy-carrier';
+  const record = async () => (await get(recordPath)).json();
+  const action = async (name, fields = {}, role = 'admin') => {
+    const current = await record();
+    return post(`${recordPath}/review`, { action: name, version: current.review.version, requestId: randomUUID(), ...fields }, role);
+  };
+  for (const role of ['', 'carrier-owner', 'driver', 'broker', 'shipper', 'suspended']) {
+    for (const route of ['/api/intakes', '/api/intakes/meta', recordPath, `${recordPath}/history`, `${recordPath}/export`]) assert.ok([401, 403].includes((await get(route, role)).status), `${role || 'anonymous'} must not read ${route}`);
+    assert.ok([401, 403].includes((await post(`${recordPath}/review`, { action: 'approve' }, role)).status));
+  }
+  const initial = await (await get('/api/intakes?pageSize=50&page=6', 'dispatcher')).json();
+  assert.equal(initial.retainedTotal, 256); assert.equal(initial.intakes.length, 6); assert.equal(initial.intakes.at(-1).id, 'legacy-0');
+  assert.equal(initial.intakes.at(-1).fields.legacy_reference, 'Retain this older field.');
+  const metadata = await (await get('/api/intakes/meta', 'dispatcher')).json();
+  assert.deepEqual(metadata.reviewers.map(user => user.role).sort(), ['admin', 'dispatcher']);
+  assert.equal(metadata.reviewers[0].passwordHash, undefined); assert.equal(metadata.reviewers[0].email, undefined);
+  for (const route of ['/intake-review.html', '/intake-review-ui.js', '/intake-review.css']) assert.equal((await get(route)).status, 200);
+  assert.equal((await get('/intake-review.js')).status, 404, 'server module is not served as a static asset');
+  const spoofed = await post('/api/intakes', { type: 'contact', fields: { name: 'New Request', email: 'new@example.com', message: 'Please call me.' }, id: 'legacy-carrier', review: { status: 'approved' }, createdAt: 1 }, '');
+  assert.equal(spoofed.status, 201);
+  const submitted = (await spoofed.json()).intake;
+  assert.notEqual(submitted.id, 'legacy-carrier'); assert.ok(submitted.createdAt > 1); assert.equal(submitted.review, undefined);
+  assert.equal((await (await get(`/api/intakes/${submitted.id}`)).json()).review.status, 'received');
+  assert.equal((await action('approve', { note: 'Missing checks' })).status, 400);
+  assert.equal((await action('assign', { assigneeId: 'user-dispatcher' }, 'dispatcher')).status, 200);
+  assert.equal((await action('status', { status: 'in_review', note: 'Evidence review started.' }, 'dispatcher')).status, 200);
+  for (const [checkId] of metadata.categories.carrier.checks) assert.equal((await action('check', { checkId, status: 'verified', evidence: `Reviewed document reference ${checkId}.` }, 'dispatcher')).status, 200);
+  assert.equal((await action('approve', { note: 'Prepared' }, 'dispatcher')).status, 403);
+  const ready = await record();
+  const approval = { action: 'approve', version: ready.review.version, requestId: randomUUID(), note: 'Agreement, insurance and service availability reviewed.', actor: { id: 'forged' }, at: 1 };
+  assert.equal((await post(`${recordPath}/review`, approval, 'admin', { origin: 'https://untrusted.example' })).status, 403);
+  const approved = await post(`${recordPath}/review`, approval);
+  assert.equal(approved.status, 200); const approvedBody = await approved.json();
+  assert.equal(approvedBody.review.status, 'approved'); assert.equal(approvedBody.review.decision.actor.id, 'user-admin'); assert.ok(approvedBody.review.decision.at > 1);
+  assert.equal((await (await post(`${recordPath}/review`, approval)).json()).replayed, true);
+  assert.equal((await post(`${recordPath}/review`, { ...approval, requestId: randomUUID() })).status, 409);
+  assert.equal((await action('check', { checkId: 'insurance', status: 'pending' })).status, 409);
+  assert.equal((await action('reopen', { note: 'Review renewal.' })).status, 200);
+  const snapshot = await record();
+  const updates = await Promise.all(['One', 'Two'].map(note => post(`${recordPath}/review`, { action: 'note', note, version: snapshot.review.version, requestId: randomUUID() })));
+  assert.deepEqual(updates.map(response => response.status).sort(), [200, 409]);
+  const beforeFailure = await record();
+  const retry = { action: 'note', note: 'Persist after storage recovers.', version: beforeFailure.review.version, requestId: randomUUID() };
+  const recovery = path.join(dir, 'fault-recovery.json');
+  fs.renameSync(file, recovery); fs.mkdirSync(file);
+  try { assert.equal((await post(`${recordPath}/review`, retry)).status, 503); }
+  finally { fs.rmdirSync(file); fs.renameSync(recovery, file); }
+  assert.equal((await record()).review.version, beforeFailure.review.version);
+  assert.equal((await post(`${recordPath}/review`, retry)).status, 200);
+  for (let i = 0; i < 27; i++) assert.equal((await action('note', { note: `Retained note ${i}` })).status, 200);
+  const history = await (await get(`${recordPath}/history?page=2`)).json(); assert.equal(history.page, 2); assert.ok(history.history.length > 0);
+  const exported = await (await get(`${recordPath}/export`)).json();
+  assert.equal(exported.review.history.length, exported.review.historyCount);
+  assert.equal(exported.review.history.filter(entry => entry.action === 'approve').length, 1);
+  assert.equal(exported.review.history.find(entry => entry.action === 'approve').decision.checks.insurance.status, 'verified');
+  assert.deepEqual(exported.intake, original.intakes.at(-1));
+  await app.stop(); app = await start(config);
+  const afterRestart = await (await get(`${recordPath}/export`)).json();
+  assert.deepEqual(afterRestart.intake, exported.intake); assert.deepEqual(afterRestart.review, exported.review);
+  assert.equal((await (await get('/api/intakes?q=Summit&status=in_review&category=carrier&assignee=user-dispatcher')).json()).total, 1);
+  const saved = JSON.parse(fs.readFileSync(file)); assert.equal(saved.intakes.length, 257);
+  assert.equal(saved.accounts.users.length, original.accounts.users.length, 'approval does not create accounts');
+  assert.equal(saved.operations.billingSubscriptions.length, 0, 'approval does not grant paid entitlement');
+  await app.stop(); app = await start({ ...config, ALPHAWAY_ACCOUNT_AUTH: 'false' });
+  assert.equal((await get('/api/intakes')).status, 403); assert.equal((await get(recordPath)).status, 401);
+});

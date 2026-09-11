@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Demo load catalog tools for Alphaway Logistics.">
-  <title>Demo Tools | Alphaway Logistics</title>
+  <meta name="description" content="Intake review and administration for Alphaway Logistics.">
+  <title>Admin | Alphaway Logistics</title>
   <link href="./css2" rel="stylesheet">
   <link rel="stylesheet" href="./style.css">
   <script src="./script.js" defer></script>
@@ -29,17 +29,18 @@
 
     <section class="portal-hero compact-portal-hero">
       <div>
-        <p class="eyebrow">Demo tools</p>
-        <h1>Load catalog manager</h1>
-        <p>Create, edit, import, or export demo loads. When this app is opened through its server, changes are shared with its connected browser sessions and reflected on the load board.</p>
+        <p class="eyebrow">Administration</p>
+        <h1>Team administration</h1>
+        <p>Review new requests, record approval decisions, and manage the demo load catalog.</p>
       </div>
       <aside class="portal-callout warning-callout">
-        <strong>Not a secured production admin</strong>
-        <p>This local-server demo has no authentication, audit trail, or team permissions. Keep it private and off public deployments until those controls exist.</p>
+        <strong>Intake review queue</strong>
+        <p>Assign reviewers, check supporting evidence, and retain a history of each decision.</p>
+        <a class="primary-button" href="./intake-review.html">Open intake review</a>
       </aside>
     </section>
 
-    <section class="portal-panel" id="dispatchIntakePanel" hidden><h2>Carrier onboarding requests</h2><p class="tool-note">Review the selected package and billing method, confirm staffing, then complete the signed agreement before activating service.</p><div id="dispatchIntakeList" class="dispatch-intake-grid"></div><a class="ghost-button" href="./workspace.html">Review account dispatch requests</a></section>
+    <section class="portal-panel"><h2>Accounts and dispatch requests</h2><p class="tool-note">Manage account invitations and the separate steps for service and billing activation.</p><a class="ghost-button" href="./workspace.html">Open account workspace</a></section>
     <section class="admin-layout">
       <section class="portal-panel admin-form-panel">
         <header class="section-panel-header"><div><p class="eyebrow">Demo catalog</p><h2 id="adminFormTitle">Add a demo load</h2></div></header>

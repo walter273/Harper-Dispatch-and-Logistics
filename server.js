@@ -6,6 +6,7 @@ const { URL } = require('node:url');
 const { createBilling } = require('./billing');
 const billing = createBilling();
 const { createStorage } = require('./storage');
+const intakeReview = require('./intake-review');
 const { reduceSubscription } = require('./subscription-state');
 const { plans: dispatchPlans, isDispatchPlan, termsVersion: dispatchTermsVersion } = require('./dispatch-plans');
 const HOSTED = process.env.NODE_ENV === 'production';
@@ -58,6 +59,9 @@ const STATIC_FILES = new Set([
   'workspace.js',
   'tms.html',
   'admin.html',
+  'intake-review.html',
+  'intake-review-ui.js',
+  'intake-review.css',
   'carrier-onboarding.html',
   'carrier-agreement.html',
   'broker-intake.html',
@@ -190,10 +194,7 @@ function hasPreviewAccess(request) {
 }
 
 function hasIntakeReadAccess(request) {
-  if (ACCOUNT_AUTH) return ['admin', 'dispatcher'].includes(accountFromRequest(request)?.role);
-  if (!REQUIRE_PREVIEW_AUTH) return true;
-  return Boolean(PREVIEW_ADMIN_TOKEN)
-    && timingSafeTextEqual(headerValue(request, 'x-alphaway-admin-token'), PREVIEW_ADMIN_TOKEN);
+  return ['admin', 'dispatcher'].includes(accountFromRequest(request)?.role);
 }
 
 function parseCookies(request) {
@@ -418,6 +419,7 @@ function createStore() {
     loads,
     state: defaultState(),
     intakes: [],
+    intakeReviews: {},
     operations: normalizeOperations(),
     accounts: normalizeAccounts(seeded ? {
       companies: [{ id: 'alphaway', name: 'Alphaway Logistics', type: 'organization', status: 'active' }],
@@ -428,13 +430,17 @@ function createStore() {
 
 function normalizeStore(candidate) {
   const loads = normalizeCatalog(candidate?.loads) || defaultLoads();
+  if (candidate?.intakes !== undefined && !Array.isArray(candidate.intakes)) throw new Error('Invalid saved intake records.');
+  const intakes = candidate?.intakes || [];
+  const intakeReviews = intakeReview.restoreReviews(intakes, candidate?.intakeReviews);
   return {
     schemaVersion: 1,
     revision: cleanNumber(candidate?.revision, 1, 1, Number.MAX_SAFE_INTEGER),
     loads,
     state: normalizeState(candidate?.state, loads),
     companyStates: Object.fromEntries(Object.entries(candidate?.companyStates || {}).map(([id, state]) => [id, normalizeState(state, loads)])),
-    intakes: Array.isArray(candidate?.intakes) ? candidate.intakes.slice(-200).map(normalizeIntake).filter(Boolean) : [],
+    intakes,
+    intakeReviews,
     operations: normalizeOperations(candidate?.operations),
     carrierOnboardedCompanies: Array.isArray(candidate?.carrierOnboardedCompanies) ? [...new Set(candidate.carrierOnboardedCompanies.filter(id => typeof id === 'string'))] : [],
     dispatchRequests: Array.isArray(candidate?.dispatchRequests) ? candidate.dispatchRequests.filter(entry => isDispatchPlan(entry?.plan) && entry.companyId && entry.billingMethod === 'percentage') : [],
@@ -1312,8 +1318,51 @@ const server = http.createServer(async (request, response) => {
         sendJson(response, 403, { error: 'Authorized staff access is required to view intake requests.' });
         return;
       }
-      sendJson(response, 200, { intakes: store.intakes.slice(-30).reverse() });
+      sendJson(response, 200, intakeReview.listIntakes(store.intakes, store.intakeReviews, new URL(request.url, 'http://localhost').searchParams));
       return;
+    }
+    if (request.method === 'GET' && pathname === '/api/intakes/meta') {
+      requireAccount(request, ['admin', 'dispatcher']);
+      sendJson(response, 200, { categories: intakeReview.categories, statuses: intakeReview.statuses,
+        reviewers: store.accounts.users.filter(user => user.status === 'active' && staff(user)).map(user => ({ id: user.id, name: user.name, role: user.role })) });
+      return;
+    }
+    const intakeRoute = pathname.match(/^\/api\/intakes\/([a-zA-Z0-9_-]+)(?:\/(review|history|export))?$/);
+    if (intakeRoute) {
+      const actor = requireAccount(request, ['admin', 'dispatcher']);
+      const record = store.intakes.find(intake => intake.id === intakeRoute[1]);
+      if (!record) throw reject(404, 'Intake record not found.');
+      const review = store.intakeReviews[record.id];
+      if (request.method === 'GET' && intakeRoute[2] === 'export') {
+        sendJson(response, 200, { exportedAt: Date.now(), intake: record, review: { ...intakeReview.publicReview(review), history: intakeReview.publicHistory(review.history) } });
+        return;
+      }
+      if (request.method === 'GET' && !intakeRoute[2]) {
+        sendJson(response, 200, { intake: record, review: intakeReview.publicReview(review) });
+        return;
+      }
+      if (request.method === 'GET' && intakeRoute[2] === 'history') {
+        const query = new URL(request.url, 'http://localhost').searchParams;
+        const pages = Math.max(1, Math.ceil(review.history.length / 25));
+        const page = Math.min(pages, Math.max(1, parseInt(query.get('page'), 10) || 1));
+        const end = review.history.length - (page - 1) * 25;
+        sendJson(response, 200, { history: intakeReview.publicHistory(review.history.slice(Math.max(0, end - 25), end).reverse()), total: review.history.length, page, pages });
+        return;
+      }
+      if (request.method === 'POST' && intakeRoute[2] === 'review') {
+        requireJsonSameOrigin(request);
+        const input = await readJson(request, MAX_INTAKE_BYTES);
+        // Re-read after awaiting the body: another request may have committed meanwhile.
+        const result = intakeReview.applyReview(store.intakeReviews[record.id], input, requireAccount(request, ['admin', 'dispatcher']), store.accounts.users);
+        if (!result.replayed) {
+          store.intakeReviews[record.id] = result.review;
+          store.revision += 1;
+          persistStore();
+        }
+        sendJson(response, 200, { intake: record, review: intakeReview.publicReview(result.review), replayed: result.replayed });
+        return;
+      }
+      throw reject(405, 'Method not allowed.');
     }
     if (request.method === 'POST' && pathname === '/api/intakes') {
       requireJsonSameOrigin(request);
@@ -1323,9 +1372,10 @@ const server = http.createServer(async (request, response) => {
       const candidate = normalizeIntake(await readJson(request, MAX_INTAKE_BYTES));
       if (!candidate) throw reject(400, 'A supported request type is required.');
       if (candidate.type === 'carrier-onboarding' && (!isDispatchPlan(candidate.fields.dispatch_package) || !['weekly', 'percentage'].includes(candidate.fields.billing_method) || candidate.fields.dispatch_terms !== dispatchTermsVersion || !Number.isInteger(Number(candidate.fields.available_units)) || Number(candidate.fields.available_units) < 1 || Number(candidate.fields.available_units) > 100)) throw reject(400, 'Choose a dispatch package, billing method, 1 to 100 trucks and acknowledge the current terms.');
-      candidate.id = `intake-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      candidate.id = `intake-${crypto.randomUUID()}`;
       candidate.createdAt = Date.now();
-      store.intakes = [...store.intakes, candidate].slice(-200);
+      store.intakes.push(candidate);
+      store.intakeReviews[candidate.id] = intakeReview.createReview(candidate);
       store.revision += 1;
       persistStore();
       broadcastSnapshot();

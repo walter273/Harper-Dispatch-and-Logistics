@@ -4,18 +4,20 @@
   let revision = 0;
   const render = (account) => {
     navs.forEach((nav) => {
-      let link = nav.querySelector('[data-admin-nav]');
-      if (account?.role !== 'admin') {
-        link?.remove();
-        return;
-      }
-      if (!link) {
-        link = document.createElement('a');
-        link.href = './admin.html';
-        link.textContent = 'Admin';
-        link.setAttribute('data-admin-nav', '');
-        nav.append(link);
-      }
+      [
+        { attribute: 'data-admin-nav', allowed: account?.role === 'admin', href: './admin.html', label: 'Admin' },
+        { attribute: 'data-intake-nav', allowed: ['admin', 'dispatcher'].includes(account?.role), href: './intake-review.html', label: 'Intake review' }
+      ].forEach(item => {
+        let link = nav.querySelector(`[${item.attribute}]`);
+        if (!item.allowed) { link?.remove(); return; }
+        if (!link) {
+          link = document.createElement('a');
+          link.href = item.href;
+          link.textContent = item.label;
+          link.setAttribute(item.attribute, '');
+          nav.append(link);
+        }
+      });
     });
   };
   window.addEventListener('alphaway:account-changed', (event) => {

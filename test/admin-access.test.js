@@ -23,17 +23,21 @@ for (const role of ['admin', 'dispatcher', 'carrier-owner', 'broker', 'shipper']
     assert.ok(requests.every(url => !url.includes('__PORT_')));
   });
 }
-test('Admin navigation follows server role and sign-out', async () => {
-  let link; const listeners = {};
-  const nav = { querySelector: () => link, append: element => link = element };
+test('Staff navigation follows server role and sign-out', async () => {
+  const links = new Map(); const listeners = {};
+  const nav = { querySelector: selector => links.get(selector.slice(1, -1)), append: element => links.set(element.attribute, element) };
   vm.runInNewContext(source('account-nav.js'), {
-    document: { querySelectorAll: () => [nav], createElement: () => ({ setAttribute() {}, remove() { link = undefined; } }) },
+    document: { querySelectorAll: () => [nav], createElement: () => ({ setAttribute(name) { this.attribute = name; }, remove() { links.delete(this.attribute); } }) },
     window: { addEventListener: (name, fn) => listeners[name] = fn },
     fetch: async () => ({ ok: true, json: async () => ({ account: { role: 'admin' } }) })
   });
-  await flush(); assert.equal(link.textContent, 'Admin'); assert.equal(link.href, './admin.html');
-  listeners['alphaway:account-changed']({ detail: null }); assert.equal(link, undefined);
-  listeners['alphaway:account-changed']({ detail: { role: 'dispatcher' } }); assert.equal(link, undefined);
+  await flush(); assert.equal(links.get('data-admin-nav').textContent, 'Admin'); assert.equal(links.get('data-admin-nav').href, './admin.html');
+  assert.equal(links.get('data-intake-nav').href, './intake-review.html');
+  listeners['alphaway:account-changed']({ detail: null }); assert.equal(links.size, 0);
+  listeners['alphaway:account-changed']({ detail: { role: 'dispatcher' } }); assert.equal(links.has('data-admin-nav'), false); assert.equal(links.has('data-intake-nav'), true);
+  for (const role of ['carrier-owner', 'driver', 'broker', 'shipper']) {
+    listeners['alphaway:account-changed']({ detail: { role } }); assert.equal(links.size, 0);
+  }
 });
 test('late session response cannot restore admin link after sign-out', async () => {
   let resolve; let link; const listeners = {};

@@ -131,6 +131,14 @@
   function setupRequestForms() {
     document.querySelectorAll('[data-request-form]').forEach((form) => {
       const status = form.querySelector('[data-form-status]');
+      const gpsProvider = form.elements.namedItem('eld_gps_provider');
+      const otherProvider = form.elements.namedItem('eld_gps_provider_other');
+      if (gpsProvider && otherProvider) {
+        const updateProviderRequirement = () => { otherProvider.required = gpsProvider.value === 'Other'; };
+        gpsProvider.addEventListener('change', updateProviderRequirement);
+        form.addEventListener('reset', () => setTimeout(updateProviderRequirement, 0));
+        updateProviderRequirement();
+      }
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
         const fields = {};

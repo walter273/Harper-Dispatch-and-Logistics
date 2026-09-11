@@ -5,7 +5,8 @@
   let meta, account, page = 1, pages = 1, selected = '', current = null, busy = false, queueRevision = 0, detailRevision = 0, historyPage = 1;
   const filters = $('queueFilters');
   const openStatuses = ['received', 'in_review', 'needs_information'];
-  const label = value => String(value).replaceAll('_', ' ').replaceAll('-', ' ').replace(/\b\w/g, letter => letter.toUpperCase());
+  const fieldLabels = { eld_gps_provider: 'ELD/GPS provider', eld_gps_provider_other: 'Other provider name', gps_pilot_truck: 'Pilot truck number', gps_pilot_requested: 'One-truck pilot contact requested' };
+  const label = value => fieldLabels[value] || String(value).replaceAll('_', ' ').replaceAll('-', ' ').replace(/\b\w/g, letter => letter.toUpperCase());
   const date = value => new Date(value).toLocaleString();
   const title = intake => intake.fields.legal_carrier_name || intake.fields.broker_company || intake.fields.company || intake.fields.name || 'Intake request';
   const message = (text, error = false) => { $('reviewMessage').textContent = text; $('reviewMessage').dataset.error = String(error); };
@@ -76,6 +77,8 @@
       link.append(badge(intake.review.status), el('strong', title(intake)), el('p', meta.categories[intake.review.category].label),
         el('p', intake.fields.business_email || intake.fields.email || 'No email supplied'),
         el('small', `${intake.review.assignee?.name || 'Unassigned'} · ${new Date(intake.createdAt).toLocaleDateString()}`));
+      if (intake.fields.eld_gps_provider) link.append(el('p', `ELD/GPS: ${intake.fields.eld_gps_provider === 'Other' ? intake.fields.eld_gps_provider_other || 'Other' : intake.fields.eld_gps_provider}`));
+      if (intake.fields.gps_pilot_requested === 'yes') link.append(el('small', 'One-truck GPS pilot requested'));
       link.addEventListener('click', event => { if (busy) event.preventDefault(); else if (selected === intake.id) { event.preventDefault(); openRecord(intake.id); } });
       return link;
     }));
@@ -104,6 +107,13 @@
     const fields = el('dl', undefined, 'review-fields');
     for (const [key, value] of Object.entries(intake.fields)) { const item = el('div'); item.append(el('dt', label(key)), el('dd', value)); fields.append(item); }
     original.append(fields); root.append(original);
+    if (intake.type === 'carrier-onboarding' && intake.fields.gps_pilot_requested === 'yes') {
+      const pilot = el('section', undefined, 'review-divider');
+      pilot.append(el('h3', 'GPS pilot setup requested'),
+        el('p', `Truck: ${intake.fields.gps_pilot_truck || 'Confirm with the carrier'}.`, 'review-help'),
+        el('p', 'Confirm the provider and one truck, then record the carrier and driver authorization references in the review notes. This submission requests contact; it does not authorize or activate tracking.', 'review-help'));
+      root.append(pilot);
+    }
     const assignment = el('section', undefined, 'review-divider'); assignment.append(el('h3', 'Review ownership'));
     assignment.append(el('p', `${meta.categories[review.category].label} · ${review.assignee?.name || 'No reviewer assigned'}`, 'review-help'));
     if (editable) {

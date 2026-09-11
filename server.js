@@ -121,7 +121,7 @@ const ASSIGNMENT_STATUSES = new Set(['Dispatched', 'In transit', 'Attention']);
 const INTAKE_TYPES = new Set(['access-request', 'carrier-onboarding', 'broker-intake', 'contact']);
 const INTAKE_FIELD_ALLOWLIST = Object.freeze({
   'access-request': new Set(['name', 'email', 'company', 'plan']),
-  'carrier-onboarding': new Set(['legal_carrier_name', 'primary_contact', 'business_email', 'business_phone', 'mc_number', 'dot_number', 'equipment_type', 'available_units', 'preferred_lanes', 'availability', 'operational_notes', 'dispatch_package', 'billing_method', 'dispatch_terms']),
+  'carrier-onboarding': new Set(['legal_carrier_name', 'primary_contact', 'business_email', 'business_phone', 'mc_number', 'dot_number', 'equipment_type', 'available_units', 'preferred_lanes', 'availability', 'operational_notes', 'dispatch_package', 'billing_method', 'dispatch_terms', 'eld_gps_provider', 'eld_gps_provider_other', 'gps_pilot_truck', 'gps_pilot_requested']),
   'broker-intake': new Set(['broker_company', 'primary_contact', 'business_email', 'business_phone', 'load_reference', 'equipment', 'origin', 'destination', 'pickup_date', 'delivery_date', 'weight', 'target_rate', 'load_notes']),
   contact: new Set(['name', 'email', 'company', 'topic', 'message'])
 });
@@ -1388,6 +1388,15 @@ const server = http.createServer(async (request, response) => {
       const candidate = normalizeIntake(await readJson(request, MAX_INTAKE_BYTES));
       if (!candidate) throw reject(400, 'A supported request type is required.');
       if (candidate.type === 'carrier-onboarding' && (!isDispatchPlan(candidate.fields.dispatch_package) || !['weekly', 'percentage'].includes(candidate.fields.billing_method) || candidate.fields.dispatch_terms !== dispatchTermsVersion || !Number.isInteger(Number(candidate.fields.available_units)) || Number(candidate.fields.available_units) < 1 || Number(candidate.fields.available_units) > 100)) throw reject(400, 'Choose a dispatch package, billing method, 1 to 100 trucks and acknowledge the current terms.');
+      if (candidate.type === 'carrier-onboarding') {
+        const fields = candidate.fields;
+        // Earlier forms and retained submissions may omit tracking details.
+        if (fields.eld_gps_provider && !['Motive', 'Samsara', 'Geotab', 'Other', 'None', 'Not sure'].includes(fields.eld_gps_provider)) throw reject(400, 'Choose a listed ELD/GPS provider, Other, or Not sure.');
+        if (fields.eld_gps_provider === 'Other' && !fields.eld_gps_provider_other) throw reject(400, 'Enter your ELD/GPS provider name when choosing Other.');
+        if ((fields.eld_gps_provider_other?.length || 0) > 80) throw reject(400, 'The ELD/GPS provider name must be 80 characters or fewer.');
+        if ((fields.gps_pilot_truck?.length || 0) > 40) throw reject(400, 'The pilot truck number must be 40 characters or fewer.');
+        if (fields.gps_pilot_requested && fields.gps_pilot_requested !== 'yes') throw reject(400, 'A GPS pilot request must use the contact request checkbox.');
+      }
       candidate.id = `intake-${crypto.randomUUID()}`;
       candidate.createdAt = Date.now();
       store.intakes.push(candidate);

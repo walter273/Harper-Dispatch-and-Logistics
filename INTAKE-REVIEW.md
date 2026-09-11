@@ -20,6 +20,8 @@ The default categories cover carrier onboarding, broker intake, account access, 
 
 **Download record** exports the original submission, current review, and all history to JSON. Export is staff-only. The application has no intake record or review-event delete endpoint.
 
+Carrier requests also retain their **ELD/GPS provider**, other-provider name, optional pilot truck number, and optional one-truck pilot contact request. Provider and pilot requests appear on queue cards; search accepts provider names and truck numbers. A pilot request does not authorize tracking or activate an integration. Record confirmed authorization references in review notes and follow [GPS-PILOT.md](GPS-PILOT.md) before connecting a carrier's provider.
+
 New submissions and history have no rolling count limit. Startup migrates existing saved submissions into the queue without rewriting their fields; the migration event is explicitly labeled and is not represented as a past approval. Records discarded by an older release cannot be recovered by this migration.
 
 The queue uses the configured `ALPHAWAY_DATA_FILE` and its atomic persistence/rollback mechanism. On Railway this must remain on the persistent volume with a single app process. Same-volume backups help with some write failures, but are not independent disaster recovery. Indefinite retention still requires volume capacity management and an independently stored, regularly tested backup. The JSON store is not a tamper-proof ledger or a multi-process database.

@@ -57,6 +57,15 @@
           <label><span>Preferred lanes</span><input name="preferred_lanes" type="text" placeholder="e.g., CO / AZ / TX"></label>
           <label><span>Availability</span><select name="availability"><option>Available now</option><option>Available this week</option><option>Future availability</option></select></label>
         </div>
+        <h3>ELD and GPS tracking</h3>
+        <p class="tool-note" id="gpsProviderHelp">Tell us which service your trucks use so dispatch can review a tracking connection. Choose “Not sure” if you need help identifying it.</p>
+        <div class="operations-form-grid">
+          <label><span>ELD/GPS provider</span><select name="eld_gps_provider" aria-describedby="gpsProviderHelp" required><option value="">Select your provider</option><option>Motive</option><option>Samsara</option><option>Geotab</option><option>Other</option><option value="None">No ELD/GPS provider</option><option>Not sure</option></select></label>
+          <label><span>Provider name (if Other)</span><input name="eld_gps_provider_other" type="text" maxlength="80" placeholder="Name of your ELD or GPS service"></label>
+          <label><span>Pilot truck number (optional)</span><input name="gps_pilot_truck" type="text" maxlength="40" placeholder="One truck, e.g., Truck 101" aria-describedby="gpsPilotHelp"></label>
+        </div>
+        <label class="dispatch-consent"><input type="checkbox" name="gps_pilot_requested" value="yes"><span>Contact me about a one-truck GPS pilot.</span></label>
+        <p class="tool-note" id="gpsPilotHelp">The pilot starts only after dispatch confirms the truck and records the required carrier and driver authorization. This request does not enable tracking. Do not enter passwords or API keys.</p>
         <label class="full-field"><span>Operational notes</span><textarea name="operational_notes" rows="5" maxlength="1000" placeholder="Dispatch preferences, lane interests, or non-sensitive equipment details"></textarea></label>
         <p class="tool-note" id="onboardingDispatchSummary" aria-live="polite"></p>
         <p class="tool-note">App access is included. $150 one-time onboarding per fleet. Percentage fees use collected line-haul revenue on Alphaway-dispatched loads and are reviewed weekly. This request starts no subscription or charge.</p>

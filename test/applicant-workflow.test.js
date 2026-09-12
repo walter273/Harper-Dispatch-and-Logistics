@@ -80,6 +80,7 @@ test('secure information response validates token, rejects executable files, and
   assert.equal(data.workflow.responses, undefined);
   assert.equal(x.review.status, 'needs_information');
   x.review.status = 'approved'; assert.throws(() => x.w.receiveResponse({ token, action: 'preview' }), /invalid or expired/);
+  x.transition('approve'); assert.equal(x.w.summary(x.record, x.review).responses.length, 1);
 });
 test('Twilio provider uses a private basic-auth key and its email payload', async () => {
   let request;

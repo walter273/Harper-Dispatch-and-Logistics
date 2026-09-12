@@ -33,6 +33,7 @@ function createWorkflow({ env = process.env, getStore, persist, fetchImpl = fetc
     if (!email(record.fields.business_email)) fail('The application needs a valid email address.');
     if (previous) cancel(previous, s);
     const w = { intakeId: record.id, reviewVersion: review.version, status: kind, createdAt: Date.now(), companyId: previous?.companyId || '', invitationId: '', dispatcherId: '', billingReference: '', actorId: actor.id };
+    w.responses = previous?.responses || [];
     if (kind === 'approved') {
       const existing = s.accounts.users.find(u => u.email === record.fields.business_email.toLowerCase());
       if (existing) {

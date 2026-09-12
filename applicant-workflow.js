@@ -3,7 +3,7 @@ const DAY = 86400000;
 const email = value => typeof value === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 const fail = (message, statusCode = 400) => { throw Object.assign(new Error(message), { statusCode }); };
 function createWorkflow({ env = process.env, getStore, persist, fetchImpl = fetch }) {
-  const secret = env.ALPHAWAY_SESSION_SECRET || env.ALPHAWAY_ACCOUNT_SESSION_SECRET || '';
+  const secret = env.ALPHAWAY_APPLICANT_WORKFLOW_SECRET || env.ALPHAWAY_SESSION_SECRET || env.ALPHAWAY_ACCOUNT_SESSION_SECRET || '';
   const provider = env.ALPHAWAY_EMAIL_PROVIDER || 'sendgrid';
   const from = env.ALPHAWAY_EMAIL_FROM || 'info@alphawaylogisticsllc.com';
   const replyTo = env.ALPHAWAY_EMAIL_REPLY_TO || 'info@alphawaylogisticsllc.com';

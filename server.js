@@ -5,6 +5,7 @@ const path = require('node:path');
 const { URL } = require('node:url');
 const { createBilling } = require('./billing');
 const billing = createBilling();
+const billingReview = require('./billing-review').createBillingReview();
 const { createStorage } = require('./storage');
 const intakeReview = require('./intake-review');
 const { createVerifier, attachReport } = require('./carrier-verification');
@@ -54,6 +55,7 @@ const rateLimitBuckets = new Map();
 const checkoutLocks = new Set();
 
 const STATIC_FILES = new Set([
+  'billing-review-ui.js',
   'onboarding.html', 'onboarding.js', 'applicant-response.html', 'applicant-response.js',
   'account-nav.js',
   'dispatch-plans.js',
@@ -1018,6 +1020,12 @@ const server = http.createServer(async (request, response) => {
       } else {
         sendUnauthorized(response);
       }
+      return;
+    }
+    if (request.method === 'GET' && pathname === '/api/admin/billing-review') {
+      requireAccount(request, ['admin']);
+      response.setHeader('Cache-Control', 'no-store');
+      sendJson(response, 200, await billingReview());
       return;
     }
     if (pathname === '/api/dispatch/requests') {

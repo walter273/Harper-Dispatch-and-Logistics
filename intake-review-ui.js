@@ -38,12 +38,22 @@
   }
   function badge(status) { const node = el('span', meta.statuses[status] || (status === 'missing' ? 'Missing information' : label(status)), 'review-badge'); node.dataset.status = status; return node; }
   function submitButton(text) { const node = el('button', text, 'primary-button'); node.type = 'submit'; return node; }
+  function applicantFields(form) {
+    if (current.intake.type !== 'carrier-onboarding' || current.review.category !== 'carrier') return;
+    const wrapper = el('label', 'Email this decision to the applicant');
+    const toggle = el('input'); toggle.type = 'checkbox'; toggle.name = 'notifyApplicant'; toggle.checked = true;
+    wrapper.prepend(toggle);
+    const submit = form.querySelector('button[type="submit"]') || form.querySelector('button');
+    const fields = [wrapper, textField('applicantMessage', 'Message to applicant (emailed; do not include internal notes)'), el('p', `Recipient: ${current.intake.fields.business_email}. Approval includes an account invitation. Needs information includes a private response link. Denial includes your message. No email is sent for reopening or suspension. The email queue below shows sending issues.`, 'review-help')];
+    fields.forEach(field => form.insertBefore(field, submit));
+  }
   // Keep the same request ID for a retry after a lost response; the server records each change once.
   function reviewForm(action, build, caption, className = 'review-inline-form') {
     const form = el('form', undefined, className); let lastPayload = '', requestId = '';
     form.addEventListener('submit', async event => {
       event.preventDefault(); if (busy || !current) return;
-      const payload = { action, version: current.review.version, ...build(Object.fromEntries(new FormData(form))) };
+      const values = Object.fromEntries(new FormData(form));
+      const payload = { action, version: current.review.version, ...build(values), notifyApplicant: values.notifyApplicant === 'on', applicantMessage: values.applicantMessage || '' };
       const serialized = JSON.stringify(payload);
       if (serialized !== lastPayload) { requestId = crypto.randomUUID(); lastPayload = serialized; }
       busy = true;
@@ -153,6 +163,7 @@
       assign.append(selectField('assigneeId', [['', 'Unassigned'], ...meta.reviewers.map(user => [user.id, `${user.name} (${label(user.role)})`])], review.assignee?.id || '', 'Assigned reviewer'), submitButton('Save reviewer')); assignment.append(assign);
       const state = reviewForm('status', values => values, 'Save status', 'review-note-form');
       state.append(selectField('status', openStatuses.map(value => [value, meta.statuses[value]]), review.status, 'Review status'), textField('note', 'Status reason'), submitButton('Save status')); assignment.append(state);
+      applicantFields(state);
       const classification = el('details'); classification.append(el('summary', 'Change review category'));
       const classify = reviewForm('classify', values => values, 'Change category', 'review-note-form');
       classify.append(el('p', 'Changing the category starts a new checklist. Previous checks remain in the history.', 'review-help'), selectField('category', Object.entries(meta.categories).map(([key, value]) => [key, value.label]), review.category, 'Category'), textField('note', 'Reason for changing category'), submitButton('Change category')); classification.append(classify); assignment.append(classification);
@@ -180,8 +191,35 @@
       if (review.status === 'approved') choices.push(['suspend', 'Suspend approval']);
       const form = reviewForm('decision', values => ({ action: values.decision, note: values.note }), 'Record decision', 'review-note-form');
       form.append(selectField('decision', choices, choices[0][0], 'Decision'), textField('note', 'Decision reason'), el('p', 'Approval requires an assigned reviewer and every supporting check verified or marked not applicable with evidence. This does not activate service or charge the customer.', 'review-help'), submitButton('Record decision')); decision.append(form);
+      if (editable) applicantFields(form);
     } else decision.append(el('p', 'An admin must record the final decision. You can prepare the checks and leave notes.', 'review-help'));
     root.append(decision);
+    if (intake.type === 'carrier-onboarding') {
+      const flow = el('section', undefined, 'review-divider'); flow.append(el('h3', 'Applicant email and onboarding'), el('p', 'Loading workflow…')); root.append(flow);
+      const recordId = intake.id;
+      api(`/api/intakes/${encodeURIComponent(recordId)}/workflow`).then(data => {
+        if (current?.intake.id !== recordId || !flow.isConnected) return;
+        flow.replaceChildren(el('h3', 'Applicant email and onboarding'), el('p', data.configured ? 'Applicant email sending is enabled.' : 'Email sending is not enabled or configured. Queued emails will wait.', 'review-help'));
+        for (const email of data.emails) flow.append(el('p', `${label(email.kind)} to ${email.recipient}: ${label(email.status)}${email.issue ? ` — ${email.issue}` : ''}`));
+        for (const response of data.responses || []) {
+          flow.append(el('h4', `Applicant response — ${date(response.at)}`), el('p', response.note));
+          if (response.filename) { const download = el('a', `Download ${response.filename} (unverified)`); download.href = `/api/intakes/${recordId}/documents/${response.id}`; flow.append(download); }
+        }
+        if (data.workflow) {
+          flow.append(el('h4', data.workflow.ready ? 'Ready for dispatch' : 'Onboarding incomplete'));
+          for (const [step, complete] of Object.entries(data.workflow.steps)) flow.append(el('p', `${label(step)}: ${complete ? 'Complete' : 'Pending'}`));
+          if (admin && review.status === 'approved') {
+            const setup = el('form', undefined, 'review-note-form');
+            setup.append(selectField('dispatcherId', [['', 'Choose dispatcher'], ...meta.reviewers.map(u => [u.id, u.name])], data.workflow.dispatcherId, 'Assigned dispatcher'), textField('billingReference', 'Percentage billing agreement/payment setup reference (weekly billing is checked automatically)', data.workflow.billingReference), submitButton('Save onboarding'));
+            setup.addEventListener('submit', async event => {
+              event.preventDefault(); if (busy) return; busy = true;
+              try { await api(`/api/intakes/${recordId}/workflow`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ version: review.version, ...Object.fromEntries(new FormData(setup)) }) }); busy = false; await openRecord(recordId); message('Onboarding updated. Readiness is checked automatically.'); }
+              catch (error) { message(error.message, true); } finally { busy = false; }
+            }); flow.append(setup);
+          }
+        } else flow.append(el('p', 'An applicant workflow starts when you save a decision with applicant email selected.', 'review-help'));
+      }).catch(error => { if (flow.isConnected) flow.append(el('p', error.message)); });
+    }
     const notes = el('section', undefined, 'review-divider'); notes.append(el('h3', 'Add a review note'));
     const noteForm = reviewForm('note', values => values, 'Add note', 'review-note-form'); noteForm.append(textField('note', 'Internal note'), submitButton('Add note')); notes.append(noteForm); root.append(notes);
     const history = el('section', undefined, 'review-divider'); history.append(el('h3', `Review history (${review.historyCount})`)); const list = el('ol', undefined, 'review-history'); list.id = 'reviewHistory'; history.append(list);

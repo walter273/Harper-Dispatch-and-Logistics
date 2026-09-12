@@ -8,6 +8,7 @@ const billing = createBilling();
 const { createStorage } = require('./storage');
 const intakeReview = require('./intake-review');
 const { createVerifier, attachReport } = require('./carrier-verification');
+const { createWorkflow } = require('./applicant-workflow');
 const { reduceSubscription } = require('./subscription-state');
 const { plans: dispatchPlans, isDispatchPlan, termsVersion: dispatchTermsVersion } = require('./dispatch-plans');
 const HOSTED = process.env.NODE_ENV === 'production';
@@ -53,6 +54,7 @@ const rateLimitBuckets = new Map();
 const checkoutLocks = new Set();
 
 const STATIC_FILES = new Set([
+  'onboarding.html', 'onboarding.js', 'applicant-response.html', 'applicant-response.js',
   'account-nav.js',
   'dispatch-plans.js',
   'dispatch-ui.js',
@@ -447,6 +449,8 @@ function normalizeStore(candidate) {
     companyStates: Object.fromEntries(Object.entries(candidate?.companyStates || {}).map(([id, state]) => [id, normalizeState(state, loads)])),
     intakes,
     intakeReviews,
+    applicantWorkflows: candidate?.applicantWorkflows || {},
+    applicantOutbox: candidate?.applicantOutbox || [],
     operations: normalizeOperations(candidate?.operations),
     carrierOnboardedCompanies: Array.isArray(candidate?.carrierOnboardedCompanies) ? [...new Set(candidate.carrierOnboardedCompanies.filter(id => typeof id === 'string'))] : [],
     dispatchRequests: Array.isArray(candidate?.dispatchRequests) ? candidate.dispatchRequests.filter(entry => isDispatchPlan(entry?.plan) && entry.companyId && entry.billingMethod === 'percentage') : [],
@@ -794,6 +798,14 @@ function publicSubscription(subscription) {
 }
 
 function requirePaidSubscription(user) {
+  if (user && !staff(user)) {
+    const workflow = Object.values(store.applicantWorkflows || {}).find(w => w.companyId === user.companyId);
+    if (workflow) {
+      const intake = store.intakes.find(i => i.id === workflow.intakeId);
+      if (!applicantWorkflow.readiness(intake, store.intakeReviews[intake.id], workflow).ready) throw reject(403, 'Complete carrier onboarding before using dispatch operations. Open Onboarding from your account.');
+      return;
+    }
+  }
   if (!REQUIRE_SUBSCRIPTION || !user || ['admin', 'dispatcher'].includes(user.role)) return;
   const subscription = subscriptionForUser(user);
   if (!subscription || !['active', 'trialing'].includes(subscription.status)) {
@@ -920,6 +932,8 @@ function serveStatic(request, response, pathname) {
 }
 
 let store = readStore();
+const applicantWorkflow = createWorkflow({ getStore: () => store, persist: persistStore });
+applicantWorkflow.recover();
 committedStore = structuredClone(store);
 persistStore();
 
@@ -1346,12 +1360,45 @@ const server = http.createServer(async (request, response) => {
         reviewers: store.accounts.users.filter(user => user.status === 'active' && staff(user)).map(user => ({ id: user.id, name: user.name, role: user.role })) });
       return;
     }
-    const intakeRoute = pathname.match(/^\/api\/intakes\/([a-zA-Z0-9_-]+)(?:\/(review|history|export|verification))?$/);
+    if (request.method === 'POST' && pathname === '/api/applicant-response') {
+      requireJsonSameOrigin(request);
+      if (!consumeRateLimit(request, 'applicant-response', 12, EVENT_WINDOW_MS)) throw reject(429, 'Too many responses. Try again later.');
+      const input = await readJson(request, 4.1 * 1024 * 1024);
+      const result = applicantWorkflow.receiveResponse(input);
+      if (result.saved) { store.revision++; persistStore(); }
+      sendJson(response, 200, result); return;
+    }
+    const responseDocument = pathname.match(/^\/api\/intakes\/([a-zA-Z0-9_-]+)\/documents\/([a-zA-Z0-9_-]+)$/);
+    if (request.method === 'GET' && responseDocument) {
+      requireAccount(request, ['admin', 'dispatcher']);
+      const document = store.applicantWorkflows?.[responseDocument[1]]?.responses?.find(d => d.id === responseDocument[2] && d.contentBase64);
+      if (!document) throw reject(404, 'Document not found.');
+      response.writeHead(200, responseHeaders({ 'Content-Type': document.mime, 'Content-Disposition': `attachment; filename="${document.filename}"`, 'Cache-Control': 'no-store, private' }));
+      response.end(Buffer.from(document.contentBase64, 'base64')); return;
+    }
+    if (request.method === 'GET' && pathname === '/api/onboarding') {
+      const actor = requireAccount(request, ['carrier-owner']);
+      const w = Object.values(store.applicantWorkflows || {}).find(w => w.companyId === actor.companyId);
+      const record = w && store.intakes.find(i => i.id === w.intakeId);
+      sendJson(response, 200, { onboarding: record ? { company: record.fields.legal_carrier_name, status: store.intakeReviews[record.id].status, ...applicantWorkflow.readiness(record, store.intakeReviews[record.id], w) } : null });
+      return;
+    }
+    const intakeRoute = pathname.match(/^\/api\/intakes\/([a-zA-Z0-9_-]+)(?:\/(review|history|export|verification|workflow))?$/);
     if (intakeRoute) {
       const actor = requireAccount(request, ['admin', 'dispatcher']);
       const record = store.intakes.find(intake => intake.id === intakeRoute[1]);
       if (!record) throw reject(404, 'Intake record not found.');
       const review = store.intakeReviews[record.id];
+      if (intakeRoute[2] === 'workflow') {
+        if (request.method === 'POST') {
+          requireJsonSameOrigin(request);
+          const input = await readJson(request, MAX_INTAKE_BYTES);
+          applicantWorkflow.update(record, store.intakeReviews[record.id], input, requireAccount(request, ['admin']));
+          store.revision++; persistStore();
+        } else if (request.method !== 'GET') throw reject(405, 'Method not allowed.');
+        sendJson(response, 200, applicantWorkflow.summary(record, store.intakeReviews[record.id]));
+        return;
+      }
       if (request.method === 'POST' && intakeRoute[2] === 'verification') {
         requireJsonSameOrigin(request);
         const input = await readJson(request, MAX_INTAKE_BYTES);
@@ -1396,6 +1443,9 @@ const server = http.createServer(async (request, response) => {
         // Re-read after awaiting the body: another request may have committed meanwhile.
         const result = intakeReview.applyReview(store.intakeReviews[record.id], input, requireAccount(request, ['admin', 'dispatcher']), store.accounts.users);
         if (!result.replayed) {
+          const rollback = structuredClone(store);
+          try { applicantWorkflow.transition(record, result.review, input, actor); }
+          catch (error) { store = rollback; throw error; }
           store.intakeReviews[record.id] = result.review;
           store.revision += 1;
           persistStore();
@@ -1456,6 +1506,8 @@ const server = http.createServer(async (request, response) => {
     });
   }
 });
+
+setInterval(() => applicantWorkflow.drain().catch(() => console.error('Applicant email queue needs attention.')), 10000).unref();
 
 setInterval(() => {
   if (!store.state.tms.demoRunning || sseClients.size === 0) return;

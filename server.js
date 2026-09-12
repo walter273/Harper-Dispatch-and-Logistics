@@ -55,6 +55,7 @@ const rateLimitBuckets = new Map();
 const checkoutLocks = new Set();
 
 const STATIC_FILES = new Set([
+  'planning-tools.html', 'planning-tools.css', 'planning-model.js', 'planning-tools.js',
   'billing-review-ui.js',
   'onboarding.html', 'onboarding.js', 'applicant-response.html', 'applicant-response.js',
   'account-nav.js',
@@ -291,7 +292,7 @@ function dataDirectoryIsWritable() {
 }
 
 function laneFor(origin, destination) {
-  return `${origin.split(',')[0].trim()} → ${destination.split(',')[0].trim()}`;
+  return `${origin.split(',')[0].trim()} â†’ ${destination.split(',')[0].trim()}`;
 }
 
 function normalizeLoad(candidate, index = 0) {

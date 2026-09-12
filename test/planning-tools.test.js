@@ -1,0 +1,11 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');const M=require('../planning-model.js');
+const row=(id,origin='Denver, CO',destination='Dallas, TX')=>M.load({id,company:'Freight Co',origin,destination,equipment:'Dry Van',pickup:'2026-09-12',rate:2000,miles:800,source:'Direct customer'});
+test('profit includes deadhead, fuel, dispatch and user costs',()=>{const p=M.profit({rate:3000,miles:900,deadhead:100,mpg:5,fuel:4,other:500,days:2,fee:10});assert.equal(p.net,1400);assert.equal(p.perDay,700);assert.equal(p.perMile,3);assert.equal(p.breakEven,1300/.9);});
+test('invalid inputs cannot produce misleading profit',()=>{for(const patch of [{miles:0},{mpg:0},{days:0},{rate:-1},{fee:101},{fuel:NaN}])assert.throws(()=>M.profit({rate:100,miles:1,deadhead:0,mpg:1,fuel:1,other:0,days:1,fee:0,...patch}));});
+test('blocked companies are case and whitespace normalized',()=>assert.equal(M.matches(row('a'),{},[' freight   co ']),false));
+test('filters and favorites compose',()=>{const r=row('a');assert.equal(M.matches(r,{origin:'denver',minimum:1900,favorites:true},[],['a']),true);assert.equal(M.matches(r,{minimum:2100}),false);assert.equal(M.matches(r,{favorites:true},[],[]),false);});
+test('returns match destination and do not mix test and real',()=>{const a=row('a'),b=row('b','Dallas, TX','Denver, CO'),c={...b,id:'c',test:true};assert.deepEqual(M.returns([a,b,c],a).map(r=>r.id),['b']);});
+test('closed loads cannot match',()=>assert.equal(M.matches({...row('a'),status:'closed'},{}),false));
+test('trip aggregates entered connector miles',()=>assert.deepEqual(M.trip([row('a'),row('b')],100),{loaded:1600,rate:4000,deadhead:100,totalMiles:1700,perMile:4000/1700}));
+test('imports validate dates, required sources and duplicate IDs',()=>{assert.throws(()=>M.load({...row('a'),pickup:'2026-02-30'}));assert.throws(()=>M.load({...row('a'),source:''}));assert.throws(()=>M.restore({version:1,loads:[row('a'),row('a')]}));});
+test('import removes stale favorites and preserves canonical load records',()=>{const s=M.restore({version:1,loads:[row('a')],favorites:['a','missing']});assert.deepEqual(s.favorites,['a']);assert.equal(s.loads[0].test,false);});

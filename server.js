@@ -7,6 +7,7 @@ const { createBilling } = require('./billing');
 const billing = createBilling();
 const { createStorage } = require('./storage');
 const intakeReview = require('./intake-review');
+const { createVerifier, attachReport } = require('./carrier-verification');
 const { reduceSubscription } = require('./subscription-state');
 const { plans: dispatchPlans, isDispatchPlan, termsVersion: dispatchTermsVersion } = require('./dispatch-plans');
 const HOSTED = process.env.NODE_ENV === 'production';
@@ -32,6 +33,8 @@ const ACCOUNT_COOKIE = 'alphaway_account';
 const ACCOUNT_SESSION_DAYS = 7;
 const FMCSA_API_KEY = String(process.env.ALPHAWAY_FMCSA_QCMOBILE_KEY || '');
 const FMCSA_BASE_URL = String(process.env.ALPHAWAY_FMCSA_BASE_URL || 'https://mobile.fmcsa.dot.gov/qc/services').replace(/\/+$/, '');
+const carrierVerifier = createVerifier({ key: FMCSA_API_KEY, baseUrl: FMCSA_BASE_URL });
+const verificationLocks = new Set();
 const HOME_PAGE = 'index.html';
 const MAX_JSON_BYTES = 1024 * 1024;
 const MAX_INTAKE_BYTES = 64 * 1024;
@@ -1343,12 +1346,34 @@ const server = http.createServer(async (request, response) => {
         reviewers: store.accounts.users.filter(user => user.status === 'active' && staff(user)).map(user => ({ id: user.id, name: user.name, role: user.role })) });
       return;
     }
-    const intakeRoute = pathname.match(/^\/api\/intakes\/([a-zA-Z0-9_-]+)(?:\/(review|history|export))?$/);
+    const intakeRoute = pathname.match(/^\/api\/intakes\/([a-zA-Z0-9_-]+)(?:\/(review|history|export|verification))?$/);
     if (intakeRoute) {
       const actor = requireAccount(request, ['admin', 'dispatcher']);
       const record = store.intakes.find(intake => intake.id === intakeRoute[1]);
       if (!record) throw reject(404, 'Intake record not found.');
       const review = store.intakeReviews[record.id];
+      if (request.method === 'POST' && intakeRoute[2] === 'verification') {
+        requireJsonSameOrigin(request);
+        const input = await readJson(request, MAX_INTAKE_BYTES);
+        const before = store.intakeReviews[record.id];
+        if (record.type !== 'carrier-onboarding' || before.category !== 'carrier') throw reject(400, 'Automatic checks are available for carrier intakes.');
+        if (!['received', 'in_review', 'needs_information'].includes(before.status)) throw reject(409, 'Reopen the review before rerunning checks.');
+        if (input.version !== before.version) throw reject(409, 'The record changed. Reload it before running checks.');
+        if (verificationLocks.has(record.id)) throw reject(409, 'Checks are already running for this intake.');
+        if (!consumeRateLimit(request, 'verification', 12, EVENT_WINDOW_MS)) throw reject(429, 'Too many verification requests. Try again shortly.');
+        verificationLocks.add(record.id);
+        try {
+          const report = await carrierVerifier.run(record, before);
+          const currentActor = requireAccount(request, ['admin', 'dispatcher']);
+          if (store.intakeReviews[record.id].version !== before.version) throw reject(409, 'A reviewer changed the record while checks ran. Reload and retry.');
+          const updated = attachReport(before, report, currentActor);
+          store.intakeReviews[record.id] = updated;
+          store.revision++;
+          persistStore();
+          sendJson(response, 200, { intake: record, review: intakeReview.publicReview(updated) });
+        } finally { verificationLocks.delete(record.id); }
+        return;
+      }
       if (request.method === 'GET' && intakeRoute[2] === 'export') {
         sendJson(response, 200, { exportedAt: Date.now(), intake: record, review: { ...intakeReview.publicReview(review), history: intakeReview.publicHistory(review.history) } });
         return;
@@ -1399,8 +1424,14 @@ const server = http.createServer(async (request, response) => {
       }
       candidate.id = `intake-${crypto.randomUUID()}`;
       candidate.createdAt = Date.now();
+      let newReview = intakeReview.createReview(candidate);
+      if (candidate.type === 'carrier-onboarding') {
+        const report = await carrierVerifier.run(candidate, newReview);
+        newReview = attachReport(newReview, report, null, { initial: true });
+        newReview.history[0].automation = report;
+      }
       store.intakes.push(candidate);
-      store.intakeReviews[candidate.id] = intakeReview.createReview(candidate);
+      store.intakeReviews[candidate.id] = newReview;
       store.revision += 1;
       persistStore();
       broadcastSnapshot();

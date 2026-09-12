@@ -190,7 +190,8 @@ function listIntakes(intakes, reviews, query) {
   const page = Math.min(requestedPage, pages);
   return { intakes: selected.slice((page - 1) * pageSize, page * pageSize).map(intake => ({ ...intake, review: {
     version: reviews[intake.id].version, category: reviews[intake.id].category, status: reviews[intake.id].status,
-    assignee: reviews[intake.id].assignee, updatedAt: reviews[intake.id].updatedAt
+    assignee: reviews[intake.id].assignee, updatedAt: reviews[intake.id].updatedAt,
+    automation: reviews[intake.id].automation ? { overall: reviews[intake.id].automation.overall, checkedAt: reviews[intake.id].automation.checkedAt, expiresAt: reviews[intake.id].automation.expiresAt } : null
   } })), total: selected.length, retainedTotal: intakes.length, page, pageSize, pages, counts };
 }
 module.exports = { categories, statuses, createReview, restoreReviews, applyReview, publicReview, publicHistory, listIntakes };

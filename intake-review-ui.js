@@ -36,7 +36,7 @@
     if (type !== 'textarea') input.type = type; else input.maxLength = 4000;
     input.value = value; wrapper.append(input); return wrapper;
   }
-  function badge(status) { const node = el('span', meta.statuses[status] || label(status), 'review-badge'); node.dataset.status = status; return node; }
+  function badge(status) { const node = el('span', meta.statuses[status] || (status === 'missing' ? 'Missing information' : label(status)), 'review-badge'); node.dataset.status = status; return node; }
   function submitButton(text) { const node = el('button', text, 'primary-button'); node.type = 'submit'; return node; }
   // Keep the same request ID for a retry after a lost response; the server records each change once.
   function reviewForm(action, build, caption, className = 'review-inline-form') {
@@ -79,6 +79,7 @@
         el('small', `${intake.review.assignee?.name || 'Unassigned'} · ${new Date(intake.createdAt).toLocaleDateString()}`));
       if (intake.fields.eld_gps_provider) link.append(el('p', `ELD/GPS: ${intake.fields.eld_gps_provider === 'Other' ? intake.fields.eld_gps_provider_other || 'Other' : intake.fields.eld_gps_provider}`));
       if (intake.fields.gps_pilot_requested === 'yes') link.append(el('small', 'One-truck GPS pilot requested'));
+      if (intake.type === 'carrier-onboarding') link.append(el('p', intake.review.automation ? `Automatic checks: ${Date.now() > intake.review.automation.expiresAt ? 'Refresh needed' : label(intake.review.automation.overall)}` : 'Automatic checks: not run'));
       link.addEventListener('click', event => { if (busy) event.preventDefault(); else if (selected === intake.id) { event.preventDefault(); openRecord(intake.id); } });
       return link;
     }));
@@ -107,6 +108,37 @@
     const fields = el('dl', undefined, 'review-fields');
     for (const [key, value] of Object.entries(intake.fields)) { const item = el('div'); item.append(el('dt', label(key)), el('dd', value)); fields.append(item); }
     original.append(fields); root.append(original);
+    if (intake.type === 'carrier-onboarding' && review.category === 'carrier') {
+      const automatic = el('section', undefined, 'review-divider');
+      automatic.append(el('h3', 'Automatic carrier checks'), el('p', 'Screening flags help you review the application. You retain final approval. Passed checks describe only the specific comparison shown; they do not approve the carrier.', 'review-help'));
+      const report = review.automation;
+      if (report) {
+        automatic.append(el('p', `Checked ${date(report.checkedAt)} · ${Date.now() > report.expiresAt ? 'Refresh needed: results are over 24 hours old.' : 'Refresh before making a final decision.'}`, 'review-muted'));
+        if (!report.providerConfigured) automatic.append(el('p', 'FMCSA lookup is not connected. Add the FMCSA WebKey in server settings to enable registry checks.', 'review-help'));
+        const titles = { submission: 'Test submission screening', contact: 'Contact completeness', identifiers: 'MC / USDOT format', identity: 'Registry identity match', authority: 'Registry operating flags', package: 'Package completeness', insurance: 'Insurance evidence', tax_form: 'W-9 evidence', agreement: 'Agreement evidence' };
+        const list = el('div', undefined, 'review-checks');
+        for (const [id, check] of Object.entries(report.checks)) {
+          const card = el('div', undefined, 'review-check');
+          card.append(el('h4', titles[id] || label(id)), badge(check.status), el('p', check.summary), el('small', `Source: ${check.source}`, 'review-muted'));
+          list.append(card);
+        }
+        automatic.append(list);
+      } else automatic.append(el('p', 'This older intake has not been screened. Run automatic checks to create a dated report.', 'review-help'));
+      if (editable) automatic.append(button(report ? 'Run checks again' : 'Run automatic checks', async () => {
+        if (busy || !current) return;
+        busy = true;
+        const controls = [...root.querySelectorAll('button, input, select, textarea')].map(node => [node, node.disabled]);
+        controls.forEach(([node]) => node.disabled = true);
+        message('Checking carrier details…');
+        try {
+          current = await api(`/api/intakes/${encodeURIComponent(selected)}/verification`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ version: review.version }) });
+          renderDetail(); message('Automatic checks saved. Review any missing information or exceptions before your decision.');
+          loadQueue().catch(error => message(error.message, true));
+        } catch (error) { message(error.message, true); }
+        finally { busy = false; controls.forEach(([node, disabled]) => node.disabled = disabled); }
+      }));
+      root.append(automatic);
+    }
     if (intake.type === 'carrier-onboarding' && intake.fields.gps_pilot_requested === 'yes') {
       const pilot = el('section', undefined, 'review-divider');
       pilot.append(el('h3', 'GPS pilot setup requested'),

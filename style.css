@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   --bg: #0d0d0c;
   --bg-2: #171716;
   --panel: #171717;
@@ -3070,3 +3070,7 @@ a { color: inherit; text-decoration: none; }
 }
 
 .dispatch-consent{display:flex!important;align-items:flex-start;gap:10px;max-width:none!important}.dispatch-consent input{width:18px;min-height:18px;flex:0 0 18px;margin-top:4px}.dispatch-consent span{font-size:.86rem}.dispatch-terms{margin-bottom:24px}.dispatch-request-row{padding:16px 0;border-bottom:1px solid var(--border);display:grid;gap:8px}.dispatch-request-row p{margin:0}.dispatch-intake-grid{display:grid;gap:12px}
+
+
+/* Public platform identity; credentials and tenant identifiers stay stable. */
+.brand-copy small{max-width:250px;white-space:normal;line-height:1.35}.brand-name{white-space:normal}.harper-brand-banner h1{margin:0 0 8px}.harper-brand-banner p{margin:0}@media(max-width:680px){.brand-copy small{max-width:185px;font-size:.65rem}.brand-name{font-size:1rem}}

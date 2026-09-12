@@ -151,7 +151,7 @@
             return field && safeValue ? `${formLabel(field)}: ${safeValue}` : null;
           })
           .filter(Boolean);
-        const subject = form.dataset.subject || 'Alphaway Logistics request';
+        const subject = form.dataset.subject || 'Harper Dispatch and Logistics request';
         const recipient = form.dataset.recipient || 'support@alphaway-tms.invalid';
         const notice = form.dataset.notice || 'Opening a draft in your email app.';
 
@@ -161,7 +161,7 @@
           try {
             await board.submitIntake({ type: form.dataset.requestType, fields });
             form.reset();
-            if (status) status.textContent = 'Request saved for the Alphaway team.';
+            if (status) status.textContent = 'Request saved for the Harper Dispatch and Logistics team.';
           } catch (error) {
             if (status) status.textContent = error.message || 'We could not save your request.';
           }
@@ -414,3 +414,4 @@
   window.addEventListener('alphaway-app-updated', renderTmsOverview);
   board?.whenReady?.().then(renderTmsOverview);
 })();
+

@@ -566,7 +566,7 @@ if (signupForm && signupStatus) {
       try {
         await submitIntakeRequest({ type: 'access-request', fields: { name, email, company, plan } });
         signupForm.reset();
-        signupStatus.textContent = 'Request saved for the Alphaway team.';
+        signupStatus.textContent = 'Request saved for the Harper Dispatch and Logistics team.';
       } catch (error) {
         signupStatus.textContent = error.message || 'We could not save your request.';
       }
@@ -851,11 +851,11 @@ if (isBoardPage) {
 
     if (dispatchCallLink) {
       dispatchCallLink.href = `tel:${dispatchNumber}`;
-      dispatchCallLink.setAttribute('aria-label', 'Call Alphaway dispatch');
+      dispatchCallLink.setAttribute('aria-label', 'Call Harper dispatch');
     }
     if (dispatchSmsLink) {
       dispatchSmsLink.href = `sms:${dispatchNumber}`;
-      dispatchSmsLink.setAttribute('aria-label', 'Text Alphaway dispatch');
+      dispatchSmsLink.setAttribute('aria-label', 'Text Harper dispatch');
     }
     if (driverCallLabel) {
       driverCallLabel.textContent = `${driverContact.name || 'Driver'} direct line`;

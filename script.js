@@ -415,6 +415,10 @@ async function submitIntakeRequest(request) {
 function connectAppEvents() {
   if (!hasServerTransport() || !('EventSource' in window) || appEventStream) return;
   appEventStream = new EventSource('./api/events');
+  appEventStream.addEventListener('onboarding-required', () => {
+    appEventStream.close(); appEventStream = null; privateAccessLocked = true;
+    if (/\/(loadboard|tms)\.html$/.test(window.location.pathname)) window.location.assign('./onboarding.html');
+  });
   appEventStream.addEventListener('snapshot', (event) => {
     try {
       applyRemoteSnapshot(JSON.parse(event.data));
@@ -436,6 +440,13 @@ async function hydrateApp() {
   try {
     const response = await fetch('./api/app', { headers: { Accept: 'application/json' } });
     if (!response.ok) {
+      if (response.status === 403) {
+        const failure = await response.clone().json().catch(() => ({}));
+        if (failure.code === 'onboarding_required') {
+          privateAccessLocked = true;
+          if (/\/(loadboard|tms)\.html$/.test(window.location.pathname)) window.location.assign('./onboarding.html');
+        }
+      }
       if (response.status === 403 && response.headers.get('X-Alphaway-Private-Network') === 'true') {
         privateAccessLocked = true;
         window.dispatchEvent(new CustomEvent('alphaway-private-access-required'));

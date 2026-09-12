@@ -22,6 +22,7 @@ function reduceSubscription(previous, event) {
     userId: previous?.userId || String(metadata.userId || ''),
     companyId: previous?.companyId || String(metadata.companyId || ''),
     plan: (['carrier','shipper','broker'].includes(metadata.plan) || isDispatchPlan(metadata.plan)) ? metadata.plan : previous?.plan || '',
+    truckCount: checkout ? Number(metadata.truckCount || 0) : Number(object.items?.data?.[0]?.quantity || 0),
     status, currentPeriodEnd: checkout ? 0 : object.current_period_end || (periods.length ? Math.min(...periods) : previous?.currentPeriodEnd || 0),
     cancelAtPeriodEnd: checkout ? false : Boolean(object.cancel_at_period_end),
     eventCreated: checkout ? 0 : event.created,

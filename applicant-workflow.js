@@ -54,7 +54,7 @@ function createWorkflow({ env = process.env, getStore, persist, fetchImpl = fetc
     const checks = Object.values(review.checks).every(c => ['verified', 'not_applicable'].includes(c.status) && c.evidence?.trim() && (!c.expiresOn || c.expiresOn >= new Date().toISOString().slice(0, 10)));
     const account = s.accounts.users.find(u => u.companyId === w.companyId && u.email === record.fields.business_email.toLowerCase() && u.role === 'carrier-owner' && u.status === 'active');
     const dispatcher = s.accounts.users.find(u => u.id === w.dispatcherId && u.status === 'active' && ['dispatcher', 'admin'].includes(u.role));
-    const payment = record.fields.billing_method === 'percentage' ? Boolean(w.billingReference) : Boolean(account && s.operations.billingSubscriptions.some(b => b.companyId === w.companyId && b.userId === account.id && b.plan === record.fields.dispatch_package && b.status === 'active'));
+    const payment = record.fields.billing_method === 'percentage' ? Boolean(w.billingReference) : Boolean(account && s.operations.billingSubscriptions.some(b => b.companyId === w.companyId && b.userId === account.id && b.plan === record.fields.dispatch_package && b.truckCount === Number(record.fields.available_units) && b.status === 'active'));
     const steps = { approval: review.status === 'approved' && w.status === 'approved', evidence: checks, account: Boolean(account), dispatcher: Boolean(dispatcher), payment };
     return { ready: Object.values(steps).every(Boolean), steps };
   }

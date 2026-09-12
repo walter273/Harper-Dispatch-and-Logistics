@@ -39,6 +39,12 @@ test('decision, outbox and isolated invitation commit together; replay and resta
   const progress = await fetch(app.url + '/api/onboarding', { headers: ownerHeaders }).then(r => r.json());
   assert.equal(progress.onboarding.steps.account, true); assert.equal(progress.onboarding.ready, false);
   assert.equal((await fetch(app.url + '/api/operations', { headers: ownerHeaders })).status, 403);
+  assert.equal((await fetch(app.url + '/api/app', { headers: ownerHeaders })).status, 403);
+  assert.equal((await fetch(app.url + '/api/events', { headers: ownerHeaders })).status, 403);
+  assert.equal((await post('/api/events', { type: 'booking.create', loadId: 'TEST' }, { ...ownerHeaders, 'content-type': 'application/json' })).status, 403);
+  assert.equal(progress.onboarding.plan, 'dispatch-standard');
+  assert.equal(progress.onboarding.truckCount, 2);
+  assert.equal((await post('/api/stripe/checkout', { plan: 'dispatch-basic', truckCount: 1, billingMethod: 'weekly', termsVersion: require('../dispatch-plans').termsVersion }, { ...ownerHeaders, 'content-type': 'application/json' })).status, 400);
   assert.equal((await fetch(app.url + route + '/workflow', { headers: ownerHeaders })).status, 403);
   stored = JSON.parse(fs.readFileSync(file));
   assert.equal(stored.applicantOutbox[0].status, 'queued');

@@ -50,11 +50,14 @@ test('denial and missing-information never provision accounts; reopening cancels
 });
 test('readiness requires matching paid plan, active account, staff assignment and unexpired evidence', () => {
   const x = setup(); x.transition(); const w = x.store.applicantWorkflows[x.record.id];
+  x.record.fields.available_units = '2';
   for (const c of Object.values(x.review.checks)) { c.status = 'verified'; c.evidence = 'secure-reference'; }
   x.store.accounts.users.push({ id: 'owner', companyId: w.companyId, role: 'carrier-owner', email: 'owner@example.com', status: 'active' });
   x.w.update(x.record, x.review, { version: 2, dispatcherId: 'staff' }, x.actor);
   assert.equal(x.w.summary(x.record, x.review).workflow.ready, false);
   x.store.operations.billingSubscriptions.push({ companyId: w.companyId, userId: 'owner', plan: 'dispatch-standard', status: 'active' });
+  assert.equal(x.w.summary(x.record, x.review).workflow.ready, false);
+  x.store.operations.billingSubscriptions[0].truckCount = 2;
   assert.equal(x.w.summary(x.record, x.review).workflow.ready, true);
   x.review.checks.insurance.expiresOn = '2020-01-01';
   assert.equal(x.w.summary(x.record, x.review).workflow.ready, false);

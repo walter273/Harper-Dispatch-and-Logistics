@@ -484,6 +484,7 @@ function companyState(user) {
   return Object.hasOwn(store.companyStates, user.companyId) ? store.companyStates[user.companyId] : emptyPrivateState();
 }
 function publicSnapshot(user = null) {
+  requireManagedOnboarding(user);
   const state = !ACCOUNT_AUTH || staff(user) ? store.state : companyState(user);
   return { revision: store.revision, loads: store.loads, state };
 }
@@ -569,6 +570,7 @@ function normalizeOperations(candidate) {
     userId: cleanText(subscription?.userId, '', 100),
     companyId: cleanText(subscription?.companyId, '', 100),
     plan: ['carrier', 'shipper', 'broker', ...Object.keys(dispatchPlans)].includes(subscription?.plan) ? subscription.plan : '',
+    truckCount: cleanNumber(subscription?.truckCount, 0, 0, 100),
     status: cleanText(subscription?.status, 'pending', 40),
     currentPeriodEnd: cleanNumber(subscription?.currentPeriodEnd, 0, 0, Number.MAX_SAFE_INTEGER),
     cancelAtPeriodEnd: Boolean(subscription?.cancelAtPeriodEnd),
@@ -749,6 +751,8 @@ function broadcastSnapshot() {
       response.write(`event: snapshot\ndata: ${JSON.stringify(publicSnapshot(user))}\n\n`);
     } catch (error) {
       sseClients.delete(response);
+      if (error.code === 'onboarding_required') response.write('event: onboarding-required\ndata: {}\n\n');
+      response.end();
     }
   }
 }
@@ -797,15 +801,19 @@ function publicSubscription(subscription) {
   return safe;
 }
 
-function requirePaidSubscription(user) {
+function requireManagedOnboarding(user) {
   if (user && !staff(user)) {
     const workflow = Object.values(store.applicantWorkflows || {}).find(w => w.companyId === user.companyId);
     if (workflow) {
       const intake = store.intakes.find(i => i.id === workflow.intakeId);
-      if (!applicantWorkflow.readiness(intake, store.intakeReviews[intake.id], workflow).ready) throw reject(403, 'Complete carrier onboarding before using dispatch operations. Open Onboarding from your account.');
-      return;
+      if (!applicantWorkflow.readiness(intake, store.intakeReviews[intake.id], workflow).ready) throw Object.assign(reject(403, 'Complete carrier onboarding before using the board. Open Onboarding from your account.'), { code: 'onboarding_required' });
+      return true;
     }
   }
+}
+
+function requirePaidSubscription(user) {
+  if (requireManagedOnboarding(user)) return;
   if (!REQUIRE_SUBSCRIPTION || !user || ['admin', 'dispatcher'].includes(user.role)) return;
   const subscription = subscriptionForUser(user);
   if (!subscription || !['active', 'trialing'].includes(subscription.status)) {
@@ -1066,6 +1074,12 @@ const server = http.createServer(async (request, response) => {
       if (dispatch && !companyId) throw reject(400, 'An approved fleet account is required.');
       const truckCount = dispatch ? Number(body?.truckCount ?? 1) : 1;
       if (!Number.isInteger(truckCount) || truckCount < 1 || truckCount > 100) throw reject(400, 'Choose a whole-number truck count from 1 to 100.');
+      const managed = Object.values(store.applicantWorkflows || {}).find(w => w.companyId === companyId);
+      if (managed && !staff(actor)) {
+        const application = store.intakes.find(i => i.id === managed.intakeId);
+        if (store.intakeReviews[application.id].status !== 'approved' || managed.status !== 'approved') throw reject(403, 'Your application must be approved before payment setup.');
+        if (plan !== application.fields.dispatch_package || body.billingMethod !== application.fields.billing_method || truckCount !== Number(application.fields.available_units)) throw reject(400, 'Use the package, billing method and truck count approved in your application. Contact the team for changes.');
+      }
       const lock = companyId || actor?.id || 'preview';
       if (billing.ready === false) throw reject(503, 'Stripe Checkout is not configured yet. Dispatch can review your onboarding request.');
       if (checkoutLocks.has(lock)) throw reject(409, 'Checkout is already being prepared for this company.');
@@ -1315,6 +1329,7 @@ const server = http.createServer(async (request, response) => {
       return;
     }
     if (request.method === 'GET' && pathname === '/api/events') {
+      requireManagedOnboarding(accountFromRequest(request));
       if (sseClients.size >= MAX_SSE_CLIENTS) {
         sendJson(response, 503, { error: 'Live update capacity is temporarily full.' });
         return;
@@ -1339,6 +1354,7 @@ const server = http.createServer(async (request, response) => {
         throw reject(429, 'Too many updates. Try again shortly.');
       }
       if (ACCOUNT_AUTH) requireAccount(request);
+      requireManagedOnboarding(accountFromRequest(request));
       const event = await readJson(request, MAX_JSON_BYTES);
       if (ACCOUNT_AUTH && (event?.type?.startsWith('catalog.') || event?.type?.startsWith('tms.'))) {
         requireAccount(request, ['admin', 'dispatcher']);
@@ -1380,7 +1396,7 @@ const server = http.createServer(async (request, response) => {
       const actor = requireAccount(request, ['carrier-owner']);
       const w = Object.values(store.applicantWorkflows || {}).find(w => w.companyId === actor.companyId);
       const record = w && store.intakes.find(i => i.id === w.intakeId);
-      sendJson(response, 200, { onboarding: record ? { company: record.fields.legal_carrier_name, status: store.intakeReviews[record.id].status, ...applicantWorkflow.readiness(record, store.intakeReviews[record.id], w) } : null });
+      sendJson(response, 200, { onboarding: record ? { company: record.fields.legal_carrier_name, status: store.intakeReviews[record.id].status, plan: record.fields.dispatch_package, billingMethod: record.fields.billing_method, truckCount: Number(record.fields.available_units), paymentConfigured: Boolean(billing.ready), ...applicantWorkflow.readiness(record, store.intakeReviews[record.id], w) } : null });
       return;
     }
     const intakeRoute = pathname.match(/^\/api\/intakes\/([a-zA-Z0-9_-]+)(?:\/(review|history|export|verification|workflow))?$/);
@@ -1502,6 +1518,7 @@ const server = http.createServer(async (request, response) => {
     if (statusCode >= 500) console.error(error);
     sendJson(response, statusCode, {
       error: error.message || 'Unexpected server error.',
+      ...(error.code === 'onboarding_required' ? { code: error.code } : {}),
       ...(error.snapshot ? { snapshot: error.snapshot } : {})
     });
   }
@@ -1522,9 +1539,12 @@ setInterval(() => {
 setInterval(() => {
   for (const response of sseClients) {
     try {
+      requireManagedOnboarding(accountFromRequest(response.accountRequest));
       response.write(': keep-alive\n\n');
     } catch (error) {
       sseClients.delete(response);
+      if (error.code === 'onboarding_required') response.write('event: onboarding-required\ndata: {}\n\n');
+      response.end();
     }
   }
 }, 25000).unref();

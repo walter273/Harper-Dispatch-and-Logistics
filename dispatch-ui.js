@@ -56,6 +56,30 @@
     });
   }
   let generation = 0;
+  let approvedTermsGeneration = 0;
+  async function loadApprovedTerms() {
+    if (!dispatchForm) return;
+    const current = ++approvedTermsGeneration;
+    const controls = ['workspaceDispatchPlan', 'workspaceBillingMethod', 'carrierTruckCount'].map(byId);
+    const submit = byId('dispatchPlanSubmit');
+    submit.disabled = true;
+    try {
+      const { account } = await request('./api/accounts/me');
+      if (current !== approvedTermsGeneration) return;
+      if (account?.role !== 'carrier-owner') { controls.forEach(c => c.disabled = false); submit.disabled = !account || account.role !== 'admin'; return; }
+      const { onboarding } = await request('./api/onboarding');
+      if (current !== approvedTermsGeneration) return;
+      if (onboarding) {
+        byId('workspaceDispatchPlan').value = onboarding.plan;
+        byId('workspaceBillingMethod').value = onboarding.billingMethod;
+        byId('carrierTruckCount').value = onboarding.truckCount;
+        controls.forEach(c => c.disabled = true);
+        dispatchForm.dispatchEvent(new Event('change'));
+        submit.disabled = onboarding.status !== 'approved' || (onboarding.billingMethod === 'weekly' && !onboarding.paymentConfigured);
+        byId('dispatchPlanStatus').textContent = onboarding.status !== 'approved' ? 'Payment setup is available after approval.' : !onboarding.paymentConfigured && onboarding.billingMethod === 'weekly' ? 'Your approved package is saved. Payment setup is awaiting the AlphaWay team; you have not been charged.' : 'Your approved application details are selected. Contact the team to change them.';
+      } else { controls.forEach(c => c.disabled = false); submit.disabled = false; }
+    } catch { if (current === approvedTermsGeneration) { submit.disabled = true; byId('dispatchPlanStatus').textContent = 'Sign in and reload to check your approved payment setup.'; } }
+  }
   async function refreshRequests() {
     const current = ++generation;
     const list = byId('dispatchRequestsList');
@@ -103,5 +127,7 @@
     } catch { panel.hidden = true; list.replaceChildren(); }
   }
   window.addEventListener('alphaway:account-changed', refreshRequests);
+  window.addEventListener('alphaway:account-changed', loadApprovedTerms);
+  loadApprovedTerms();
   refreshRequests(); loadIntakes();
 })();

@@ -296,7 +296,7 @@ function dataDirectoryIsWritable() {
 }
 
 function laneFor(origin, destination) {
-  return `${origin.split(',')[0].trim()} Ã¢â€ â€™ ${destination.split(',')[0].trim()}`;
+  return `${origin.split(',')[0].trim()} â†’ ${destination.split(',')[0].trim()}`;
 }
 
 function normalizeLoad(candidate, index = 0) {

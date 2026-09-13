@@ -988,6 +988,7 @@ const server = http.createServer(async (request, response) => {
     if (request.method === 'POST' && pathname === '/api/square/webhook') {
       const raw = await readRaw(request, 256 * 1024);
       squareBilling.event(raw, headerValue(request, 'x-square-hmacsha256-signature'), store.squareWebhook);
+      console.log('Square signed webhook accepted.');
       await squareWorkflow.reconcile();
       sendJson(response, 200, { received: true }); return;
     }
@@ -1636,6 +1637,16 @@ server.listen(PORT, BIND_HOST, () => {
   if (useSquare && squareBilling.ready) {
     squareBilling.verify().then(async () => {
       console.log('Square connection verified: ' + squareBilling.environment);
+      if (squareBilling.environment === 'sandbox' && process.env.SQUARE_SANDBOX_SMOKE_TEST === 'true') {
+        const tester = {id:'square-integration-test',companyId:'TEST-SQUARE-INTEGRATION',role:'admin'};
+        await squareWorkflow.start(tester,{plan:'broker',truckCount:1,onboardingRequired:false});
+        const state = await squareWorkflow.state(tester,true);
+        if (!state.entry.hasSubscriptionCheckout) {
+          const link = await squareWorkflow.next(tester);
+          console.log('Square TEST checkout: ' + link.url);
+        } else console.log('Square TEST state: ' + state.entry.status);
+      }
+
       if (process.env.SQUARE_CONFIGURE_WEBHOOK === 'true' && !store.squareWebhook) {
         store.squareWebhook = await squareBilling.configureWebhook(); persistStore();
         console.log('Square signed payment notifications configured.');

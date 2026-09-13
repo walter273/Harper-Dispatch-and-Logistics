@@ -116,8 +116,9 @@ function createSquareBilling(env = process.env, fetchImpl = fetch) {
     return { id:subscription.id, url, secret:subscription.signature_key, environment };
   }
   async function testWebhook(id) {
-    const { subscription_test_result:r } = await api(`/webhooks/subscriptions/${identity(id)}/test`, {event_type:'payment.updated'});
-    return { statusCode:r.status_code, passed:r.status_code === 200 };
+    const response = await api(`/webhooks/subscriptions/${identity(id)}/test`, {event_type:'payment.updated'});
+    const r = response.subscription_test_result || response.test_result;
+    return { statusCode:r?.status_code || null, passed:r?.status_code === 200, pending:!r?.status_code };
   }
   function event(raw, signature, config) {
     const secret = config?.environment === environment ? config.secret : env[sandbox ? 'SQUARE_SANDBOX_WEBHOOK_SIGNATURE_KEY' : 'SQUARE_WEBHOOK_SIGNATURE_KEY'];

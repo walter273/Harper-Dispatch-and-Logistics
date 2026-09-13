@@ -67,3 +67,13 @@ test('revoked approval prevents a previously prepared checkout from taking payme
  const a={id:'admin',companyId:'company',role:'admin'};await w.start(a,{plan:'dispatch-basic',truckCount:1,onboardingRequired:true});
  await assert.rejects(w.next(a),{statusCode:403});assert.equal(requests,0);
 });
+
+test('production connection verification never unlocks production mutations',async()=>{
+ let calls=0;
+ const b=createSquareBilling({...env,SQUARE_ENVIRONMENT:'production',SQUARE_ACCESS_TOKEN:'fixture',SQUARE_LOCATION_ID:'location',SQUARE_LIVE_PAYMENTS_ENABLED:'false'},async()=>{calls++;return result({location:{id:'location',status:'ACTIVE',currency:'USD',capabilities:['CREDIT_CARD_PROCESSING']}});});
+ assert.equal((await b.verify()).collectionEnabled,false);
+ assert.equal(b.ready,false);
+ await assert.rejects(b.cancel({subscriptionId:'sub',environment:'production'}),{statusCode:503});
+ await assert.rejects(b.createLink({id:'x',plan:'broker',truckCount:1}),{statusCode:503});
+ assert.equal(calls,2);
+});

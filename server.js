@@ -296,7 +296,7 @@ function dataDirectoryIsWritable() {
 }
 
 function laneFor(origin, destination) {
-  return `${origin.split(',')[0].trim()} â†’ ${destination.split(',')[0].trim()}`;
+  return `${origin.split(',')[0].trim()} Ã¢â€ â€™ ${destination.split(',')[0].trim()}`;
 }
 
 function normalizeLoad(candidate, index = 0) {
@@ -1063,6 +1063,11 @@ const server = http.createServer(async (request, response) => {
     if (pathname === '/api/square/connection' && request.method === 'GET') {
       requireAccount(request, ['admin']);
       sendJson(response, 200, await squareBilling.verify()); return;
+    }
+    if (pathname === '/api/square/production-connection' && request.method === 'GET') {
+      requireAccount(request, ['admin']);
+      const productionProbe = require('./square-billing').createSquareBilling({ ...process.env, SQUARE_ENVIRONMENT:'production', SQUARE_LIVE_PAYMENTS_ENABLED:'false' });
+      sendJson(response, 200, await productionProbe.verify()); return;
     }
     if (['/api/square/state','/api/square/next','/api/square/refresh','/api/square/cancel'].includes(pathname)) {
       const actor = requireAccount(request, ['admin','carrier-owner','broker','shipper']);

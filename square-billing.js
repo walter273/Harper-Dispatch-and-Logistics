@@ -35,7 +35,8 @@ function createSquareBilling(env = process.env, fetchImpl = fetch) {
   const base = sandbox ? 'https://connect.squareupsandbox.com' : 'https://connect.squareup.com';
   const ready = Boolean(token && locationId && (sandbox || env.SQUARE_LIVE_PAYMENTS_ENABLED === 'true'));
   async function api(path, body, method = body ? 'POST' : 'GET') {
-    if (!ready) throw fail(503, 'Square payments are not enabled. Contact Harper for assistance.');
+    const connectionRead = method === 'GET' && path === `/locations/${identity(locationId)}` && token && locationId;
+    if (!ready && !connectionRead) throw fail(503, 'Square payments are not enabled. Contact Harper for assistance.');
     let response, data;
     try {
       response = await fetchImpl(`${base}/v2${path}`, { method, headers: { Authorization: `Bearer ${token}`, 'Square-Version': '2026-08-19', 'Content-Type': 'application/json' }, ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(15000) });
@@ -52,7 +53,7 @@ function createSquareBilling(env = process.env, fetchImpl = fetch) {
   async function verify() {
     const { location } = await api(`/locations/${identity(locationId)}`);
     if (location?.id !== locationId || location.status !== 'ACTIVE' || location.currency !== 'USD' || !location.capabilities?.includes('CREDIT_CARD_PROCESSING')) throw fail(503, 'Square location is not ready for USD card payments.');
-    return { environment, locationId, merchantId: location.merchant_id, ready: true };
+    return { environment, locationId, merchantId: location.merchant_id, businessName: location.business_name || location.name, ready: true, collectionEnabled: ready && !sandbox };
   }
   async function createLink(entry, setup = false) {
     const q = quote(entry.plan, entry.truckCount);

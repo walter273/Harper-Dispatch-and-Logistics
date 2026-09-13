@@ -9,6 +9,9 @@ test('Square HTTP checkout is admin-only in sandbox, persists retries, and keeps
  const cookie=role=>`alphaway_account=${tokens['user-'+role]}`;
  const post=(route,body,role='admin',origin)=>fetch(app.url+route,{method:'POST',headers:{'content-type':'application/json',cookie:cookie(role),...(origin?{origin}:{})},body:JSON.stringify(body)});
  assert.equal((await fetch(app.url+'/api/square/state')).status,401);
+ assert.equal((await fetch(app.url+'/api/square/production-connection')).status,401);
+ assert.equal((await fetch(app.url+'/api/square/production-connection',{headers:{cookie:cookie('broker')}})).status,403);
+ assert.equal((await fetch(app.url+'/api/square/production-connection',{headers:{cookie:cookie('admin')}})).status,503);
  assert.equal((await post('/api/billing/checkout',{plan:'broker'},'broker')).status,503);
  assert.equal((await post('/api/billing/checkout',{plan:'broker'},'admin','https://evil.example')).status,403);
  const first=await post('/api/billing/checkout',{plan:'broker'});assert.equal(first.status,200);const a=await first.json();

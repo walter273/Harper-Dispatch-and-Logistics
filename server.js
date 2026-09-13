@@ -5,6 +5,9 @@ const path = require('node:path');
 const { URL } = require('node:url');
 const { createBilling } = require('./billing');
 const billing = createBilling();
+const squareBilling = require('./square-billing').createSquareBilling();
+const useSquare = process.env.BILLING_PROVIDER === 'square';
+const squareEntitled = require('./square-billing').entitled;
 const billingReview = require('./billing-review').createBillingReview();
 const { createStorage } = require('./storage');
 const intakeReview = require('./intake-review');
@@ -55,6 +58,7 @@ const rateLimitBuckets = new Map();
 const checkoutLocks = new Set();
 
 const STATIC_FILES = new Set([
+  'square-billing.html', 'square-billing-ui.js',
   'planning-tools.html', 'planning-tools.css', 'planning-model.js', 'planning-tools.js',
   'billing-review-ui.js',
   'onboarding.html', 'onboarding.js', 'applicant-response.html', 'applicant-response.js',
@@ -457,6 +461,8 @@ function normalizeStore(candidate) {
     operations: normalizeOperations(candidate?.operations),
     carrierOnboardedCompanies: Array.isArray(candidate?.carrierOnboardedCompanies) ? [...new Set(candidate.carrierOnboardedCompanies.filter(id => typeof id === 'string'))] : [],
     dispatchRequests: Array.isArray(candidate?.dispatchRequests) ? candidate.dispatchRequests.filter(entry => isDispatchPlan(entry?.plan) && entry.companyId && entry.billingMethod === 'percentage') : [],
+    squareWebhook: candidate?.squareWebhook || null,
+    squareBilling: Array.isArray(candidate?.squareBilling) ? candidate.squareBilling : [],
     billingCheckouts: Array.isArray(candidate?.billingCheckouts) ? candidate.billingCheckouts : [],
     accounts: normalizeAccounts(candidate?.accounts)
   };
@@ -569,6 +575,8 @@ function normalizeOperations(candidate) {
   })) : [];
   const billingSubscriptions = Array.isArray(source.billingSubscriptions) ? source.billingSubscriptions.map((subscription, index) => ({
     id: cleanText(subscription?.id, `subscription-${index}`, 100),
+    provider: subscription?.provider === 'square' ? 'square' : 'stripe',
+    environment: subscription?.environment === 'production' ? 'production' : subscription?.provider === 'square' ? 'sandbox' : '',
     customerId: cleanText(subscription?.customerId, '', 100),
     userId: cleanText(subscription?.userId, '', 100),
     companyId: cleanText(subscription?.companyId, '', 100),
@@ -580,7 +588,7 @@ function normalizeOperations(candidate) {
     eventCreated: cleanNumber(subscription?.eventCreated, 0, 0, Number.MAX_SAFE_INTEGER),
     eventId: cleanText(subscription?.eventId, '', 100),
     updatedAt: cleanNumber(subscription?.updatedAt, Date.now(), 0, Number.MAX_SAFE_INTEGER)
-  })).filter((subscription) => /^sub_[A-Za-z0-9]+$/.test(subscription.id)) : [];
+  })).filter((subscription) => /^(sub_[A-Za-z0-9]+|square_[A-Za-z0-9_-]+)$/.test(subscription.id)) : [];
   return { documents, assignments, invoices, brokerSearches: Array.isArray(source.brokerSearches) ? source.brokerSearches.slice(-100) : [], billingEvents, billingSubscriptions };
 }
 
@@ -819,7 +827,7 @@ function requirePaidSubscription(user) {
   if (requireManagedOnboarding(user)) return;
   if (!REQUIRE_SUBSCRIPTION || !user || ['admin', 'dispatcher'].includes(user.role)) return;
   const subscription = subscriptionForUser(user);
-  if (!subscription || !['active', 'trialing'].includes(subscription.status)) {
+  if (!subscription || !['active', 'trialing'].includes(subscription.status) || (subscription.provider === 'square' && !squareEntitled(subscription))) {
     throw reject(402, 'An active Harper Dispatch and Logistics subscription is required for operations access.');
   }
 }
@@ -943,6 +951,9 @@ function serveStatic(request, response, pathname) {
 }
 
 let store = readStore();
+const squareWorkflow = require('./square-workflow').createSquareWorkflow({ billing: squareBilling, getStore: () => store, persist: persistStore });
+const squareTimer = setInterval(() => { if (useSquare) squareWorkflow.reconcile().catch(() => {}); }, 60000);
+squareTimer.unref();
 // Rename only the application's legacy default labels; retain tenant IDs and history.
 for (const company of store.accounts.companies) {
   if (company.id === 'alphaway' && /^alphaway logistics(?: llc)?$/i.test(company.name || '')) company.name = 'Harper Dispatch and Logistics LLC';
@@ -973,6 +984,12 @@ const server = http.createServer(async (request, response) => {
       }
       sendJson(response, 200, { ok: true });
       return;
+    }
+    if (request.method === 'POST' && pathname === '/api/square/webhook') {
+      const raw = await readRaw(request, 256 * 1024);
+      squareBilling.event(raw, headerValue(request, 'x-square-hmacsha256-signature'), store.squareWebhook);
+      await squareWorkflow.reconcile();
+      sendJson(response, 200, { received: true }); return;
     }
     if (request.method === 'POST' && pathname === '/api/stripe/webhook') {
       const raw = await readRaw(request, 256 * 1024);
@@ -1030,6 +1047,28 @@ const server = http.createServer(async (request, response) => {
       }
       return;
     }
+    if (pathname === '/api/square/setup-webhook' && request.method === 'POST') {
+      requireAccount(request, ['admin']); requireJsonSameOrigin(request);
+      if (!consumeRateLimit(request,'square-webhook-setup',3,AUTH_FAILURE_WINDOW_MS)) throw reject(429,'Please wait before trying again.');
+      store.squareWebhook = await squareBilling.configureWebhook(); persistStore();
+      sendJson(response,200,await squareBilling.testWebhook(store.squareWebhook.id)); return;
+    }
+    if (pathname === '/api/square/connection' && request.method === 'GET') {
+      requireAccount(request, ['admin']);
+      sendJson(response, 200, await squareBilling.verify()); return;
+    }
+    if (['/api/square/state','/api/square/next','/api/square/refresh','/api/square/cancel'].includes(pathname)) {
+      const actor = requireAccount(request, ['admin','carrier-owner','broker','shipper']);
+      if (!hasNetworkAccess(request)) throw reject(403, 'An invitation is required.');
+      if (request.method === 'GET' && pathname === '/api/square/state') {
+        sendJson(response,200,await squareWorkflow.state(actor)); return;
+      }
+      if (request.method !== 'POST') throw reject(405,'Method not allowed.');
+      requireJsonSameOrigin(request);
+      if (!consumeRateLimit(request,'square-billing',12,AUTH_FAILURE_WINDOW_MS)) throw reject(429,'Please wait before trying billing again.');
+      const action = pathname.split('/').pop();
+      sendJson(response,200,action === 'next' ? await squareWorkflow.next(actor) : action === 'cancel' ? await squareWorkflow.cancel(actor) : await squareWorkflow.state(actor,true)); return;
+    }
     if (request.method === 'GET' && pathname === '/api/admin/billing-review') {
       requireAccount(request, ['admin']);
       response.setHeader('Cache-Control', 'no-store');
@@ -1072,7 +1111,7 @@ const server = http.createServer(async (request, response) => {
       sendJson(response, 201, { request: entry });
       return;
     }
-    if (request.method === 'POST' && pathname === '/api/stripe/checkout') {
+    if (request.method === 'POST' && ['/api/stripe/checkout','/api/billing/checkout'].includes(pathname)) {
       requireJsonSameOrigin(request);
       if (!hasNetworkAccess(request)) throw reject(403, 'An invitation code is required before Checkout.');
       const actor = ACCOUNT_AUTH ? requireAccount(request, ['admin', 'carrier-owner', 'shipper', 'broker']) : null;
@@ -1097,6 +1136,10 @@ const server = http.createServer(async (request, response) => {
         if (plan !== application.fields.dispatch_package || body.billingMethod !== application.fields.billing_method || truckCount !== Number(application.fields.available_units)) throw reject(400, 'Use the package, billing method and truck count approved in your application. Contact the team for changes.');
       }
       const lock = companyId || actor?.id || 'preview';
+      if (useSquare) {
+        if (store.operations.billingSubscriptions.some(sub => sub.provider !== 'square' && sub.companyId === companyId && ['active','trialing','past_due','unpaid','incomplete','paused'].includes(sub.status))) throw reject(409,'An existing subscription must be resolved before switching payment providers.');
+        sendJson(response,200,await squareWorkflow.start(actor,{ plan, truckCount, onboardingRequired: dispatch && !store.carrierOnboardedCompanies.includes(companyId) })); return;
+      }
       if (billing.ready === false) throw reject(503, 'Stripe Checkout is not configured yet. Dispatch can review your onboarding request.');
       if (checkoutLocks.has(lock)) throw reject(409, 'Checkout is already being prepared for this company.');
       if (store.operations.billingSubscriptions.some(sub => sub.companyId === companyId && ['active','trialing','past_due','unpaid','incomplete','paused'].includes(sub.status))) throw reject(409, 'This company already has a subscription. Use billing management.');
@@ -1125,14 +1168,15 @@ const server = http.createServer(async (request, response) => {
       } finally { checkoutLocks.delete(lock); }
       return;
     }
-    if (request.method === 'GET' && pathname === '/api/stripe/subscription') {
+    if (request.method === 'GET' && ['/api/stripe/subscription','/api/billing/subscription'].includes(pathname)) {
       const actor = ACCOUNT_AUTH ? requireAccount(request) : null;
       sendJson(response, 200, { required: REQUIRE_SUBSCRIPTION, subscription: publicSubscription(subscriptionForUser(actor)) });
       return;
     }
-    if (request.method === 'POST' && pathname === '/api/stripe/portal') {
+    if (request.method === 'POST' && ['/api/stripe/portal','/api/billing/portal'].includes(pathname)) {
       requireJsonSameOrigin(request);
       const actor = requireAccount(request, ['carrier-owner', 'shipper', 'broker']);
+      if (useSquare) { sendJson(response,200,{url:'/square-billing.html'}); return; }
       const subscription = subscriptionForUser(actor);
       if (!subscription?.customerId) throw reject(409, 'Complete Stripe Checkout before opening billing management.');
       sendJson(response, 200, await billing.portal(subscription.customerId));
@@ -1412,7 +1456,7 @@ const server = http.createServer(async (request, response) => {
       const actor = requireAccount(request, ['carrier-owner']);
       const w = Object.values(store.applicantWorkflows || {}).find(w => w.companyId === actor.companyId);
       const record = w && store.intakes.find(i => i.id === w.intakeId);
-      sendJson(response, 200, { onboarding: record ? { company: record.fields.legal_carrier_name, status: store.intakeReviews[record.id].status, plan: record.fields.dispatch_package, billingMethod: record.fields.billing_method, truckCount: Number(record.fields.available_units), paymentConfigured: Boolean(billing.ready), ...applicantWorkflow.readiness(record, store.intakeReviews[record.id], w) } : null });
+      sendJson(response, 200, { onboarding: record ? { company: record.fields.legal_carrier_name, status: store.intakeReviews[record.id].status, plan: record.fields.dispatch_package, billingMethod: record.fields.billing_method, truckCount: Number(record.fields.available_units), paymentConfigured: useSquare ? squareBilling.ready && squareBilling.environment === 'production' : Boolean(billing.ready), ...applicantWorkflow.readiness(record, store.intakeReviews[record.id], w) } : null });
       return;
     }
     const intakeRoute = pathname.match(/^\/api\/intakes\/([a-zA-Z0-9_-]+)(?:\/(review|history|export|verification|workflow))?$/);

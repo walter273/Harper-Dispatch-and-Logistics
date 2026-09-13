@@ -46,7 +46,7 @@
       submit.disabled = true;
       status.textContent = billingMethod === 'weekly' ? 'Opening secure weekly Checkout...' : 'Saving your request for dispatch review...';
       try {
-        const result = await request(billingMethod === 'weekly' ? './api/stripe/checkout' : './api/dispatch/requests', {
+        const result = await request(billingMethod === 'weekly' ? './api/billing/checkout' : './api/dispatch/requests', {
           method: 'POST', body: JSON.stringify({ plan: byId('workspaceDispatchPlan').value, billingMethod, truckCount: Number(byId('carrierTruckCount').value), termsVersion: catalog.termsVersion, requestId: crypto.randomUUID() })
         });
         if (billingMethod === 'weekly') window.location.assign(result.url);

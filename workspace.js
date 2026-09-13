@@ -30,12 +30,12 @@
       return;
     }
     try {
-      const payload = await accountRequest('./api/stripe/subscription', { method: 'GET' });
+      const payload = await accountRequest('./api/billing/subscription', { method: 'GET' });
       const subscription = payload.subscription;
       if (!subscription) {
         status.textContent = payload.required
           ? 'No subscription is linked. Choose a plan to activate operations access.'
-          : 'No subscription is linked. Choose a plan to open secure Stripe Checkout.';
+          : 'No subscription is linked. Choose a plan to open secure checkout.';
         return;
       }
       const renewal = subscription.currentPeriodEnd
@@ -159,8 +159,8 @@
       }
       try {
         button.disabled = true;
-        status.textContent = 'Opening secure Stripe Checkout…';
-        const payload = await accountRequest('./api/stripe/checkout', {
+        status.textContent = 'Opening secure checkout…';
+        const payload = await accountRequest('./api/billing/checkout', {
           method: 'POST',
           body: JSON.stringify({ plan: button.dataset.workspacePlan, requestId: crypto.randomUUID() })
         });
@@ -176,8 +176,8 @@
     const status = byId('subscriptionStatus');
     try {
       event.currentTarget.disabled = true;
-      status.textContent = 'Opening secure Stripe billing management…';
-      const payload = await accountRequest('./api/stripe/portal', { method: 'POST', body: '{}' });
+      status.textContent = 'Opening billing management…';
+      const payload = await accountRequest('./api/billing/portal', { method: 'POST', body: '{}' });
       window.location.assign(payload.url);
     } catch (error) {
       status.textContent = error.message;

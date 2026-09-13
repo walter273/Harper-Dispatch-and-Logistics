@@ -9,7 +9,8 @@
     'dispatch-premium': Object.freeze({ name: 'Premium Dispatch', weeklyCents: 70000, percent: 10 })
   });
   const termsVersion = 'dispatch-2026-09-10-v1';
-  const revenueBasis = 'Collected line-haul revenue from loads dispatched by Alphaway. Fuel surcharges, detention, TONU, lumper fees and other reimbursements are excluded.';
+  const revenueBasis = 'Collected line-haul revenue from loads dispatched by Harper Dispatch and Logistics. Fuel surcharges, detention, TONU, lumper fees and other reimbursements are excluded.';
   const isDispatchPlan = id => Object.hasOwn(plans, id);
   return Object.freeze({ plans, termsVersion, revenueBasis, isDispatchPlan });
 });
+

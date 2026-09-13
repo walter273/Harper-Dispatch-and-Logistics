@@ -574,7 +574,7 @@ if (signupForm && signupStatus) {
     }
 
     signupStatus.textContent = 'Opening your email app to send this request.';
-    window.location.href = `mailto:support@alphaway-tms.invalid?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = `mailto:wharper031@outlook.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   });
 }
 

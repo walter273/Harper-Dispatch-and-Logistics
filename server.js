@@ -256,7 +256,7 @@ function sendUnauthorized(response) {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store, private',
     Vary: 'Authorization',
-    'WWW-Authenticate': 'Basic realm="Alphaway Preview", charset="UTF-8"'
+    'WWW-Authenticate': 'Basic realm="Harper Preview", charset="UTF-8"'
   }));
   response.end(JSON.stringify({ error: 'Preview access is required.' }));
 }
@@ -433,8 +433,8 @@ function createStore() {
     intakeReviews: {},
     operations: normalizeOperations(),
     accounts: normalizeAccounts(seeded ? {
-      companies: [{ id: 'alphaway', name: 'Alphaway Logistics', type: 'organization', status: 'active' }],
-      users: [{ id: 'user-admin', email: adminEmail, name: 'Alphaway Administrator', role: 'admin', companyId: 'alphaway', status: 'active', passwordSalt: seeded.salt, passwordHash: seeded.hash }]
+      companies: [{ id: 'alphaway', name: 'Harper Dispatch and Logistics', type: 'organization', status: 'active' }],
+      users: [{ id: 'user-admin', email: adminEmail, name: 'Harper Administrator', role: 'admin', companyId: 'alphaway', status: 'active', passwordSalt: seeded.salt, passwordHash: seeded.hash }]
     } : {})
   };
 }
@@ -820,7 +820,7 @@ function requirePaidSubscription(user) {
   if (!REQUIRE_SUBSCRIPTION || !user || ['admin', 'dispatcher'].includes(user.role)) return;
   const subscription = subscriptionForUser(user);
   if (!subscription || !['active', 'trialing'].includes(subscription.status)) {
-    throw reject(402, 'An active Alphaway Logistics subscription is required for operations access.');
+    throw reject(402, 'An active Harper Dispatch and Logistics subscription is required for operations access.');
   }
 }
 
@@ -943,6 +943,13 @@ function serveStatic(request, response, pathname) {
 }
 
 let store = readStore();
+// Rename only the application's legacy default labels; retain tenant IDs and history.
+for (const company of store.accounts.companies) {
+  if (company.id === 'alphaway' && /^alphaway logistics(?: llc)?$/i.test(company.name || '')) company.name = 'Harper Dispatch and Logistics LLC';
+}
+for (const user of store.accounts.users) {
+  if (user.id === 'user-admin' && /^alphaway administrator$/i.test(user.name || '')) user.name = 'Harper Administrator';
+}
 const applicantWorkflow = createWorkflow({ getStore: () => store, persist: persistStore });
 applicantWorkflow.recover();
 committedStore = structuredClone(store);
@@ -950,8 +957,8 @@ persistStore();
 
 if (ACCOUNT_AUTH && store.accounts.users.length === 0 && process.env.ALPHAWAY_ADMIN_EMAIL && process.env.ALPHAWAY_ADMIN_PASSWORD) {
   const credentials = hashPassword(process.env.ALPHAWAY_ADMIN_PASSWORD);
-  store.accounts.companies.push({ id: 'alphaway', name: 'Alphaway Logistics', type: 'organization', status: 'active', createdAt: Date.now() });
-  store.accounts.users.push({ id: 'user-admin', email: process.env.ALPHAWAY_ADMIN_EMAIL.trim().toLowerCase(), name: 'Alphaway Administrator', role: 'admin', companyId: 'alphaway', status: 'active', passwordSalt: credentials.salt, passwordHash: credentials.hash, createdAt: Date.now() });
+  store.accounts.companies.push({ id: 'alphaway', name: 'Harper Dispatch and Logistics', type: 'organization', status: 'active', createdAt: Date.now() });
+  store.accounts.users.push({ id: 'user-admin', email: process.env.ALPHAWAY_ADMIN_EMAIL.trim().toLowerCase(), name: 'Harper Administrator', role: 'admin', companyId: 'alphaway', status: 'active', passwordSalt: credentials.salt, passwordHash: credentials.hash, createdAt: Date.now() });
   persistStore();
 }
 
@@ -1569,7 +1576,7 @@ setInterval(() => {
 }, 60000).unref();
 
 function shutdown(signal) {
-  console.log(`Received ${signal}; closing the Alphaway server.`);
+  console.log(`Received ${signal}; closing the Harper server.`);
   for (const response of sseClients) response.end();
   sseClients.clear();
   server.close(() => process.exit(0));
@@ -1580,7 +1587,7 @@ process.once('SIGINT', () => shutdown('SIGINT'));
 process.once('SIGTERM', () => shutdown('SIGTERM'));
 
 server.listen(PORT, BIND_HOST, () => {
-  console.log(`Alphaway app running at http://${BIND_HOST}:${server.address().port}`);
+  console.log(`Harper app running at http://${BIND_HOST}:${server.address().port}`);
   console.log(`Data store: ${DATA_FILE}`);
   console.log(`Preview access: ${REQUIRE_PREVIEW_AUTH ? 'enabled' : 'disabled (local default)'}`);
 });

@@ -20,7 +20,7 @@
   request('./api/accounts/invitations/preview', { token }).then(({ invitation }) => {
     const role = invitation.role === 'admin' ? 'Admin' : invitation.role.replaceAll('-', ' ');
     document.getElementById('invitationEmail').value = invitation.email;
-    summary.textContent = `You are invited to join Alphaway Logistics as ${role}. This invitation expires ${new Date(invitation.expiresAt).toLocaleDateString()}.`;
+    summary.textContent = `You are invited to join Harper Dispatch and Logistics as ${role}. This invitation expires ${new Date(invitation.expiresAt).toLocaleDateString()}.`;
     ready = true; form.hidden = false;
   }).catch(error => { summary.textContent = 'This invitation could not be opened.'; message(error.message, true); });
   form.addEventListener('submit', async event => {
@@ -40,3 +40,4 @@
     finally { submit.disabled = false; }
   });
 })();
+

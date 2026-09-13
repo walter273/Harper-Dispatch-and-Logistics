@@ -68,7 +68,7 @@ function createWorkflow({ env = process.env, getStore, persist, fetchImpl = fetc
   function responseJob(raw) {
     const [id, value] = String(raw || '').split('.'), s = init();
     const job = s.applicantOutbox.find(j => j.id === id && j.kind === 'needs_information');
-    if (!job || !value || value.length !== 64 || !/^[a-f0-9]+$/.test(value) || !crypto.timingSafeEqual(Buffer.from(value), Buffer.from(token(`response:${id}`))) || job.createdAt + 7 * DAY < Date.now() || s.applicantWorkflows[job.intakeId]?.reviewVersion !== job.version || s.intakeReviews[job.intakeId]?.status !== 'needs_information') fail('This secure response link is invalid or expired. Contact the AlphaWay team.', 403);
+    if (!job || !value || value.length !== 64 || !/^[a-f0-9]+$/.test(value) || !crypto.timingSafeEqual(Buffer.from(value), Buffer.from(token(`response:${id}`))) || job.createdAt + 7 * DAY < Date.now() || s.applicantWorkflows[job.intakeId]?.reviewVersion !== job.version || s.intakeReviews[job.intakeId]?.status !== 'needs_information') fail('This secure response link is invalid or expired. Contact the Harper team.', 403);
     return job;
   }
   function receiveResponse(input) {
@@ -109,10 +109,10 @@ function createWorkflow({ env = process.env, getStore, persist, fetchImpl = fetc
     review.history.push({ id: crypto.randomUUID(), version: review.version, at: review.updatedAt, actor: { id: actor.id, name: actor.name, role: actor.role }, action: 'onboarding', note: 'Onboarding assignment and payment review updated.', after: { dispatcherId: w.dispatcherId, billingReference: w.billingReference } });
   }
   function message(job) {
-    const subject = { approved: 'Your AlphaWay carrier application is approved for onboarding', rejected: 'Update on your AlphaWay carrier application', needs_information: 'Information needed for your AlphaWay carrier application' }[job.kind];
+    const subject = { approved: 'Your Harper carrier application is approved for onboarding', rejected: 'Update on your Harper carrier application', needs_information: 'Information needed for your Harper carrier application' }[job.kind];
     const next = job.kind === 'approved' ? `Your application is approved for onboarding. Dispatch is not active yet.\n\n${job.invitationId ? `Create your account within 7 days: ${job.origin}/accept-invitation.html#token=${token(job.invitationId)}` : `Sign in: ${job.origin}/workspace.html`}\n\nOnce signed in, open ${job.origin}/onboarding.html to see remaining steps. Complete your selected payment setup in Account. Our team will confirm documents and assign your dispatcher.` :
       job.kind === 'rejected' ? 'Your application has not been approved. Reply to request reconsideration or correct an error. No service has been activated.' : `We need the information listed below before we can finish reviewing your application. Use this private link within 7 days to send your response and documents: ${job.origin}/applicant-response.html#token=${job.id}.${token(`response:${job.id}`)}\nDo not forward this link or email tax IDs or bank details.`;
-    return { subject, text: `Hello,\n\n${next}\n\nMessage from the AlphaWay team:\n${job.applicantMessage}\n\nApplication reference: ${job.intakeId}\n\nAlphaWay Logistics LLC\n${job.replyTo}` };
+    return { subject, text: `Hello,\n\n${next}\n\nMessage from the Harper team:\n${job.applicantMessage}\n\nApplication reference: ${job.intakeId}\n\nHarper Dispatch and Logistics LLC\n${job.replyTo}` };
   }
   let running = false;
   async function drain() {
@@ -149,7 +149,7 @@ function createWorkflow({ env = process.env, getStore, persist, fetchImpl = fetc
       try {
         response = await fetchImpl(provider === 'sendgrid' ? 'https://api.sendgrid.com/v3/mail/send' : 'https://comms.twilio.com/v1/Emails', {
           method: 'POST', redirect: 'error', signal: AbortSignal.timeout(15000), headers: { 'Content-Type': 'application/json', Authorization: provider === 'sendgrid' ? `Bearer ${env.SENDGRID_API_KEY}` : `Basic ${Buffer.from(`${twilioUser}:${twilioSecret}`).toString('base64')}` },
-          body: JSON.stringify(provider === 'sendgrid' ? { from: { email: job.from, name: 'AlphaWay Logistics' }, reply_to: { email: job.replyTo }, personalizations: [{ to: [{ email: job.recipient }], custom_args: { applicant_job: job.id } }], subject: body.subject, content: [{ type: 'text/plain', value: body.text }], tracking_settings: { click_tracking: { enable: false, enable_text: false }, open_tracking: { enable: false } } } : { from: { address: job.from, name: 'AlphaWay Logistics' }, to: [{ address: job.recipient }], content: body })
+          body: JSON.stringify(provider === 'sendgrid' ? { from: { email: job.from, name: 'Harper Dispatch and Logistics' }, reply_to: { email: job.replyTo }, personalizations: [{ to: [{ email: job.recipient }], custom_args: { applicant_job: job.id } }], subject: body.subject, content: [{ type: 'text/plain', value: body.text }], tracking_settings: { click_tracking: { enable: false, enable_text: false }, open_tracking: { enable: false } } } : { from: { address: job.from, name: 'Harper Dispatch and Logistics' }, to: [{ address: job.recipient }], content: body })
         });
       } catch { /* Status remains uncertain; no blind retry. */ }
       const current = init().applicantOutbox.find(j => j.id === job.id);

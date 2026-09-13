@@ -3,7 +3,7 @@
   const status = document.getElementById('responseStatus'), form = document.getElementById('responseForm');
   let requestId = crypto.randomUUID();
   const send = async body => { const r = await fetch('/api/applicant-response', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token, ...body }) }); const data = await r.json(); if (!r.ok) throw Error(data.error || 'Could not save response.'); return data; };
-  send({ action: 'preview' }).then(data => { status.textContent = 'Your link is valid. Responses are shared with AlphaWay staff.'; document.getElementById('responseRequest').textContent = data.message; form.hidden = false; }).catch(e => status.textContent = e.message);
+  send({ action: 'preview' }).then(data => { status.textContent = 'Your link is valid. Responses are shared with Harper staff.'; document.getElementById('responseRequest').textContent = data.message; form.hidden = false; }).catch(e => status.textContent = e.message);
   form.addEventListener('input', () => { requestId = crypto.randomUUID(); });
   form.addEventListener('submit', async event => {
     event.preventDefault(); const button = form.querySelector('button'); if (button.disabled) return; button.disabled = true;

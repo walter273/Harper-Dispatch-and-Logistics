@@ -152,7 +152,7 @@
           })
           .filter(Boolean);
         const subject = form.dataset.subject || 'Harper Dispatch and Logistics request';
-        const recipient = form.dataset.recipient || 'support@alphaway-tms.invalid';
+        const recipient = form.dataset.recipient || 'wharper031@outlook.com';
         const notice = form.dataset.notice || 'Opening a draft in your email app.';
 
         await board?.whenReady?.();
@@ -371,7 +371,7 @@
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = 'alphaway-demo-loads.json';
+      link.download = 'harper-demo-loads.json';
       link.click();
       window.setTimeout(() => URL.revokeObjectURL(url), 0);
       report(`${board.isServerConnected() ? 'Shared' : 'Local'} demo catalog exported.`);

@@ -23,10 +23,26 @@ test('checkout retries reuse IDs; onboarding is one time and recurring pricing e
  assert.equal(links[0].idempotency_key,links[1].idempotency_key);assert.equal(links[0].quick_pay.price_money.amount,15000);assert.equal(links[2].quick_pay.price_money.amount,60000);assert.equal(links[2].checkout_options.allow_tipping,false);
  assert.equal(links[2].checkout_options.subscription_plan_id,'variation');
 });
-test('Square ACTIVE alone never grants paid access; paid period and trusted company linkage are required',async()=>{
- let until='2020-01-01',customer='customer';const b=createSquareBilling(env,async url=>result(url.includes('/orders/')?{order:{id:'order',location_id:'location',total_money:{amount:29900,currency:'USD'},state:'OPEN',tenders:[{id:'payment'}]}}:url.includes('/payments/')?{payment:{status:'COMPLETED',order_id:'order',location_id:'location',amount_money:{amount:29900,currency:'USD'},customer_id:'customer'}}:{subscriptions:[{id:'sub',customer_id:customer,location_id:'location',plan_variation_id:'variation',status:'ACTIVE',paid_until_date:until}]}));
+test('Square invoiced period requires a matching paid invoice and an unrefunded payment',async()=>{
+ let until='2020-01-01',customer='customer',invoiceStatus='UNPAID',refunded=0;
+ const b=createSquareBilling(env,async url=>result(
+ url.includes('/orders/')?{order:{id:'order',location_id:'location',total_money:{amount:29900,currency:'USD'},state:'OPEN',tenders:[{id:'payment'}]}}:
+ url.includes('/payments/')?{payment:{status:'COMPLETED',order_id:'order',location_id:'location',amount_money:{amount:29900,currency:'USD'},customer_id:'customer',refunded_money:{amount:refunded}}}:
+ url.includes('/invoices/')?{invoice:{subscription_id:'sub',location_id:'location',primary_recipient:{customer_id:'customer'},status:invoiceStatus,order_id:'order'}}:
+ {subscriptions:[{id:'sub',customer_id:customer,location_id:'location',plan_variation_id:'variation',status:'ACTIVE',charged_through_date:until,invoice_ids:['invoice'],timezone:'UTC'}]}));
  const e={id:'entry',environment:'sandbox',plan:'broker',truckCount:1,subscriptionLink:{orderId:'order',variationId:'variation'}};
- assert.equal((await b.refresh(e)).status,'past_due');until='2099-01-01';assert.equal((await b.refresh(e)).status,'active');customer='another-customer';assert.equal((await b.refresh(e)).subscriptionId,undefined);
+ assert.equal((await b.refresh(e)).status,'past_due');
+ until='2099-01-01'; assert.equal((await b.refresh(e)).status,'past_due');
+ invoiceStatus='PAID'; assert.equal((await b.refresh(e)).status,'active');
+ customer='another-customer'; assert.equal((await b.refresh(e)).subscriptionId,undefined);
+ customer='customer'; refunded=29900; assert.notEqual((await b.refresh(e)).status,'active');
+});
+test('Square inclusive billing dates expire at the following midnight in subscription timezone',()=>{
+ const {periodEnd}=require('../square-billing');
+ assert.equal(periodEnd('2026-09-12','UTC'),Date.parse('2026-09-13T00:00:00Z')/1000);
+ assert.equal(periodEnd('2026-09-12','America/Denver'),Date.parse('2026-09-13T06:00:00Z')/1000);
+ assert.equal(periodEnd('2026-11-01','America/Denver'),Date.parse('2026-11-02T07:00:00Z')/1000);
+ assert.equal(periodEnd(null),0);
 });
 test('webhook payload tampering is rejected and callbacks alone cannot grant entitlement',()=>{
  const config={...env,SQUARE_SANDBOX_WEBHOOK_SIGNATURE_KEY:'key',SQUARE_WEBHOOK_URL:'https://harper.example/api/square/webhook'};const b=createSquareBilling(config);

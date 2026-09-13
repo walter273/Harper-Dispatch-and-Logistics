@@ -13,6 +13,20 @@ function quote(plan, trucks = 1) {
 function entitled(record, now = Date.now()) {
   return record?.provider === 'square' && record.environment === 'production' && record.status === 'active' && record.currentPeriodEnd * 1000 > now;
 }
+function periodEnd(date, timezone = 'UTC') {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '')) return 0;
+  try {
+    const target = Date.parse(`${date}T00:00:00Z`) + 86400000;
+    const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit', hourCycle:'h23' });
+    let instant = target;
+    for (let i=0;i<4;i++) {
+      const p = Object.fromEntries(fmt.formatToParts(new Date(instant)).map(p=>[p.type,p.value]));
+      const local = Date.UTC(+p.year,+p.month-1,+p.day,+p.hour,+p.minute,+p.second);
+      instant += target-local;
+    }
+    return instant/1000;
+  } catch { return 0; }
+}
 function createSquareBilling(env = process.env, fetchImpl = fetch) {
   const environment = env.SQUARE_ENVIRONMENT === 'production' ? 'production' : 'sandbox';
   const sandbox = environment === 'sandbox';
@@ -94,13 +108,21 @@ function createSquareBilling(env = process.env, fetchImpl = fetch) {
     if (!sub || (customerId && sub.customer_id !== customerId) || sub.location_id !== locationId || sub.plan_variation_id !== entry.subscriptionLink.variationId) return next;
     customerId = sub.customer_id;
     next.customerId = customerId; next.subscriptionId = sub.id;
-    if (sandbox && entry.sandboxFixture && env.SQUARE_SANDBOX_SMOKE_TEST === 'true') console.log('Square TEST subscription evidence: ' + JSON.stringify({status:sub.status,paidUntil:sub.paid_until_date || null,invoiceCount:sub.invoice_ids?.length || 0}));
-    next.currentPeriodEnd = /^\d{4}-\d{2}-\d{2}$/.test(sub.paid_until_date || '') ? Date.parse(`${sub.paid_until_date}T00:00:00Z`)/1000 : 0;
+    // charged_through_date means invoiced, not paid. Verify the newest invoice
+    // and its actual payment before using that inclusive billing date.
+    let invoice, invoicePaid = false;
+    if (sub.invoice_ids?.length) {
+      ({ invoice } = await api(`/invoices/${identity(sub.invoice_ids[0])}`));
+      if (invoice.subscription_id === sub.id && invoice.location_id === locationId && invoice.primary_recipient?.customer_id === customerId && invoice.status === 'PAID' && invoice.order_id) {
+        invoicePaid = Boolean(await paidOrder({orderId:invoice.order_id},q.amount));
+      }
+    }
+    next.currentPeriodEnd = invoicePaid ? periodEnd(sub.charged_through_date,sub.timezone) : 0;
+    if (sandbox && entry.sandboxFixture && env.SQUARE_SANDBOX_SMOKE_TEST === 'true') console.log('Square TEST subscription evidence: ' + JSON.stringify({status:sub.status,invoiceStatus:invoice?.status || null,invoicePaid,currentPeriodEnd:next.currentPeriodEnd}));
     next.status = sub.status === 'CANCELED' ? 'canceled' : sub.status === 'DEACTIVATED' ? 'unpaid' : sub.status === 'PAUSED' ? 'paused' : sub.status === 'ACTIVE' && next.currentPeriodEnd * 1000 > Date.now() && (!entry.onboardingRequired || next.setupPaid) ? 'active' : 'past_due';
     next.cancelAtPeriodEnd = Boolean(sub.canceled_date || sub.actions?.some(a => a.type === 'CANCEL'));
     // Invoice URLs let the customer resolve failed renewals directly at Square.
-    if (sub.invoice_ids?.length) {
-      const { invoice } = await api(`/invoices/${identity(sub.invoice_ids[0])}`);
+    if (invoice) {
       if (invoice.subscription_id === sub.id && invoice.public_url) {
         const url = new URL(invoice.public_url);
         if (url.protocol === 'https:' && ['squareup.com','squareupsandbox.com'].some(h => url.hostname === h || url.hostname.endsWith(`.${h}`))) next.invoiceUrl = url.href;
@@ -147,4 +169,4 @@ function createSquareBilling(env = process.env, fetchImpl = fetch) {
   }
   return { environment, ready, verify, createLink, refresh, cancel, event, configureWebhook, testWebhook, sandboxSubscriptionFixture };
 }
-module.exports = { createSquareBilling, quote, entitled };
+module.exports = { createSquareBilling, quote, entitled, periodEnd };

@@ -63,6 +63,7 @@ const STATIC_FILES = new Set([
   'billing-review-ui.js',
   'onboarding.html', 'onboarding.js', 'applicant-response.html', 'applicant-response.js',
   'account-nav.js',
+  'home-nav.js',
   'dispatch-plans.js',
   'dispatch-ui.js',
   HOME_PAGE,

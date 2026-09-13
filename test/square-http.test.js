@@ -1,0 +1,22 @@
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');const os=require('node:os');const path=require('node:path');
+const {start}=require('../test-support/server');const {seed}=require('../test-support/review-fixture');
+test('Square HTTP checkout is admin-only in sandbox, persists retries, and keeps secrets private',async t=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'harper-square-'));const file=path.join(dir,'store.json');const {tokens}=seed(file,0);
+ const config={ALPHAWAY_DATA_FILE:file,ALPHAWAY_ACCOUNT_AUTH:'true',BILLING_PROVIDER:'square',SQUARE_ENVIRONMENT:'sandbox'};let app=await start(config);
+ t.after(async()=>{await app.stop();fs.rmSync(dir,{recursive:true,force:true});});
+ const cookie=role=>`alphaway_account=${tokens['user-'+role]}`;
+ const post=(route,body,role='admin',origin)=>fetch(app.url+route,{method:'POST',headers:{'content-type':'application/json',cookie:cookie(role),...(origin?{origin}:{})},body:JSON.stringify(body)});
+ assert.equal((await fetch(app.url+'/api/square/state')).status,401);
+ assert.equal((await post('/api/billing/checkout',{plan:'broker'},'broker')).status,503);
+ assert.equal((await post('/api/billing/checkout',{plan:'broker'},'admin','https://evil.example')).status,403);
+ const first=await post('/api/billing/checkout',{plan:'broker'});assert.equal(first.status,200);const a=await first.json();
+ assert.equal((await (await post('/api/billing/checkout',{plan:'broker'})).json()).sessionId,a.sessionId);
+ await app.stop();app=await start(config);
+ assert.equal((await (await post('/api/billing/checkout',{plan:'broker'})).json()).sessionId,a.sessionId);
+ const state=await (await fetch(app.url+'/api/square/state',{headers:{cookie:cookie('admin')}})).json();assert.equal(state.entry.id,a.sessionId);assert.equal(state.entry.entitled,false);
+ assert.equal((await fetch(app.url+'/square-billing.js')).status,404);
+ assert.equal((await post('/api/square/setup-webhook',{},'broker')).status,403);
+ assert.equal(JSON.parse(fs.readFileSync(file)).operations.billingSubscriptions.length,0);
+});

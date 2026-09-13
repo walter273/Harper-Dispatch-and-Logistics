@@ -1633,5 +1633,19 @@ process.once('SIGTERM', () => shutdown('SIGTERM'));
 server.listen(PORT, BIND_HOST, () => {
   console.log(`Harper app running at http://${BIND_HOST}:${server.address().port}`);
   console.log(`Data store: ${DATA_FILE}`);
+  if (useSquare && squareBilling.ready) {
+    squareBilling.verify().then(async () => {
+      console.log('Square connection verified: ' + squareBilling.environment);
+      if (process.env.SQUARE_CONFIGURE_WEBHOOK === 'true' && !store.squareWebhook) {
+        store.squareWebhook = await squareBilling.configureWebhook(); persistStore();
+        console.log('Square signed payment notifications configured.');
+      }
+      if (store.squareWebhook) {
+        const result = await squareBilling.testWebhook(store.squareWebhook.id);
+        console.log('Square webhook delivery test: HTTP ' + result.statusCode);
+      }
+    }).catch(error => console.log('Square connection check: ' + String(error.message).slice(0,180)));
+  }
+
   console.log(`Preview access: ${REQUIRE_PREVIEW_AUTH ? 'enabled' : 'disabled (local default)'}`);
 });

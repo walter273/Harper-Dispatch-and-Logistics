@@ -1,7 +1,7 @@
 const crypto = require('node:crypto');
 const { entitled } = require('./square-billing');
 const fail = (statusCode, message) => Object.assign(new Error(message), { statusCode });
-function createSquareWorkflow({ billing, getStore, persist }) {
+function createSquareWorkflow({ billing, getStore, persist, validate = () => {} }) {
   const locks = new Set();
   const entries = () => (getStore().squareBilling ||= []);
   const scope = actor => `${billing.environment}:${actor.companyId}`;
@@ -52,6 +52,7 @@ function createSquareWorkflow({ billing, getStore, persist }) {
     return locked(scope(actor), async () => {
       let entry = current(actor);
       if (!entry) throw fail(409,'Choose your approved plan in the workspace first.');
+      validate(entry,actor);
       entry = save(await billing.refresh(entry));
       if (entry.subscriptionId) throw fail(409,'This subscription already exists. Use its billing status or invoice.');
       const setup = entry.onboardingRequired && !entry.setupPaid;

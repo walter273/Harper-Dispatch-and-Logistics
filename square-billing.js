@@ -122,7 +122,7 @@ function createSquareBilling(env = process.env, fetchImpl = fetch) {
   async function sandboxSubscriptionFixture(entry) {
     if (!sandbox || entry.environment !== 'sandbox' || entry.companyId !== 'TEST-SQUARE-INTEGRATION' || !entry.subscriptionLink) throw fail(403,'Test subscription fixtures are restricted to the sandbox integration test.');
     const {customer} = await api('/customers',{idempotency_key:key(entry.id,'test-customer'),given_name:'TEST Harper',family_name:'Integration',email_address:'harper-square-test@example.com'});
-    const {card} = await api('/cards',{idempotency_key:key(entry.id,'test-card'),source_id:'cnon:card-nonce-ok',card:{customer_id:customer.id,cardholder_name:'TEST Harper Integration'}});
+    const {card} = await api('/cards',{idempotency_key:key(entry.id,'test-card').slice(0,45),source_id:'cnon:card-nonce-ok',card:{customer_id:customer.id,cardholder_name:'TEST Harper Integration'}});
     const {subscription} = await api('/subscriptions',{idempotency_key:key(entry.id,'test-subscription'),location_id:locationId,customer_id:customer.id,card_id:card.id,plan_variation_id:entry.subscriptionLink.variationId});
     return { ...entry, customerId:customer.id, subscriptionId:subscription.id, sandboxFixture:true };
   }

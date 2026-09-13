@@ -951,7 +951,13 @@ function serveStatic(request, response, pathname) {
 }
 
 let store = readStore();
-const squareWorkflow = require('./square-workflow').createSquareWorkflow({ billing: squareBilling, getStore: () => store, persist: persistStore });
+const squareWorkflow = require('./square-workflow').createSquareWorkflow({ billing: squareBilling, getStore: () => store, persist: persistStore, validate(entry, actor) {
+  if (staff(actor)) return;
+  const w = Object.values(store.applicantWorkflows || {}).find(w => w.companyId === actor.companyId);
+  if (!w) return;
+  const application = store.intakes.find(i => i.id === w.intakeId);
+  if (!application || store.intakeReviews[application.id]?.status !== 'approved' || w.status !== 'approved' || application.fields.dispatch_package !== entry.plan || Number(application.fields.available_units) !== entry.truckCount || application.fields.billing_method !== 'weekly') throw reject(403,'Your current application and billing terms must be approved before payment.');
+} });
 const squareTimer = setInterval(() => { if (useSquare) squareWorkflow.reconcile().catch(() => {}); }, 60000);
 squareTimer.unref();
 // Rename only the application's legacy default labels; retain tenant IDs and history.
@@ -1661,7 +1667,7 @@ server.listen(PORT, BIND_HOST, () => {
       }
       if (store.squareWebhook) {
         const result = await squareBilling.testWebhook(store.squareWebhook.id);
-        console.log('Square webhook delivery test: HTTP ' + result.statusCode);
+        console.log(result.pending ? 'Square webhook test dispatched; verify delivery log.' : 'Square webhook delivery test: HTTP ' + result.statusCode);
       }
     }).catch(error => console.log('Square connection check: ' + String(error.message).slice(0,180)));
   }

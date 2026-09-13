@@ -78,19 +78,21 @@ function createSquareBilling(env = process.env, fetchImpl = fetch) {
     if (!entry.subscriptionLink) return next;
     const payment = await paidOrder(entry.subscriptionLink,q.amount);
     if (!payment) { next.status = 'pending'; next.currentPeriodEnd = 0; return next; }
-    const customerId = payment.customer_id;
-    if (!customerId) return next;
+    let customerId = payment.customer_id || entry.customerId;
     let sub;
     if (entry.subscriptionId) ({ subscription: sub } = await api(`/subscriptions/${identity(entry.subscriptionId)}`));
     else {
       let cursor;
       do {
-        const result = await api('/subscriptions/search', { query: { filter: { customer_ids: [customerId], location_ids: [locationId] } }, ...(cursor ? { cursor } : {}) });
+        const result = await api('/subscriptions/search', { query: { filter: { ...(customerId ? {customer_ids: [customerId]} : {}), location_ids: [locationId] } }, ...(cursor ? { cursor } : {}) });
         sub = result.subscriptions?.find(s => s.plan_variation_id === entry.subscriptionLink.variationId);
         cursor = result.cursor;
       } while (!sub && cursor);
     }
-    if (!sub || sub.customer_id !== customerId || sub.location_id !== locationId || sub.plan_variation_id !== entry.subscriptionLink.variationId) return next;
+    // Every checkout has its own immutable variation. This provides linkage when
+    // Square omits customer_id on the initial payment; never match by email.
+    if (!sub || (customerId && sub.customer_id !== customerId) || sub.location_id !== locationId || sub.plan_variation_id !== entry.subscriptionLink.variationId) return next;
+    customerId = sub.customer_id;
     next.customerId = customerId; next.subscriptionId = sub.id;
     next.currentPeriodEnd = /^\d{4}-\d{2}-\d{2}$/.test(sub.paid_until_date || '') ? Date.parse(`${sub.paid_until_date}T00:00:00Z`)/1000 : 0;
     next.status = ['CANCELED','DEACTIVATED'].includes(sub.status) ? 'canceled' : sub.status === 'PAUSED' ? 'paused' : sub.status === 'ACTIVE' && next.currentPeriodEnd * 1000 > Date.now() && (!entry.onboardingRequired || next.setupPaid) ? 'active' : 'past_due';
@@ -117,6 +119,13 @@ function createSquareBilling(env = process.env, fetchImpl = fetch) {
     if (!subscription.signature_key || subscription.notification_url !== url) throw fail(502,'Square webhook configuration was incomplete.');
     return { id:subscription.id, url, secret:subscription.signature_key, environment };
   }
+  async function sandboxSubscriptionFixture(entry) {
+    if (!sandbox || entry.environment !== 'sandbox' || entry.companyId !== 'TEST-SQUARE-INTEGRATION' || !entry.subscriptionLink) throw fail(403,'Test subscription fixtures are restricted to the sandbox integration test.');
+    const {customer} = await api('/customers',{idempotency_key:key(entry.id,'test-customer'),given_name:'TEST Harper',family_name:'Integration',email_address:'harper-square-test@example.com'});
+    const {card} = await api('/cards',{idempotency_key:key(entry.id,'test-card'),source_id:'cnon:card-nonce-ok',card:{customer_id:customer.id,cardholder_name:'TEST Harper Integration'}});
+    const {subscription} = await api('/subscriptions',{idempotency_key:key(entry.id,'test-subscription'),location_id:locationId,customer_id:customer.id,card_id:card.id,plan_variation_id:entry.subscriptionLink.variationId});
+    return { ...entry, customerId:customer.id, subscriptionId:subscription.id, sandboxFixture:true };
+  }
   async function testWebhook(id) {
     const response = await api(`/webhooks/subscriptions/${identity(id)}/test`, {event_type:'payment.updated'});
     const r = response.subscription_test_result || response.test_result;
@@ -132,6 +141,6 @@ function createSquareBilling(env = process.env, fetchImpl = fetch) {
     if (!value.event_id || typeof value.type !== 'string') throw fail(400,'Invalid webhook event.');
     return value;
   }
-  return { environment, ready, verify, createLink, refresh, cancel, event, configureWebhook, testWebhook };
+  return { environment, ready, verify, createLink, refresh, cancel, event, configureWebhook, testWebhook, sandboxSubscriptionFixture };
 }
 module.exports = { createSquareBilling, quote, entitled };

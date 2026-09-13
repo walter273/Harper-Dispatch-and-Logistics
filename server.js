@@ -1644,7 +1644,15 @@ server.listen(PORT, BIND_HOST, () => {
         if (!state.entry.hasSubscriptionCheckout) {
           const link = await squareWorkflow.next(tester);
           console.log('Square TEST checkout: ' + link.url);
-        } else console.log('Square TEST state: ' + state.entry.status);
+        } else {
+          let fixture = store.squareBilling.find(e => e.id === state.entry.id);
+          if (!fixture.sandboxFixture) {
+            fixture = await squareBilling.sandboxSubscriptionFixture(fixture);
+            store.squareBilling = store.squareBilling.filter(e => e.id !== fixture.id).concat(fixture); persistStore();
+          }
+          const verified = await squareWorkflow.state(tester,true);
+          console.log('Square TEST state: ' + verified.entry.status);
+        }
       }
 
       if (process.env.SQUARE_CONFIGURE_WEBHOOK === 'true' && !store.squareWebhook) {

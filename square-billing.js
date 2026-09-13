@@ -96,7 +96,7 @@ function createSquareBilling(env = process.env, fetchImpl = fetch) {
     next.customerId = customerId; next.subscriptionId = sub.id;
     if (sandbox && entry.sandboxFixture && env.SQUARE_SANDBOX_SMOKE_TEST === 'true') console.log('Square TEST subscription evidence: ' + JSON.stringify({status:sub.status,paidUntil:sub.paid_until_date || null,invoiceCount:sub.invoice_ids?.length || 0}));
     next.currentPeriodEnd = /^\d{4}-\d{2}-\d{2}$/.test(sub.paid_until_date || '') ? Date.parse(`${sub.paid_until_date}T00:00:00Z`)/1000 : 0;
-    next.status = ['CANCELED','DEACTIVATED'].includes(sub.status) ? 'canceled' : sub.status === 'PAUSED' ? 'paused' : sub.status === 'ACTIVE' && next.currentPeriodEnd * 1000 > Date.now() && (!entry.onboardingRequired || next.setupPaid) ? 'active' : 'past_due';
+    next.status = sub.status === 'CANCELED' ? 'canceled' : sub.status === 'DEACTIVATED' ? 'unpaid' : sub.status === 'PAUSED' ? 'paused' : sub.status === 'ACTIVE' && next.currentPeriodEnd * 1000 > Date.now() && (!entry.onboardingRequired || next.setupPaid) ? 'active' : 'past_due';
     next.cancelAtPeriodEnd = Boolean(sub.canceled_date || sub.actions?.some(a => a.type === 'CANCEL'));
     // Invoice URLs let the customer resolve failed renewals directly at Square.
     if (sub.invoice_ids?.length) {
@@ -122,10 +122,13 @@ function createSquareBilling(env = process.env, fetchImpl = fetch) {
   }
   async function sandboxSubscriptionFixture(entry) {
     if (!sandbox || entry.environment !== 'sandbox' || entry.companyId !== 'TEST-SQUARE-INTEGRATION' || !entry.subscriptionLink) throw fail(403,'Test subscription fixtures are restricted to the sandbox integration test.');
-    const {customer} = await api('/customers',{idempotency_key:key(entry.id,'test-customer'),given_name:'TEST Harper',family_name:'Integration',email_address:'harper-square-test@example.com'});
-    const {card} = await api('/cards',{idempotency_key:key(entry.id,'test-card').slice(0,45),source_id:'cnon:card-nonce-ok',card:{customer_id:customer.id,cardholder_name:'TEST Harper Integration'}});
-    const {subscription} = await api('/subscriptions',{idempotency_key:key(entry.id,'test-subscription'),location_id:locationId,customer_id:customer.id,card_id:card.id,plan_variation_id:entry.subscriptionLink.variationId});
-    return { ...entry, customerId:customer.id, subscriptionId:subscription.id, sandboxFixture:true };
+    const testEmail = env.SQUARE_SANDBOX_TEST_EMAIL;
+    if (!testEmail || !/^[^@]+@[^@]+\.[^@]+$/.test(testEmail)) throw fail(503,'An approved test receipt email is required.');
+    const fixtureKey = entry.id + ':' + testEmail;
+    const {customer} = await api('/customers',{idempotency_key:key(fixtureKey,'test-customer'),given_name:'TEST Harper',family_name:'Integration',email_address:testEmail});
+    const {card} = await api('/cards',{idempotency_key:key(fixtureKey,'test-card').slice(0,45),source_id:'cnon:card-nonce-ok',card:{customer_id:customer.id,cardholder_name:'TEST Harper Integration'}});
+    const {subscription} = await api('/subscriptions',{idempotency_key:key(fixtureKey,'test-subscription'),location_id:locationId,customer_id:customer.id,card_id:card.id,plan_variation_id:entry.subscriptionLink.variationId});
+    return { ...entry, customerId:customer.id, subscriptionId:subscription.id, sandboxFixture:true, sandboxFixtureVersion:2 };
   }
   async function testWebhook(id) {
     const response = await api(`/webhooks/subscriptions/${identity(id)}/test`, {event_type:'payment.updated'});

@@ -20,3 +20,12 @@ test('Square HTTP checkout is admin-only in sandbox, persists retries, and keeps
  assert.equal((await post('/api/square/setup-webhook',{},'broker')).status,403);
  assert.equal(JSON.parse(fs.readFileSync(file)).operations.billingSubscriptions.length,0);
 });
+test('paid Square access survives restart and expires without relying on another webhook',async t=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'harper-square-access-'));const file=path.join(dir,'store.json');const {tokens}=seed(file,0);
+ const saved=JSON.parse(fs.readFileSync(file));saved.operations.billingSubscriptions=[{id:'square_fixture',provider:'square',environment:'production',customerId:'customer',userId:'user-broker',companyId:'company-broker',plan:'broker',truckCount:1,status:'active',currentPeriodEnd:Date.now()/1000+3600}];fs.writeFileSync(file,JSON.stringify(saved));
+ const config={ALPHAWAY_DATA_FILE:file,ALPHAWAY_ACCOUNT_AUTH:'true',ALPHAWAY_REQUIRE_SUBSCRIPTION:'true'};let app=await start(config);
+ t.after(async()=>{await app.stop();fs.rmSync(dir,{recursive:true,force:true});});
+ const get=()=>fetch(app.url+'/api/operations',{headers:{cookie:`alphaway_account=${tokens['user-broker']}`}});
+ assert.equal((await get()).status,200);await app.stop();app=await start(config);assert.equal((await get()).status,200);
+ await app.stop();const expired=JSON.parse(fs.readFileSync(file));expired.operations.billingSubscriptions[0].currentPeriodEnd=1;fs.writeFileSync(file,JSON.stringify(expired));app=await start(config);assert.equal((await get()).status,402);
+});

@@ -1652,7 +1652,7 @@ server.listen(PORT, BIND_HOST, () => {
           console.log('Square TEST checkout: ' + link.url);
         } else {
           let fixture = store.squareBilling.find(e => e.id === state.entry.id);
-          if (!fixture.sandboxFixture) {
+          if (!fixture.sandboxFixture || fixture.sandboxFixtureVersion !== 2) {
             fixture = await squareBilling.sandboxSubscriptionFixture(fixture);
             store.squareBilling = store.squareBilling.filter(e => e.id !== fixture.id).concat(fixture); persistStore();
           }

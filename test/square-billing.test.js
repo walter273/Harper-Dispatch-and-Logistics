@@ -44,3 +44,10 @@ test('failed persistence retries preserve checkout identity before issuing remot
  const w=createSquareWorkflow({billing:b,getStore:()=>store,persist:()=>{if(fail)throw Error('disk');}});const a={id:'admin',companyId:'company',role:'admin'};
  await w.start(a,{plan:'broker',truckCount:1});fail=true;await assert.rejects(w.next(a));assert.equal(calls,0);
 });
+test('revoked approval prevents a previously prepared checkout from taking payment',async()=>{
+ const store={squareBilling:[],operations:{billingSubscriptions:[]},carrierOnboardedCompanies:[]};let requests=0;
+ const b={environment:'sandbox',ready:true,refresh:async e=>e,createLink:async()=>{requests++;}};
+ const w=createSquareWorkflow({billing:b,getStore:()=>store,persist:()=>{},validate:()=>{throw Object.assign(Error('Approval revoked'),{statusCode:403});}});
+ const a={id:'admin',companyId:'company',role:'admin'};await w.start(a,{plan:'dispatch-basic',truckCount:1,onboardingRequired:true});
+ await assert.rejects(w.next(a),{statusCode:403});assert.equal(requests,0);
+});

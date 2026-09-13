@@ -58,6 +58,25 @@ const rateLimitBuckets = new Map();
 const checkoutLocks = new Set();
 
 const STATIC_FILES = new Set([
+  'demo-load-board.html',
+  'demo-dispatch.html',
+  'demo-planning.html',
+  'demo-broker-desk.html',
+  'demo-shipper-control.html',
+  'demo-pricing.html',
+  'demo-carriers.html',
+  'demo-brokers.html',
+  'demo-shippers.html',
+  'demo-contact.html',
+  'demo-phone.html',
+  'demo-general.html',
+  'demo-dispatch-support.html',
+  'demo-billing-support.html',
+  'demo-workspace.html',
+  'public-preview.css',
+  'public-access.js',
+  'access.html',
+
   'square-billing.html', 'square-billing-ui.js',
   'planning-tools.html', 'planning-tools.css', 'planning-model.js', 'planning-tools.js',
   'billing-review-ui.js',
@@ -924,6 +943,18 @@ function serveStatic(request, response, pathname) {
   if (!STATIC_FILES.has(requestedPath)) {
     sendJson(response, 404, { error: 'Not found.' });
     return;
+  }
+  // Operational pages require a valid active account; invitations activate accounts first.
+  const privatePages = new Set(['workspace.html','loadboard.html','planning-tools.html','tms.html','admin.html','intake-review.html','square-billing.html']);
+  if (privatePages.has(requestedPath)) {
+    const actor = accountFromRequest(request);
+    if (!actor) {
+      response.writeHead(302, responseHeaders({ Location: `/access.html?next=${encodeURIComponent(requestedPath)}`, 'Cache-Control': 'no-store' }));
+      response.end(); return;
+    }
+    if ((requestedPath === 'admin.html' && actor.role !== 'admin') || (requestedPath === 'intake-review.html' && !['admin','dispatcher'].includes(actor.role))) {
+      sendJson(response, 403, { error: 'Your account cannot access this staff page.' }); return;
+    }
   }
   const resolvedPath = path.resolve(ROOT_DIR, requestedPath);
   if (!resolvedPath.startsWith(`${ROOT_DIR}${path.sep}`)) {

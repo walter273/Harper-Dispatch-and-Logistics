@@ -12,12 +12,13 @@
   </style>
   <script src="./script.js" defer></script>
   <script src="./account-nav.js" defer></script>
+<link rel="stylesheet" href="./harper-theme.css">
 </head>
 <body>
   <main class="page-shell">
     <header class="topbar">
       <a class="brand" href="./index.html" aria-label="Harper Dispatch and Logistics home">
-        <span class="brand-mark">H</span><span class="brand-copy"><span class="brand-name">Harper Load Board</span><small>Powered by Harper Dispatch and Logistics</small></span>
+        <span class="harper-emblem" aria-hidden="true"></span><span class="brand-copy"><span class="brand-name">Harper Load Board</span><small>Powered by Harper Dispatch and Logistics</small></span>
       </a>
       <nav class="main-nav" aria-label="Main navigation"><a href="./index.html#services">Services</a><a href="./index.html#plans">Plans</a><a href="./tms.html">Operations</a><a href="./carrier-onboarding.html">Carrier portal</a><a href="./index.html#contact">Contact</a><a href="./planning-tools.html">Planning tools</a></nav>
       <div class="header-actions"><button class="ghost-button" id="accountButton" type="button">Carrier workspace preview</button><a class="primary-button" href="./index.html#signup">Request access</a></div>
@@ -27,7 +28,7 @@
       <label class="field-field"><span>Origin</span><select id="originFilter"></select></label><label class="field-field"><span>Destination</span><select id="destinationFilter"></select></label><label class="field-field"><span>Equipment</span><select id="equipmentFilter"><option value="all">All equipment</option><option>Dry Van</option><option>Reefer</option><option>Flatbed</option><option>Power Only</option></select></label><label class="field-field"><span>Minimum rate</span><select id="rateFilter"><option value="0">Any rate</option><option value="1500">$1,500+</option><option value="2000">$2,000+</option><option value="2500">$2,500+</option></select></label><button class="primary-button search-button" id="searchButton" type="button">Search loads</button>
     </section>
 
-    <section class="portal-panel harper-brand-banner"><h1>Harper Load Board</h1><p>Powered by Harper Dispatch and Logistics</p></section>
+    <section class="portal-panel harper-brand-banner"><img src="./assets/harper-load-board.png" alt="Harper Load Board logo" width="720" height="960"><div><p class="harper-tagline">FIND LOADS · BOOK LOADS · KEEP ROLLING</p><h1>Harper Load Board</h1><p>Powered by Harper Dispatch and Logistics</p></div></section>
     <section class="private-network-banner" aria-labelledby="privateNetworkTitle"><div><p class="eyebrow">Harper Dispatch and Logistics carrier network</p><h2 id="privateNetworkTitle">Exclusive freight access for invited carriers</h2><p>This board is being built as a private network for Harper Dispatch and Logistics dispatch clients, contracted carriers, and direct shipper freight. Access is granted by invitation code.</p></div><button class="ghost-button" id="networkAccessButton" type="button">Enter invitation code</button></section>
 
     <section class="tms-panel" aria-labelledby="tmsTitle">

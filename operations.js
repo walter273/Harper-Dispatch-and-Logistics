@@ -152,7 +152,7 @@
           })
           .filter(Boolean);
         const subject = form.dataset.subject || 'Harper Dispatch and Logistics request';
-        const recipient = form.dataset.recipient || 'wharper031@outlook.com';
+        const recipient = form.dataset.recipient || 'info@harperloadboard.com';
         const notice = form.dataset.notice || 'Opening a draft in your email app.';
 
         await board?.whenReady?.();

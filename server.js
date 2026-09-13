@@ -84,6 +84,7 @@ const STATIC_FILES = new Set([
   'style.css',
   'harper-theme.css',
   'assets/harper-brand-pair.png',
+  'assets/harper-dispatch-office.png',
   'assets/harper-load-board.png',
   'assets/alphaway-dispatch-office.jpg',
   'script.js',

@@ -24,7 +24,7 @@ test('checkout retries reuse IDs; onboarding is one time and recurring pricing e
  assert.equal(links[2].checkout_options.subscription_plan_id,'variation');
 });
 test('Square ACTIVE alone never grants paid access; paid period and trusted company linkage are required',async()=>{
- let until='2020-01-01',customer='customer';const b=createSquareBilling(env,async url=>result(url.includes('/orders/')?{order:{id:'order',location_id:'location',total_money:{amount:29900,currency:'USD'},state:'COMPLETED',tenders:[{payment_id:'payment'}]}}:url.includes('/payments/')?{payment:{status:'COMPLETED',order_id:'order',location_id:'location',amount_money:{amount:29900,currency:'USD'},customer_id:'customer'}}:{subscriptions:[{id:'sub',customer_id:customer,location_id:'location',plan_variation_id:'variation',status:'ACTIVE',paid_until_date:until}]}));
+ let until='2020-01-01',customer='customer';const b=createSquareBilling(env,async url=>result(url.includes('/orders/')?{order:{id:'order',location_id:'location',total_money:{amount:29900,currency:'USD'},state:'OPEN',tenders:[{id:'payment'}]}}:url.includes('/payments/')?{payment:{status:'COMPLETED',order_id:'order',location_id:'location',amount_money:{amount:29900,currency:'USD'},customer_id:'customer'}}:{subscriptions:[{id:'sub',customer_id:customer,location_id:'location',plan_variation_id:'variation',status:'ACTIVE',paid_until_date:until}]}));
  const e={id:'entry',environment:'sandbox',plan:'broker',truckCount:1,subscriptionLink:{orderId:'order',variationId:'variation'}};
  assert.equal((await b.refresh(e)).status,'past_due');until='2099-01-01';assert.equal((await b.refresh(e)).status,'active');customer='another-customer';assert.equal((await b.refresh(e)).subscriptionId,undefined);
 });

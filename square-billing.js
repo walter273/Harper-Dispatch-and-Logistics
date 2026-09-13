@@ -61,11 +61,13 @@ function createSquareBilling(env = process.env, fetchImpl = fetch) {
   }
   async function paidOrder(link, expected) {
     const { order } = await api(`/orders/${identity(link.orderId)}`);
-    if (order?.location_id !== locationId || order.total_money?.currency !== 'USD' || order.total_money.amount !== expected || order.state !== 'COMPLETED') return null;
+    // Paid digital orders can remain OPEN until fulfillment is completed.
+    // The independently retrieved COMPLETED payment is the payment authority.
+    if (order?.location_id !== locationId || order.total_money?.currency !== 'USD' || order.total_money.amount !== expected || !['OPEN','COMPLETED'].includes(order.state)) return null;
     for (const tender of order.tenders || []) {
-      if (!tender.payment_id) continue;
-      const { payment } = await api(`/payments/${identity(tender.payment_id)}`);
-      if (payment.status === 'COMPLETED' && payment.order_id === order.id && payment.location_id === locationId && payment.amount_money?.amount === expected && payment.amount_money.currency === 'USD' && !(payment.refunded_money?.amount > 0)) return payment;
+      if (!tender.payment_id && !tender.id) continue;
+      const { payment } = await api(`/payments/${identity(tender.payment_id || tender.id)}`);
+      if (payment.status === 'COMPLETED' && payment.order_id === order.id && payment.location_id === locationId && payment.amount_money?.amount === expected && payment.amount_money.currency === 'USD' && !(payment.refunded_money?.amount > 0)) return { ...payment, customer_id:payment.customer_id || order.customer_id };
     }
     return null;
   }

@@ -1,4 +1,5 @@
 const http = require('node:http');
+const rolePermissions = require('./role-permissions');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -58,6 +59,7 @@ const rateLimitBuckets = new Map();
 const checkoutLocks = new Set();
 
 const STATIC_FILES = new Set([
+  'role-permissions.js', 'role-workspace.js',
   'demo-load-board.html',
   'demo-dispatch.html',
   'demo-planning.html',
@@ -517,6 +519,7 @@ function companyState(user) {
   return Object.hasOwn(store.companyStates, user.companyId) ? store.companyStates[user.companyId] : emptyPrivateState();
 }
 function publicSnapshot(user = null) {
+  if (ACCOUNT_AUTH && user && !rolePermissions.allowed(user.role,'board')) return {revision:store.revision,loads:[],state:companyState(user)};
   requireManagedOnboarding(user);
   const state = !ACCOUNT_AUTH || staff(user) ? store.state : companyState(user);
   return { revision: store.revision, loads: store.loads, state };
@@ -851,6 +854,7 @@ function requirePaidSubscription(user) {
   if (requireManagedOnboarding(user)) return;
   if (!REQUIRE_SUBSCRIPTION || !user || ['admin', 'dispatcher'].includes(user.role)) return;
   const subscription = subscriptionForUser(user);
+  if (subscription && !(user.role === 'carrier-owner' && subscription.plan === 'carrier') && !rolePermissions.planAllowed(user.role,subscription.plan)) throw reject(403,'Your plan does not match your account role.');
   if (!subscription || !['active', 'trialing'].includes(subscription.status) || (subscription.provider === 'square' && !squareEntitled(subscription))) {
     throw reject(402, 'An active Harper Dispatch and Logistics subscription is required for operations access.');
   }
@@ -952,6 +956,7 @@ function serveStatic(request, response, pathname) {
       response.writeHead(302, responseHeaders({ Location: `/access.html?next=${encodeURIComponent(requestedPath)}`, 'Cache-Control': 'no-store' }));
       response.end(); return;
     }
+    if (rolePermissions.pages[requestedPath] && !rolePermissions.allowed(actor.role, rolePermissions.pages[requestedPath])) { sendJson(response,403,{error:'This tool is not included for your account role.'}); return; }
     if ((requestedPath === 'admin.html' && actor.role !== 'admin') || (requestedPath === 'intake-review.html' && !['admin','dispatcher'].includes(actor.role))) {
       sendJson(response, 403, { error: 'Your account cannot access this staff page.' }); return;
     }
@@ -1167,6 +1172,7 @@ const server = http.createServer(async (request, response) => {
       const body = await readJson(request, 16 * 1024);
       const plan = cleanText(body?.plan, '', 20).toLowerCase();
       if (!['shipper', 'broker', ...Object.keys(dispatchPlans)].includes(plan)) throw reject(400, 'Choose a supported subscription plan.');
+      if (actor && !rolePermissions.planAllowed(actor.role,plan)) throw reject(403,'Choose a plan for your account role.');
       const email = actor?.email || cleanText(body?.email, '', 160);
       if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw reject(400, 'Enter a valid email address.');
       const companyId = actor?.companyId;
@@ -1379,6 +1385,7 @@ const server = http.createServer(async (request, response) => {
       return;
     }
     if (request.method === 'GET' && pathname === '/api/fmcsa/brokers') {
+      if (ACCOUNT_AUTH) requireAccount(request,['admin','dispatcher','carrier-owner']);
       if (!hasNetworkAccess(request)) {
         sendNetworkAccessRequired(response);
         return;
@@ -1399,6 +1406,8 @@ const server = http.createServer(async (request, response) => {
       }
       const payload = await readJson(request, MAX_OPERATION_BYTES);
       const type = cleanText(payload?.type, '', 40);
+      const feature = { 'assignment.create':'assign', 'invoice.create':'invoice', 'document.upload':'documents' }[type];
+      if (actor && feature && !rolePermissions.allowed(actor.role,feature)) throw reject(403,'This action is not permitted for your account role.');
       if (type === 'assignment.create') {
         const assignment = normalizeOperations({ assignments: [payload.assignment] }).assignments[0];
         if (!assignment) throw reject(400, 'A load, driver name, and truck are required.');
@@ -1464,6 +1473,8 @@ const server = http.createServer(async (request, response) => {
       if (ACCOUNT_AUTH) requireAccount(request);
       requireManagedOnboarding(accountFromRequest(request));
       const event = await readJson(request, MAX_JSON_BYTES);
+      const eventActor = accountFromRequest(request);
+      if (ACCOUNT_AUTH && ['broker','shipper'].includes(eventActor?.role) && event?.type !== 'message.send') throw reject(403,'This board action is not available for your role.');
       if (ACCOUNT_AUTH && (event?.type?.startsWith('catalog.') || event?.type?.startsWith('tms.'))) {
         requireAccount(request, ['admin', 'dispatcher']);
       }

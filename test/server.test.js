@@ -158,8 +158,8 @@ test('company boundaries apply to HTTP snapshots, stream updates, invitations an
     assert.equal(response.status,201);
     return {cookie:response.headers.get('set-cookie').split(';')[0],user:(await response.json()).account};
   }
-  const a=await account('shipper@example.com','shipper','a');
-  const b=await account('broker@example.com','broker','b');
+  const a=await account('shipper@example.com','carrier-owner','a');
+  const b=await account('broker@example.com','carrier-owner','b');
   const driver=await account('driver@example.com','driver','a','Same Name');
   const otherDriver=await account('driver2@example.com','driver','b','Same Name');
   const dispatcher=await account('staff@example.com','dispatcher','a');
@@ -264,3 +264,4 @@ test('dispatch requests validate terms, isolate companies, deduplicate and survi
   assert.equal((await post('/api/dispatch/requests',{action:'withdraw',id:saved.id},a)).status,200);
   assert.equal((await post('/api/stripe/checkout',{...body,billingMethod:'percentage'},a)).status,400);
 });
+

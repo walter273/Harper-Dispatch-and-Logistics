@@ -14,7 +14,7 @@
   <script src="./dispatch-ui.js" defer></script>
   <script src="./account-nav.js" defer></script>
 <link rel="stylesheet" href="./harper-theme.css">
-</head>
+<script src="./role-permissions.js" defer></script><script src="./role-workspace.js" defer></script><style>[hidden]{display:none!important}</style></head>
 <body>
   <main class="page-shell portal-shell">
     <header class="topbar portal-topbar">
@@ -34,8 +34,8 @@
     <section class="portal-hero operations-hero">
       <div>
         <p class="eyebrow">Freight command center</p>
-        <h1>One operating layer for every freight partner.</h1>
-        <p>Choose the workspace that matches your role, then move between freight, tracking, network, documents, and billing workflows without leaving the Harper Dispatch and Logistics system.</p>
+        <h1 id="workspaceHeading">One operating layer for every freight partner.</h1>
+        <p id="workspaceIntro">Choose the workspace that matches your role, then move between freight, tracking, network, documents, and billing workflows without leaving the Harper Dispatch and Logistics system.</p>
       </div>
       <aside class="portal-callout">
         <span class="local-badge"><i aria-hidden="true"></i> Private authenticated access</span>
@@ -49,38 +49,38 @@
       <form id="signinForm" class="account-inline-form"><label><span>Email</span><input name="email" type="email" required></label><label><span>Password</span><input name="password" type="password" required></label><button class="primary-button" type="submit">Sign in</button><button class="ghost-button" id="signoutButton" type="button" hidden>Sign out</button><p id="signinStatus" class="form-status" role="status"></p></form>
     </section>
 
-    <section class="portal-panel account-panel" aria-labelledby="subscriptionTitle">
+    <section class="portal-panel account-panel" data-feature="billing" hidden aria-labelledby="subscriptionTitle">
       <div>
         <p class="eyebrow">Subscription billing</p>
         <h2 id="subscriptionTitle">Plan and billing management</h2>
         <p id="subscriptionStatus" class="tool-note">Sign in to view your subscription.</p>
       </div>
-      <div class="billing-options" id="subscriptionActions"><form id="dispatchPlanForm" class="operations-form"><label><span>Owner-operator dispatch package</span><select id="workspaceDispatchPlan" required><option value="dispatch-basic">Basic Dispatch - $300/truck/week or 5%</option><option value="dispatch-standard" selected>Standard Dispatch - $500/truck/week or 7%</option><option value="dispatch-premium">Premium Dispatch - $700/truck/week or 10%</option></select></label><div class="operations-form-grid"><label><span>Number of trucks</span><input id="carrierTruckCount" type="number" min="1" max="100" step="1" value="1" required></label><label><span>Billing method</span><select id="workspaceBillingMethod"><option value="weekly">Fixed weekly fee</option><option value="percentage">Percentage of eligible revenue</option></select></label></div><p id="dispatchQuote" class="tool-note" aria-live="polite"></p><label class="dispatch-consent"><input id="dispatchTermsAccepted" type="checkbox" required><span>I have reviewed the <a href="./carrier-agreement.html">billing and service overview</a> and selected one billing method.</span></label><button class="primary-button" id="dispatchPlanSubmit" type="submit">Continue to weekly Checkout</button><p id="dispatchPlanStatus" class="form-status" role="status"></p></form><div class="workspace-actions"><button class="ghost-button" type="button" data-workspace-plan="shipper">Shipper - $799/month</button><button class="ghost-button" type="button" data-workspace-plan="broker">Broker - $299/month</button><button class="primary-button" id="manageBillingButton" type="button" hidden>Manage billing</button></div></div>
+      <div class="billing-options" id="subscriptionActions"><form data-feature="carrier" hidden id="dispatchPlanForm" class="operations-form"><label><span>Owner-operator dispatch package</span><select id="workspaceDispatchPlan" required><option value="dispatch-basic">Basic Dispatch - $300/truck/week or 5%</option><option value="dispatch-standard" selected>Standard Dispatch - $500/truck/week or 7%</option><option value="dispatch-premium">Premium Dispatch - $700/truck/week or 10%</option></select></label><div class="operations-form-grid"><label><span>Number of trucks</span><input id="carrierTruckCount" type="number" min="1" max="100" step="1" value="1" required></label><label><span>Billing method</span><select id="workspaceBillingMethod"><option value="weekly">Fixed weekly fee</option><option value="percentage">Percentage of eligible revenue</option></select></label></div><p id="dispatchQuote" class="tool-note" aria-live="polite"></p><label class="dispatch-consent"><input id="dispatchTermsAccepted" type="checkbox" required><span>I have reviewed the <a href="./carrier-agreement.html">billing and service overview</a> and selected one billing method.</span></label><button class="primary-button" id="dispatchPlanSubmit" type="submit">Continue to weekly Checkout</button><p id="dispatchPlanStatus" class="form-status" role="status"></p></form><div class="workspace-actions"><button class="ghost-button" type="button" data-workspace-plan="shipper">Shipper - $799/month</button><button class="ghost-button" type="button" data-workspace-plan="broker">Broker - $299/month</button><button class="primary-button" id="manageBillingButton" type="button" hidden>Manage billing</button></div></div>
     </section>
 
     <section class="portal-panel" id="dispatchRequestsPanel" hidden><h2>Dispatch plan requests</h2><p class="tool-note">Percentage requests require dispatch review and a signed agreement before billing. No subscription or payment is created by a request.</p><div id="dispatchRequestsList"></div></section>
     <section class="workspace-grid" aria-label="Role workspaces">
-      <article class="portal-panel workspace-card">
+      <article class="portal-panel workspace-card" data-feature="staff" hidden>
         <p class="eyebrow">Dispatch</p><h2>Freight command center</h2>
         <p>Manage open loads, assignments, exceptions, messages, and operating priorities.</p>
         <a class="primary-button" href="./tms.html">Open operations</a>
       </article>
-      <article class="portal-panel workspace-card">
+      <article class="portal-panel workspace-card" data-feature="board" hidden>
         <p class="eyebrow">Carriers and drivers</p><h2>Carrier workspace</h2>
         <p>Review private freight opportunities, saved searches, bookings, and driver communication.</p>
         <a class="ghost-button" href="./loadboard.html">Open carrier board</a>
       </article>
-      <article class="portal-panel workspace-card">
+      <article class="portal-panel workspace-card" data-feature="broker" hidden>
         <p class="eyebrow">Shippers and brokers</p><h2>Freight partner workspace</h2>
         <p>Start a lane request, coordinate capacity, and keep shipment status visible to the team.</p>
         <div class="workspace-actions"><a class="ghost-button" href="./broker-intake.html">Broker intake</a><a class="ghost-button" href="./contact-portal.html">Shipper support</a></div>
       </article>
     </section>
 
-    <section class="module-grid" aria-label="Platform modules">
-      <article class="portal-panel module-card"><span class="module-status">Connected demo</span><h2>Shipment and driver tracking</h2><p>Track assigned loads, route progress, ETA, and exceptions in the operations workspace.</p><a href="./loadboard.html#tmsTitle">View tracking →</a></article>
-      <article class="portal-panel module-card"><span class="module-status planned-status">Next integration</span><h2>Broker network directory</h2><p>Approved broker profiles, lanes, contacts, and relationship notes will live here.</p><a href="./broker-intake.html">Add broker request →</a></article>
-      <article class="portal-panel module-card"><span class="module-status">Connected sandbox</span><h2>Documents and subscription billing</h2><p>Collect operations documents, create invoice records, open secure checkout, and manage your subscription.</p><a href="#subscriptionTitle">View subscription billing →</a></article>
+    <section class="portal-panel" data-feature="shipper" hidden><h2>Your shipping requests</h2><p>Share shipment requirements and coordinate support for your company.</p><a href="./contact-portal.html">Request shipment support</a></section><section id="companyRecords" class="portal-panel" hidden><h2>Your company records</h2><p id="companyRecordsStatus" role="status"></p><div id="companyRecordsList"></div></section><section class="module-grid" aria-label="Platform modules">
+      <article class="portal-panel module-card" data-feature="board" hidden><span class="module-status">Connected demo</span><h2>Shipment and driver tracking</h2><p>Track assigned loads, route progress, ETA, and exceptions in the operations workspace.</p><a href="./loadboard.html#tmsTitle">View tracking →</a></article>
+      <article class="portal-panel module-card" data-feature="broker" hidden><span class="module-status planned-status">Next integration</span><h2>Broker network directory</h2><p>Approved broker profiles, lanes, contacts, and relationship notes will live here.</p><a href="./broker-intake.html">Add broker request →</a></article>
+      <article class="portal-panel module-card" data-feature="billing" hidden><span class="module-status">Connected sandbox</span><h2>Documents and subscription billing</h2><p>Collect operations documents, create invoice records, open secure checkout, and manage your subscription.</p><a href="#subscriptionTitle">View subscription billing →</a></article>
     </section>
 
     <section class="operations-tool-grid" aria-label="Connected operations tools">
@@ -90,20 +90,20 @@
         <form id="inviteForm" class="operations-form"><label><span>Email</span><input name="email" type="email" autocomplete="email" required></label><label><span>Role</span><select name="role"><option value="dispatcher">Dispatcher</option><option value="carrier-owner">Carrier owner</option><option value="driver">Driver</option><option value="broker">Broker</option><option value="shipper">Shipper</option></select></label><label id="inviteCompanyLabel"><span>Company ID</span><input name="companyId" placeholder="carrier-acme" required></label><p id="inviteRoleHelp" class="tool-note"></p><button class="primary-button" type="submit">Create invitation</button><p id="inviteStatus" class="form-status" role="status"></p></form>
         <div id="inviteResult" class="invitation-result" hidden><label for="inviteLink">Private invitation link</label><input id="inviteLink" type="text" readonly spellcheck="false"><button id="copyInviteLink" type="button" class="ghost-button">Copy invitation link</button><p class="tool-note">Share this link directly with the invited person. It expires after 7 days and can be used once. Invitation emails are not sent automatically.</p></div>
       </article>
-      <article class="portal-panel tool-card">
+      <article class="portal-panel tool-card" data-feature="verifyBroker" hidden>
         <p class="eyebrow">FMCSA QCMobile</p><h2>Verify a broker</h2>
         <form id="fmcsaBrokerForm" class="operations-form"><label><span>MC, DOT, or broker value</span><input name="query" required placeholder="MC123456"></label><button class="primary-button" type="submit">Lookup FMCSA</button><p id="fmcsaStatus" class="form-status" role="status"></p></form>
         <pre id="fmcsaResult" class="integration-result" hidden></pre>
       </article>
-      <article class="portal-panel tool-card">
+      <article class="portal-panel tool-card" data-feature="assign" hidden>
         <p class="eyebrow">Dispatch assignments</p><h2>Assign a driver</h2>
         <form id="assignmentForm" class="operations-form"><label><span>Load ID</span><input name="loadId" required placeholder="LB-48201"></label><label><span>Driver name</span><input name="driverName" required></label><label><span>Truck ID</span><input name="truckId" required placeholder="TRK-204"></label><button class="primary-button" type="submit">Save assignment</button><p id="assignmentStatus" class="form-status" role="status"></p></form>
       </article>
-      <article class="portal-panel tool-card">
+      <article class="portal-panel tool-card" data-feature="invoice" hidden>
         <p class="eyebrow">Billing</p><h2>Create an invoice</h2>
         <form id="invoiceForm" class="operations-form"><label><span>Customer</span><input name="customer" required></label><label><span>Load ID</span><input name="loadId" placeholder="LB-48201"></label><label><span>Amount</span><input name="amount" type="number" min="0" step="0.01" required></label><label><span>Due date</span><input name="dueDate" type="date" required></label><button class="primary-button" type="submit">Create invoice</button><p id="invoiceStatus" class="form-status" role="status"></p></form>
       </article>
-      <article class="portal-panel tool-card">
+      <article class="portal-panel tool-card" data-feature="documents" hidden>
         <p class="eyebrow">Documents</p><h2>Upload an operations document</h2>
         <p class="tool-note">Use only authorized business documents. Files are stored on the configured server volume.</p>
         <form id="documentForm" class="operations-form"><label><span>Document type</span><select name="documentType"><option>Rate confirmation</option><option>Proof of delivery</option><option>Insurance certificate</option><option>Carrier agreement</option></select></label><label><span>Load ID</span><input name="loadId" placeholder="LB-48201"></label><label><span>File</span><input name="file" type="file" required></label><button class="primary-button" type="submit">Upload document</button><p id="documentStatus" class="form-status" role="status"></p></form>

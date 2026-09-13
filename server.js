@@ -1645,7 +1645,7 @@ server.listen(PORT, BIND_HOST, () => {
       console.log('Square connection verified: ' + squareBilling.environment);
       if (squareBilling.environment === 'sandbox' && process.env.SQUARE_SANDBOX_SMOKE_TEST === 'true') {
         const tester = {id:'square-integration-test',companyId:'TEST-SQUARE-INTEGRATION',role:'admin'};
-        await squareWorkflow.start(tester,{plan:'broker',truckCount:1,onboardingRequired:false});
+        if (!store.squareBilling?.some(e => e.companyId === tester.companyId)) await squareWorkflow.start(tester,{plan:'broker',truckCount:1,onboardingRequired:false});
         const state = await squareWorkflow.state(tester,true);
         if (!state.entry.hasSubscriptionCheckout) {
           const link = await squareWorkflow.next(tester);

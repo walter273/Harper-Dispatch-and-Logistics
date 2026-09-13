@@ -27,7 +27,7 @@ function createSquareWorkflow({ billing, getStore, persist, validate = () => {} 
   function current(actor) { return entries().filter(e => e.scope === scope(actor)).sort((a,b) => b.createdAt-a.createdAt)[0]; }
   function safe(entry) {
     if (!entry) return null;
-    return { id: entry.id, plan: entry.plan, truckCount: entry.truckCount, environment: entry.environment, status: entry.status || 'pending', setupPaid: Boolean(entry.setupPaid), onboardingRequired: entry.onboardingRequired, hasSubscriptionCheckout: Boolean(entry.subscriptionLink), currentPeriodEnd: entry.currentPeriodEnd || 0, cancelAtPeriodEnd: Boolean(entry.cancelAtPeriodEnd), invoiceUrl: entry.invoiceUrl || null, entitled: entitled({ ...entry, provider: 'square' }) };
+    return { id: entry.id, plan: entry.plan, truckCount: entry.truckCount, environment: entry.environment, status: entry.status || 'pending', setupPaid: Boolean(entry.setupPaid), onboardingRequired: entry.onboardingRequired, hasSubscription: Boolean(entry.subscriptionId), hasSubscriptionCheckout: Boolean(entry.subscriptionLink), currentPeriodEnd: entry.currentPeriodEnd || 0, cancelAtPeriodEnd: Boolean(entry.cancelAtPeriodEnd), invoiceUrl: entry.invoiceUrl || null, entitled: entitled({ ...entry, provider: 'square' }) };
   }
   async function start(actor, options) {
     allowed(actor);

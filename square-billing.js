@@ -94,6 +94,7 @@ function createSquareBilling(env = process.env, fetchImpl = fetch) {
     if (!sub || (customerId && sub.customer_id !== customerId) || sub.location_id !== locationId || sub.plan_variation_id !== entry.subscriptionLink.variationId) return next;
     customerId = sub.customer_id;
     next.customerId = customerId; next.subscriptionId = sub.id;
+    if (sandbox && entry.sandboxFixture && env.SQUARE_SANDBOX_SMOKE_TEST === 'true') console.log('Square TEST subscription evidence: ' + JSON.stringify({status:sub.status,paidUntil:sub.paid_until_date || null,invoiceCount:sub.invoice_ids?.length || 0}));
     next.currentPeriodEnd = /^\d{4}-\d{2}-\d{2}$/.test(sub.paid_until_date || '') ? Date.parse(`${sub.paid_until_date}T00:00:00Z`)/1000 : 0;
     next.status = ['CANCELED','DEACTIVATED'].includes(sub.status) ? 'canceled' : sub.status === 'PAUSED' ? 'paused' : sub.status === 'ACTIVE' && next.currentPeriodEnd * 1000 > Date.now() && (!entry.onboardingRequired || next.setupPaid) ? 'active' : 'past_due';
     next.cancelAtPeriodEnd = Boolean(sub.canceled_date || sub.actions?.some(a => a.type === 'CANCEL'));

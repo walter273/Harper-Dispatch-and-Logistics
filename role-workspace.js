@@ -51,7 +51,7 @@
   try{const r=await fetch('/api/communications',{cache:'no-store'});const data=await r.json();if(!r.ok)throw new Error(data.error);if(version!==generation)return;
    const history=document.getElementById('deskEmailHistory');history.replaceChildren();
    if(!data.messages.length)history.textContent='No workspace emails sent yet.';
-   for(const row of data.messages){const p=document.createElement('p');p.textContent=new Date(row.createdAt).toLocaleString()+' · '+row.from+' → '+row.to+' · '+row.subject+' · '+(labels[row.status]||row.status);history.append(p);}
+   for(const row of data.messages){const p=document.createElement('p');p.textContent=new Date(row.createdAt).toLocaleString()+' · '+row.from+' → '+row.to+' · '+row.subject+' · '+(labels[row.status]||row.status)+(row.providerStatus?' (provider '+row.providerStatus+(row.providerCode?', code '+row.providerCode:'')+')':'');history.append(p);}
   }catch(e){if(version===generation)document.getElementById('deskEmailHistory').textContent='Sign in as administrator or dispatcher to view sent email.';}
  }
  emailForm?.addEventListener('submit',async event=>{

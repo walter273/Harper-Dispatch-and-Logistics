@@ -31,10 +31,14 @@ function createCommunications({ getStore, persist, env = process.env, fetchImpl 
     persist(); // Save the unique send reference before contacting the provider.
     let response;
     try {
-      response = await fetchImpl('https://comms.twilio.com/v1/Emails', { method: 'POST', headers: headers(), redirect: 'error', signal: AbortSignal.timeout(15000), body: JSON.stringify({ from: { address: from, name: 'Harper Dispatch and Logistics' }, to: [{ address: to }], content: { subject, text: message } }) });
+      response = await fetchImpl('https://comms.twilio.com/v1/Emails', { method: 'POST', headers: headers(), redirect: 'error', signal: AbortSignal.timeout(15000), body: JSON.stringify({ from: { address: from, name: 'Harper Dispatch and Logistics' }, to: [{ address: to }], content: { subject, text: message, html: '<p>'+message.replace(/[&<>"{}]/g,c=>'&#'+c.charCodeAt(0)+';').replace(/\n/g,'<br>')+'</p>' } }) });
     } catch { /* An interrupted request might already have been accepted. Never resend automatically. */ }
     const current = rows().find(x => x.id === id);
     current.status = response?.status === 202 ? 'accepted' : response && response.status >= 400 && response.status < 500 ? 'rejected' : 'uncertain';
+    if (current.status === 'rejected') {
+      current.providerStatus = response.status;
+      try { const data = await response.json(); if (/^[0-9]{3,8}$/.test(String(data.code || ''))) current.providerCode = String(data.code); } catch {}
+    }
     if (current.status === 'accepted') {
       try { const data = await response.json(); if (/^comms_operation_[a-zA-Z0-9_-]{1,100}$/.test(data.operationId || '')) current.operationId = data.operationId; } catch {}
     }

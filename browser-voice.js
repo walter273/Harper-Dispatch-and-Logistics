@@ -12,6 +12,7 @@ function createBrowserVoice({ getStore, persist, env = process.env }) {
   const rows = () => getStore().voiceCalls ||= [];
   function state() { return { configured, ready: configured && Boolean(getStore().voiceAppSid), caller, calls: rows().slice(-100).reverse() }; }
   async function setup() {
+    try {
     if (!configured) throw fail(503, 'The private Twilio voice key and webhook authentication are not configured yet.');
     const client = twilio(key, secret, { accountSid: account });
     const url = origin + '/api/voice/twiml';
@@ -19,6 +20,10 @@ function createBrowserVoice({ getStore, persist, env = process.env }) {
     let app = apps.find(a => a.friendlyName === 'Harper workspace browser calling' && a.voiceUrl === url);
     if (!app) app = await client.applications.create({ friendlyName: 'Harper workspace browser calling', voiceUrl: url, voiceMethod: 'POST' });
     getStore().voiceAppSid = app.sid; persist(); return state();
+    } catch (error) {
+      console.error('Voice setup failed', JSON.stringify({ code: Number.isInteger(error.code) ? error.code : null, status: Number.isInteger(error.status) ? error.status : null, configured }));
+      throw error;
+    }
   }
   function token(input, actor) {
     if (!state().ready) throw fail(503, 'Browser calling is awaiting its private Twilio connection.');

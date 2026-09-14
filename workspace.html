@@ -22,6 +22,7 @@
         <span class="harper-emblem" aria-hidden="true"></span><span class="brand-copy"><span class="brand-name">Harper Load Board</span><small>Powered by Harper Dispatch and Logistics</small></span>
       </a>
       <nav class="main-nav" aria-label="Main navigation">
+        <a data-feature="staff" hidden href="#communications">Email and calls</a>
         <a href="./index.html#plans">Pricing</a>
         <a href="./loadboard.html">Load board</a>
         <a href="./tms.html">Operations</a>
@@ -47,6 +48,18 @@
     <section class="portal-panel account-panel" aria-labelledby="accountTitle">
       <div><p class="eyebrow">Account access</p><h2 id="accountTitle">Sign in to your private company workspace</h2><p id="accountSummary" class="tool-note">Accounts are separated by company, role, and assignment scope.</p></div>
       <form id="signinForm" class="account-inline-form"><label><span>Email</span><input name="email" type="email" required></label><label><span>Password</span><input name="password" type="password" required></label><button class="primary-button" type="submit">Sign in</button><button class="ghost-button" id="signoutButton" type="button" hidden>Sign out</button><p id="signinStatus" class="form-status" role="status"></p></form>
+    </section>
+
+    <section class="portal-panel" id="communications" data-feature="staff" hidden aria-labelledby="communicationsTitle">
+      <p class="eyebrow">Your daily desk</p><h2 id="communicationsTitle">Email, calls and customers</h2>
+      <p>Start your communications here. Email and calls open in your connected apps; messages and call history are not yet synchronized into Harper.</p>
+      <div class="workspace-grid">
+        <article class="workspace-card"><h3>Company inbox</h3><p>Admin, billing, dispatch and info@harperloadboard.com forward to wharper031@outlook.com.</p><a class="primary-button" href="https://outlook.live.com/mail/0/inbox" target="_blank" rel="noopener noreferrer">Open Outlook inbox ↗</a><p class="tool-note">Sign in to wharper031@outlook.com. Sending from Harper addresses still needs setup.</p></article>
+        <article class="workspace-card"><h3>Write an email</h3><form id="deskEmailForm" class="operations-form"><label>Recipient email<input name="recipient" type="email" required maxlength="254"></label><label>Subject<input name="subject" required maxlength="180"></label><label>Message<textarea name="message" rows="4" required maxlength="4000"></textarea></label><button class="ghost-button" type="submit">Open draft in email app</button><p class="tool-note">This opens a draft, not a send. Check the From address in your email app; Harper sending is not configured yet.</p><p id="deskEmailStatus" role="status"></p></form></article>
+        <article class="workspace-card"><h3>Call a contact</h3><p>Company contact number: (720) 522-6523</p><form id="deskCallForm" class="operations-form"><label>Contact phone number<input name="phone" type="tel" autocomplete="off" required maxlength="25" placeholder="(303) 555-0123"></label><button class="ghost-button" type="submit">Open phone app</button><p id="deskCallStatus" role="status"></p></form><p class="tool-note">Uses your device's phone app and its caller ID. Calling from Harper's business number and call history inside this workspace are not connected.</p></article>
+        <article class="workspace-card"><h3>Customers and follow-up</h3><p>Review applications and keep work connected to your company records.</p><div class="workspace-actions"><a class="ghost-button" href="./intake-review.html">Review applicants</a><a class="ghost-button" href="#companyRecords">Company records</a><a class="ghost-button" href="./tms.html">Operations and messages</a><a class="ghost-button" href="./square-billing.html">Billing</a></div><p class="tool-note">External email conversations and call logs will appear here only after those services are connected.</p></article>
+      </div>
+      <details data-feature="admin" hidden><summary>Email and calling setup</summary><p>All four Harper aliases are configured for incoming forwarding. Outbound email needs an approved sending service and verified sender addresses. Browser calling needs a voice provider connection and verification of the business number. No purchase or live charge is enabled by these tools.</p><a href="https://app.improvmx.com/sending" target="_blank" rel="noopener noreferrer">Open email sending settings ↗</a></details>
     </section>
 
     <section class="portal-panel account-panel" data-feature="billing" hidden aria-labelledby="subscriptionTitle">

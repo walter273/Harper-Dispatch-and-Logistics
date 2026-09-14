@@ -39,3 +39,27 @@
  fetch('/api/accounts/me',{cache:'no-store'}).then(r=>r.ok?r.json():{}).then(p=>{if(initial===version)render(p.account);}).catch(()=>render(null));
  render(null);
 })();
+
+// These handoffs never claim to send email or place a browser call.
+(() => {
+ const emailForm=document.getElementById('deskEmailForm');
+ emailForm?.addEventListener('submit',event=>{
+  event.preventDefault();
+  const recipient=emailForm.elements.recipient.value.trim();
+  if(/[\r\n]/.test(recipient)||!emailForm.reportValidity())return;
+  const subject=emailForm.elements.subject.value.replace(/[\r\n]+/g,' ').trim();
+  const message=emailForm.elements.message.value;
+  document.getElementById('deskEmailStatus').textContent='Draft requested in your email app. Nothing has been sent by Harper. If no app opens, configure a default email app on your device.';
+  location.href='mailto:'+encodeURIComponent(recipient)+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(message);
+ });
+ const callForm=document.getElementById('deskCallForm');
+ callForm?.addEventListener('submit',event=>{
+  event.preventDefault();
+  const raw=callForm.elements.phone.value.trim();
+  const phone=raw.replace(/[ ().-]/g,'');
+  const status=document.getElementById('deskCallStatus');
+  if(!/^\+?[0-9]{7,15}$/.test(phone)){status.textContent='Enter a phone number with 7 to 15 digits, optionally starting with +.';return;}
+  status.textContent='Phone app requested. Confirm the number and caller ID there. Harper has not placed or recorded a call.';
+  location.href='tel:'+phone;
+ });
+})();

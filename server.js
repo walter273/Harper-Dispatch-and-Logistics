@@ -59,7 +59,7 @@ const rateLimitBuckets = new Map();
 const checkoutLocks = new Set();
 
 const STATIC_FILES = new Set([
-  'inbox-auth.html', 'inbox-bridge.bundle.js', 'home-freight-demo.js', 'home-freight-demo.css', 'command-board.css',
+  'inbox-loader.js', 'inbox-auth.html', 'inbox-bridge.bundle.js', 'home-freight-demo.js', 'home-freight-demo.css', 'command-board.css',
   'role-permissions.js', 'role-workspace.js', 'browser-voice-ui.js',
   'demo-load-board.html',
   'demo-dispatch.html',

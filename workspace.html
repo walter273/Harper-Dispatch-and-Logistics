@@ -52,7 +52,7 @@
 
     <section class="portal-panel" id="communications" data-feature="staff" hidden aria-labelledby="communicationsTitle">
       <p class="eyebrow">Your daily desk</p><h2 id="communicationsTitle">Email, calls and customers</h2>
-      <p>Send company email and check delivery here. Incoming replies open in Outlook; browser calling becomes available once the voice connection is finished.</p>
+      <p>Send company email, read Harper replies in the administrator inbox, and call contacts from your browser.</p>
       <div class="workspace-grid">
         <article class="workspace-card"><h3>Company inbox</h3><p>Admin, billing, dispatch and info@harperloadboard.com forward to wharper031@outlook.com.</p><a class="primary-button" href="https://outlook.live.com/mail/0/inbox" target="_blank" rel="noopener noreferrer">Open Outlook inbox ↗</a><p class="tool-note">Sign in to wharper031@outlook.com to read replies. Use Connect Outlook below to read Harper mail here.</p></article>
         <article class="workspace-card"><h3>Write an email</h3><form id="deskEmailForm" class="operations-form"><label>From<select name="from"><option>dispatch@harperloadboard.com</option><option>admin@harperloadboard.com</option><option>billing@harperloadboard.com</option><option>info@harperloadboard.com</option></select></label><label>Recipient email<input name="recipient" type="email" required maxlength="254"></label><label>Subject<input name="subject" required maxlength="180"></label><label>Message<textarea name="message" rows="4" required maxlength="4000"></textarea></label><button class="ghost-button" type="submit">Send email</button><p class="tool-note">Sends directly from the selected Harper address. Replies go to the company Outlook inbox.</p><p id="deskEmailStatus" role="status"></p></form></article>
@@ -130,5 +130,5 @@
     </section>
 
   </main>
-<script src="./browser-voice-ui.js" defer></script><script src="/api/inbox/ui.js" defer></script></body>
+<script src="./browser-voice-ui.js" defer></script><script src="/inbox-loader.js" defer></script></body>
 </html>

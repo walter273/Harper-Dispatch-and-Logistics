@@ -60,7 +60,7 @@ const checkoutLocks = new Set();
 
 const STATIC_FILES = new Set([
   'home-freight-demo.js', 'home-freight-demo.css', 'command-board.css',
-  'role-permissions.js', 'role-workspace.js',
+  'role-permissions.js', 'role-workspace.js', 'browser-voice-ui.js',
   'demo-load-board.html',
   'demo-dispatch.html',
   'demo-planning.html',
@@ -116,7 +116,7 @@ const STATIC_FILES = new Set([
 ]);
 
 const SECURITY_HEADERS = Object.freeze({
-  'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
+  'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://eventgw.twilio.com wss://voice-js.roaming.twilio.com https://media.twiliocdn.com https://sdk.twilio.com; media-src 'self' mediastream: https://media.twiliocdn.com https://sdk.twilio.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
   'Cross-Origin-Opener-Policy': 'same-origin',
   'Permissions-Policy': 'camera=(), geolocation=(), microphone=()',
   'Referrer-Policy': 'no-referrer',
@@ -486,6 +486,8 @@ function normalizeStore(candidate) {
     applicantWorkflows: candidate?.applicantWorkflows || {},
     applicantOutbox: candidate?.applicantOutbox || [],
     communications: Array.isArray(candidate?.communications) ? candidate.communications : [],
+    voiceCalls: Array.isArray(candidate?.voiceCalls) ? candidate.voiceCalls : [],
+    voiceAppSid: candidate?.voiceAppSid || null,
     operations: normalizeOperations(candidate?.operations),
     carrierOnboardedCompanies: Array.isArray(candidate?.carrierOnboardedCompanies) ? [...new Set(candidate.carrierOnboardedCompanies.filter(id => typeof id === 'string'))] : [],
     dispatchRequests: Array.isArray(candidate?.dispatchRequests) ? candidate.dispatchRequests.filter(entry => isDispatchPlan(entry?.plan) && entry.companyId && entry.billingMethod === 'percentage') : [],
@@ -1016,6 +1018,7 @@ const communications = require('./communications').createCommunications({ getSto
 communications.recover();
 const communicationsTimer = setInterval(() => communications.refresh().catch(() => {}), 60000);
 communicationsTimer.unref();
+const browserVoice = require('./browser-voice').createBrowserVoice({ getStore: () => store, persist: persistStore });
 committedStore = structuredClone(store);
 persistStore();
 
@@ -1030,6 +1033,12 @@ const server = http.createServer(async (request, response) => {
   const requestUrl = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
   const pathname = requestUrl.pathname;
   try {
+    if (request.method === 'POST' && ['/api/voice/twiml', '/api/voice/status'].includes(pathname)) {
+      const raw = await readRaw(request, 16000);
+      const params = Object.fromEntries(new URLSearchParams(raw.toString('utf8')));
+      const xml = browserVoice.webhook(pathname, headerValue(request, 'x-twilio-signature'), params);
+      response.writeHead(200, responseHeaders({ 'Content-Type': 'text/xml; charset=utf-8' })); response.end(xml); return;
+    }
     if (request.method === 'GET' && pathname === '/api/health') {
       if (!dataDirectoryIsWritable()) {
         sendJson(response, 503, { ok: false, error: 'Data storage is unavailable.' });
@@ -1116,6 +1125,24 @@ const server = http.createServer(async (request, response) => {
       requireJsonSameOrigin(request);
       if (!consumeRateLimit(request, 'communications-send', 10, 60000)) throw reject(429, 'Please wait before sending more messages.');
       sendJson(response, 200, { message: await communications.send(await readJson(request, 20000), actor) }); return;
+    }
+    if (pathname === '/api/voice/sdk.js' && request.method === 'GET') {
+      requireAccount(request, ['admin', 'dispatcher']);
+      response.writeHead(200, responseHeaders({ 'Content-Type': 'application/javascript; charset=utf-8' }));
+      const stream = fs.createReadStream(path.join(ROOT_DIR, 'node_modules/@twilio/voice-sdk/dist/twilio.min.js'));
+      stream.on('error', () => response.destroy()); stream.pipe(response); return;
+    }
+    if (['/api/voice/state', '/api/voice/token', '/api/voice/setup'].includes(pathname)) {
+      const actor = requireAccount(request, pathname === '/api/voice/setup' ? ['admin'] : ['admin','dispatcher']);
+      if (pathname === '/api/voice/state' && request.method === 'GET') { sendJson(response, 200, browserVoice.state()); return; }
+      if (request.method !== 'POST' || pathname === '/api/voice/state') throw reject(405, 'Method not allowed.');
+      requireJsonSameOrigin(request);
+      if (!consumeRateLimit(request, 'browser-voice', 5, 60000)) throw reject(429, 'Please wait before requesting another call.');
+      if (pathname === '/api/voice/setup') {
+        try { sendJson(response, 200, await browserVoice.setup()); } catch { throw reject(503, 'Voice setup is unavailable. Check the private voice credentials in Railway.'); }
+        return;
+      }
+      sendJson(response, 200, browserVoice.token(await readJson(request, 4096), actor)); return;
     }
     if (pathname === '/api/square/connection' && request.method === 'GET') {
       requireAccount(request, ['admin']);

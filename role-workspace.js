@@ -69,6 +69,4 @@
  document.getElementById('deskRefresh')?.addEventListener('click',refresh);
  window.addEventListener('alphaway:account-changed',()=>{generation++;pending=null;emailForm?.reset();status.textContent='';document.getElementById('deskEmailHistory').replaceChildren();refresh();});
  refresh();
- const callForm=document.getElementById('deskCallForm');
- callForm?.addEventListener('submit',event=>{event.preventDefault();const phone=callForm.elements.phone.value.trim().replace(/[ ().-]/g,'');const note=document.getElementById('deskCallStatus');if(!/^\+?[0-9]{7,15}$/.test(phone)){note.textContent='Enter a valid phone number.';return;}note.textContent='Opening your phone app. This is not a browser call.';location.href='tel:'+phone;});
 })();

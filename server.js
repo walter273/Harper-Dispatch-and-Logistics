@@ -59,7 +59,7 @@ const rateLimitBuckets = new Map();
 const checkoutLocks = new Set();
 
 const STATIC_FILES = new Set([
-  'home-freight-demo.js', 'home-freight-demo.css', 'command-board.css',
+  'inbox-auth.html', 'inbox-bridge.bundle.js', 'home-freight-demo.js', 'home-freight-demo.css', 'command-board.css',
   'role-permissions.js', 'role-workspace.js', 'browser-voice-ui.js',
   'demo-load-board.html',
   'demo-dispatch.html',
@@ -116,7 +116,7 @@ const STATIC_FILES = new Set([
 ]);
 
 const SECURITY_HEADERS = Object.freeze({
-  'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://eventgw.twilio.com https://eventgw.us1.twilio.com wss://voice-js.roaming.twilio.com wss://voice-js.ashburn.twilio.com https://media.twiliocdn.com https://sdk.twilio.com; media-src 'self' mediastream: https://media.twiliocdn.com https://sdk.twilio.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
+  'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://login.microsoftonline.com https://graph.microsoft.com https://eventgw.twilio.com https://eventgw.us1.twilio.com wss://voice-js.roaming.twilio.com wss://voice-js.ashburn.twilio.com https://media.twiliocdn.com https://sdk.twilio.com; media-src 'self' mediastream: https://media.twiliocdn.com https://sdk.twilio.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
   'Cross-Origin-Opener-Policy': 'same-origin',
   'Permissions-Policy': 'camera=(), geolocation=(), microphone=(self)',
   'Referrer-Policy': 'no-referrer',
@@ -1109,6 +1109,13 @@ const server = http.createServer(async (request, response) => {
         sendUnauthorized(response);
       }
       return;
+    }
+    if (pathname === '/api/inbox/config' || pathname === '/api/inbox/ui.js') {
+      requireAccount(request, ['admin']);
+      if (request.method !== 'GET') throw reject(405, 'Method not allowed.');
+      if (pathname === '/api/inbox/config') { sendJson(response, 200, {clientId:'033c842e-74f4-4638-8376-610cd41044a9'}); return; }
+      response.writeHead(200, {...SECURITY_HEADERS, 'Content-Type':'application/javascript; charset=utf-8', 'Cache-Control':'no-store'});
+      fs.createReadStream(path.join(__dirname,'inbox-ui.bundle.js')).pipe(response); return;
     }
     if (pathname === '/api/square/setup-webhook' && request.method === 'POST') {
       requireAccount(request, ['admin']); requireJsonSameOrigin(request);

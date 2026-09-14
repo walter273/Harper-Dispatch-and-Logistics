@@ -485,6 +485,7 @@ function normalizeStore(candidate) {
     intakeReviews,
     applicantWorkflows: candidate?.applicantWorkflows || {},
     applicantOutbox: candidate?.applicantOutbox || [],
+    communications: Array.isArray(candidate?.communications) ? candidate.communications : [],
     operations: normalizeOperations(candidate?.operations),
     carrierOnboardedCompanies: Array.isArray(candidate?.carrierOnboardedCompanies) ? [...new Set(candidate.carrierOnboardedCompanies.filter(id => typeof id === 'string'))] : [],
     dispatchRequests: Array.isArray(candidate?.dispatchRequests) ? candidate.dispatchRequests.filter(entry => isDispatchPlan(entry?.plan) && entry.companyId && entry.billingMethod === 'percentage') : [],
@@ -1011,6 +1012,10 @@ for (const user of store.accounts.users) {
 }
 const applicantWorkflow = createWorkflow({ getStore: () => store, persist: persistStore });
 applicantWorkflow.recover();
+const communications = require('./communications').createCommunications({ getStore: () => store, persist: persistStore });
+communications.recover();
+const communicationsTimer = setInterval(() => communications.refresh().catch(() => {}), 60000);
+communicationsTimer.unref();
 committedStore = structuredClone(store);
 persistStore();
 
@@ -1101,6 +1106,16 @@ const server = http.createServer(async (request, response) => {
       if (!consumeRateLimit(request,'square-webhook-setup',3,AUTH_FAILURE_WINDOW_MS)) throw reject(429,'Please wait before trying again.');
       store.squareWebhook = await squareBilling.configureWebhook(); persistStore();
       sendJson(response,200,await squareBilling.testWebhook(store.squareWebhook.id)); return;
+    }
+    if (pathname === '/api/communications' || pathname === '/api/communications/send') {
+      const actor = requireAccount(request, ['admin', 'dispatcher']);
+      if (request.method === 'GET' && pathname === '/api/communications') {
+        sendJson(response, 200, communications.state()); return;
+      }
+      if (request.method !== 'POST' || pathname !== '/api/communications/send') throw reject(405, 'Method not allowed.');
+      requireJsonSameOrigin(request);
+      if (!consumeRateLimit(request, 'communications-send', 10, 60000)) throw reject(429, 'Please wait before sending more messages.');
+      sendJson(response, 200, { message: await communications.send(await readJson(request, 20000), actor) }); return;
     }
     if (pathname === '/api/square/connection' && request.method === 'GET') {
       requireAccount(request, ['admin']);

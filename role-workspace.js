@@ -40,26 +40,35 @@
  render(null);
 })();
 
-// These handoffs never claim to send email or place a browser call.
+// Communications are restricted to signed-in staff on the server.
 (() => {
  const emailForm=document.getElementById('deskEmailForm');
- emailForm?.addEventListener('submit',event=>{
-  event.preventDefault();
-  const recipient=emailForm.elements.recipient.value.trim();
-  if(/[\r\n]/.test(recipient)||!emailForm.reportValidity())return;
-  const subject=emailForm.elements.subject.value.replace(/[\r\n]+/g,' ').trim();
-  const message=emailForm.elements.message.value;
-  document.getElementById('deskEmailStatus').textContent='Draft requested in your email app. Nothing has been sent by Harper. If no app opens, configure a default email app on your device.';
-  location.href='mailto:'+encodeURIComponent(recipient)+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(message);
+ const status=document.getElementById('deskEmailStatus');
+ let pending=null, generation=0;
+ const labels={sending:'Sending',accepted:'Accepted by Twilio; delivery pending',delivered:'Delivered to recipient mail server',rejected:'Rejected by provider',uncertain:'Delivery uncertain: check Twilio before sending again',delivery_failed:'Delivery failed'};
+ async function refresh(){
+  const version=generation;
+  try{const r=await fetch('/api/communications',{cache:'no-store'});const data=await r.json();if(!r.ok)throw new Error(data.error);if(version!==generation)return;
+   const history=document.getElementById('deskEmailHistory');history.replaceChildren();
+   if(!data.messages.length)history.textContent='No workspace emails sent yet.';
+   for(const row of data.messages){const p=document.createElement('p');p.textContent=new Date(row.createdAt).toLocaleString()+' · '+row.from+' → '+row.to+' · '+row.subject+' · '+(labels[row.status]||row.status);history.append(p);}
+  }catch(e){if(version===generation)document.getElementById('deskEmailHistory').textContent='Sign in as administrator or dispatcher to view sent email.';}
+ }
+ emailForm?.addEventListener('submit',async event=>{
+  event.preventDefault();if(!emailForm.reportValidity())return;
+  const body=Object.fromEntries(new FormData(emailForm));
+  const fingerprint=JSON.stringify(body);if(pending&&pending.fingerprint!==fingerprint){status.textContent='The previous request has an uncertain result. Refresh delivery status before starting a new message.';return;}
+  pending ||= {fingerprint,id:crypto.randomUUID()};body.requestId=pending.id;
+  const button=emailForm.querySelector('button');button.disabled=true;const version=generation;status.textContent='Sending…';
+  try{const r=await fetch('/api/communications/send',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const data=await r.json();if(!r.ok)throw new Error(data.error||'Unable to send.');if(version!==generation)return;
+   status.textContent=labels[data.message.status]||data.message.status;
+   pending=null;emailForm.reset();await refresh();
+  }catch(e){if(version===generation)status.textContent=e.message+' Retry the unchanged message to check the same send reference; it will not be sent twice.';}
+  finally{button.disabled=false;}
  });
+ document.getElementById('deskRefresh')?.addEventListener('click',refresh);
+ window.addEventListener('alphaway:account-changed',()=>{generation++;pending=null;emailForm?.reset();status.textContent='';document.getElementById('deskEmailHistory').replaceChildren();refresh();});
+ refresh();
  const callForm=document.getElementById('deskCallForm');
- callForm?.addEventListener('submit',event=>{
-  event.preventDefault();
-  const raw=callForm.elements.phone.value.trim();
-  const phone=raw.replace(/[ ().-]/g,'');
-  const status=document.getElementById('deskCallStatus');
-  if(!/^\+?[0-9]{7,15}$/.test(phone)){status.textContent='Enter a phone number with 7 to 15 digits, optionally starting with +.';return;}
-  status.textContent='Phone app requested. Confirm the number and caller ID there. Harper has not placed or recorded a call.';
-  location.href='tel:'+phone;
- });
+ callForm?.addEventListener('submit',event=>{event.preventDefault();const phone=callForm.elements.phone.value.trim().replace(/[ ().-]/g,'');const note=document.getElementById('deskCallStatus');if(!/^\+?[0-9]{7,15}$/.test(phone)){note.textContent='Enter a valid phone number.';return;}note.textContent='Opening your phone app. This is not a browser call.';location.href='tel:'+phone;});
 })();

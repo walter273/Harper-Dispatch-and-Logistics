@@ -118,7 +118,7 @@ const STATIC_FILES = new Set([
 const SECURITY_HEADERS = Object.freeze({
   'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://eventgw.twilio.com wss://voice-js.roaming.twilio.com https://media.twiliocdn.com https://sdk.twilio.com; media-src 'self' mediastream: https://media.twiliocdn.com https://sdk.twilio.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
   'Cross-Origin-Opener-Policy': 'same-origin',
-  'Permissions-Policy': 'camera=(), geolocation=(), microphone=()',
+  'Permissions-Policy': 'camera=(), geolocation=(), microphone=(self)',
   'Referrer-Policy': 'no-referrer',
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'DENY'

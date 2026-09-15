@@ -33,7 +33,7 @@
       <div>
         <p class="eyebrow">Administration</p>
         <h1>Team administration</h1>
-        <p>Review new requests, record approval decisions, and manage the demo load catalog.</p>
+        <p>Review new requests, record approval decisions, and manage the active load catalog.</p>
       </div>
       <aside class="portal-callout warning-callout">
         <strong>Intake review queue</strong>
@@ -53,7 +53,7 @@
     </section>
     <section class="admin-layout">
       <section class="portal-panel admin-form-panel">
-        <header class="section-panel-header"><div><p class="eyebrow">Demo catalog</p><h2 id="adminFormTitle">Add a demo load</h2></div></header>
+        <header class="section-panel-header"><div><p class="eyebrow">Load catalog</p><h2 id="adminFormTitle">Add a load</h2></div></header>
         <form id="adminLoadForm" class="operations-form">
           <div class="operations-form-grid">
             <label><span>Load ID</span><input name="id" type="text" maxlength="28" placeholder="LB-49001" required></label>
@@ -75,21 +75,21 @@
 
       <aside class="portal-panel catalog-tools-panel">
         <p class="eyebrow">Catalog controls</p>
-        <h2>Move demo data safely</h2>
-        <p>JSON import/export helps move sample loads between test sessions. Export stays in your browser; an import updates the active demo catalog.</p>
+        <h2>Manage load data</h2>
+        <p>JSON import/export helps move load records between sessions. Export stays in your browser; an import updates the active load catalog.</p>
         <div class="tool-button-stack">
           <button id="exportCatalogButton" class="ghost-button" type="button">Export JSON</button>
           <label class="ghost-button file-trigger" for="importCatalogInput">Import JSON</label>
           <input id="importCatalogInput" type="file" accept="application/json,.json" hidden>
-          <button id="resetCatalogButton" class="link-button destructive-button" type="button">Restore original demo loads</button>
+          <button id="resetCatalogButton" class="link-button destructive-button" type="button">Restore default loads</button>
         </div>
       </aside>
     </section>
 
     <section class="portal-panel admin-table-panel" aria-labelledby="catalogTableTitle">
       <header class="section-panel-header table-panel-header">
-        <div><p class="eyebrow">Current catalog</p><h2 id="catalogTableTitle">Demo loads</h2><span id="adminLoadCount" class="muted-inline">Loading…</span></div>
-        <label class="admin-search"><span class="visually-hidden">Search demo loads</span><input id="adminSearch" type="search" placeholder="Search demo catalog"></label>
+        <div><p class="eyebrow">Current catalog</p><h2 id="catalogTableTitle">Active loads</h2><span id="adminLoadCount" class="muted-inline">Loading…</span></div>
+        <label class="admin-search"><span class="visually-hidden">Search loads</span><input id="adminSearch" type="search" placeholder="Search load catalog"></label>
       </header>
       <div class="admin-table-wrap">
         <table class="admin-table">

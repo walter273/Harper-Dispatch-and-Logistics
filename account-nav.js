@@ -52,7 +52,8 @@
   };
 
   const ensureCompletionPanel = (account) => {
-    if (!/\/workspace\.html$/.test(window.location.pathname)) return;
+    const pathname = window.location?.pathname || '';
+    if (!/\/workspace\.html$/.test(pathname)) return;
     const allowed = ['admin', 'dispatcher'].includes(account?.role);
     let panel = document.getElementById('loadCompletionPanel');
     if (!allowed) {

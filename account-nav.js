@@ -51,6 +51,52 @@
     }
   };
 
+  const ensureAssignmentBridge = async (account) => {
+    const pathname = window.location?.pathname || '';
+    if (!/\/(loadboard|tms)\.html$/.test(pathname)) return;
+    const host = document.getElementById('tmsDriverList');
+    if (!host) return;
+    let panel = document.getElementById('savedDriverAssignments');
+    if (!account) {
+      panel?.remove();
+      return;
+    }
+    if (!panel) {
+      panel = document.createElement('section');
+      panel.id = 'savedDriverAssignments';
+      panel.className = 'portal-panel';
+      panel.innerHTML = '<p class="eyebrow">Dispatch assignments</p><h3>Saved driver assignments</h3><p id="savedDriverAssignmentsStatus" class="tool-note">Loading assignments…</p><div id="savedDriverAssignmentsList" class="account-user-list"></div>';
+      const parent = host.parentElement || host;
+      parent.insertAdjacentElement('afterend', panel);
+    }
+    const status = document.getElementById('savedDriverAssignmentsStatus');
+    const list = document.getElementById('savedDriverAssignmentsList');
+    if (!status || !list) return;
+    try {
+      const [operations, snapshot] = await Promise.all([requestJson('/api/operations'), requestJson('/api/app')]);
+      const activeIds = new Set((snapshot.loads || []).map((load) => load.id));
+      const assignments = (operations.operations?.assignments || []).filter((assignment) => activeIds.has(assignment.loadId));
+      list.replaceChildren();
+      if (!assignments.length) {
+        status.textContent = 'No saved driver assignments match the active load board.';
+        return;
+      }
+      assignments.forEach((assignment) => {
+        const row = document.createElement('div');
+        row.className = 'account-user-row';
+        const title = document.createElement('strong');
+        title.textContent = `${assignment.loadId} · ${assignment.driverName}`;
+        const details = document.createElement('span');
+        details.textContent = `${assignment.truckId || 'No truck'} · ${assignment.status || 'Dispatched'}`;
+        row.append(title, details);
+        list.append(row);
+      });
+      status.textContent = `${assignments.length} active assignment${assignments.length === 1 ? '' : 's'} saved from the workspace.`;
+    } catch (error) {
+      status.textContent = error.message;
+    }
+  };
+
   const ensureCompletionPanel = (account) => {
     const pathname = window.location?.pathname || '';
     if (!/\/workspace\.html$/.test(pathname)) return;
@@ -138,10 +184,17 @@
       });
     });
     ensureCompletionPanel(account);
+    ensureAssignmentBridge(account);
   };
   window.addEventListener('alphaway:account-changed', (event) => {
     revision += 1;
     render(event.detail);
+  });
+  window.addEventListener('alphaway-app-updated', () => {
+    fetch('/api/accounts/me', { credentials: 'same-origin', cache: 'no-store' })
+      .then((response) => response.ok ? response.json() : { account: null })
+      .then((payload) => ensureAssignmentBridge(payload.account))
+      .catch(() => {});
   });
   const initialRevision = revision;
   fetch('/api/accounts/me', { credentials: 'same-origin', cache: 'no-store' })

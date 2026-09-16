@@ -255,6 +255,38 @@
     }
   });
 
+  document.querySelectorAll('[data-ai-prompt]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const question = byId('harperAiQuestion');
+      if (!question) return;
+      question.value = button.dataset.aiPrompt || '';
+      question.focus();
+    });
+  });
+
+  byId('harperAiForm')?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const question = byId('harperAiQuestion');
+    const answer = byId('harperAiAnswer');
+    const status = byId('harperAiStatus');
+    const submit = byId('harperAiSubmit');
+    if (!question || !answer || !status || !submit) return;
+    submit.disabled = true;
+    answer.setAttribute('aria-busy', 'true');
+    status.textContent = 'Harper AI is reviewing the freight board…';
+    try {
+      const payload = await accountRequest('./api/ai/assistant', { method: 'POST', body: JSON.stringify({ question: question.value }) });
+      answer.textContent = payload.answer;
+      status.textContent = 'Answer ready. Confirm rates and availability with the broker before booking.';
+    } catch (error) {
+      answer.textContent = error.message;
+      status.textContent = 'Harper AI could not complete that request.';
+    } finally {
+      submit.disabled = false;
+      answer.setAttribute('aria-busy', 'false');
+    }
+  });
+
   byId('assignmentForm')?.addEventListener('submit', async (event) => {
     event.preventDefault();
     const form = event.currentTarget;

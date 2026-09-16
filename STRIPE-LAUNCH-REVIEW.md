@@ -4,7 +4,7 @@ Live collection remains disabled. This is a technical configuration review, not 
 
 ## Target and verified findings
 
-- Repository: `walter273/Alphaway-Logistics`, branch `main`.
+- Repository: `walter273/Harper-Dispatch-and-Logistics`, branch `main` (renamed from `Alphaway-Logistics`; GitHub redirects the old URL).
 - Railway service: `alphaway-tms-staging-app`, production environment, https://alphaway-tms-staging-app-production.up.railway.app.
 - Stripe live account: AlphaWay Logistics (`acct_1UDJTIKqpp58H3DU`).
 - Railway has no `STRIPE_SECRET_KEY` or `STRIPE_PORTAL_CONFIGURATION_ID` as of the review.

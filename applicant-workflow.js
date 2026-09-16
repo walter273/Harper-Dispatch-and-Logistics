@@ -5,9 +5,9 @@ const fail = (message, statusCode = 400) => { throw Object.assign(new Error(mess
 function createWorkflow({ env = process.env, getStore, persist, fetchImpl = fetch }) {
   const secret = env.ALPHAWAY_APPLICANT_WORKFLOW_SECRET || env.ALPHAWAY_SESSION_SECRET || env.ALPHAWAY_ACCOUNT_SESSION_SECRET || '';
   const provider = env.ALPHAWAY_EMAIL_PROVIDER || 'sendgrid';
-  const from = env.ALPHAWAY_EMAIL_FROM || 'info@alphawaylogisticsllc.com';
-  const replyTo = env.ALPHAWAY_EMAIL_REPLY_TO || 'info@alphawaylogisticsllc.com';
-  const origin = env.ALPHAWAY_PUBLIC_ORIGIN || 'https://www.alphawaylogisticsllc.com';
+  const from = env.ALPHAWAY_EMAIL_FROM || 'dispatch@harperloadboard.com';
+  const replyTo = env.ALPHAWAY_EMAIL_REPLY_TO || 'info@harperloadboard.com';
+  const origin = env.ALPHAWAY_PUBLIC_ORIGIN || 'https://www.harperloadboard.com';
   const enabled = env.ALPHAWAY_APPLICANT_EMAILS_ENABLED === 'true';
   const twilioUser = env.TWILIO_API_KEY_SID || env.TWILIO_ACCOUNT_SID;
   const twilioSecret = env.TWILIO_API_KEY_SECRET || env.TWILIO_AUTH_TOKEN;

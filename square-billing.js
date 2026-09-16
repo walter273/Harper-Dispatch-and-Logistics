@@ -74,25 +74,33 @@ function createSquareBilling(env = process.env, fetchImpl = fetch) {
     if (url.protocol !== 'https:' || url.username || url.password || !['square.link','checkout.square.site','sandbox.square.link','sandbox.checkout.square.site'].includes(url.hostname)) throw fail(502, 'Square returned an unexpected checkout address.');
     return { id: link.id, orderId: link.order_id, url: link.url, ...(variationId ? { variationId } : {}) };
   }
-  async function paidOrder(link, expected) {
+  async function paymentEvidence(link, expected) {
     const { order } = await api(`/orders/${identity(link.orderId)}`);
     // Paid digital orders can remain OPEN until fulfillment is completed.
     // The independently retrieved COMPLETED payment is the payment authority.
-    if (order?.location_id !== locationId || order.total_money?.currency !== 'USD' || order.total_money.amount !== expected || !['OPEN','COMPLETED'].includes(order.state)) return null;
+    if (order?.location_id !== locationId || order.total_money?.currency !== 'USD' || order.total_money.amount !== expected || !['OPEN','COMPLETED'].includes(order.state)) return { status:'pending' };
     for (const tender of order.tenders || []) {
       if (!tender.payment_id && !tender.id) continue;
       const { payment } = await api(`/payments/${identity(tender.payment_id || tender.id)}`);
-      if (payment.status === 'COMPLETED' && payment.order_id === order.id && payment.location_id === locationId && payment.amount_money?.amount === expected && payment.amount_money.currency === 'USD' && !(payment.refunded_money?.amount > 0)) return { ...payment, customer_id:payment.customer_id || order.customer_id };
+      const matching = payment.order_id === order.id && payment.location_id === locationId && payment.amount_money?.amount === expected && payment.amount_money.currency === 'USD';
+      if (!matching) continue;
+      if (payment.status === 'COMPLETED' && !(payment.refunded_money?.amount > 0)) return { status:'paid', payment:{ ...payment, customer_id:payment.customer_id || order.customer_id } };
+      if (payment.status === 'FAILED' || payment.status === 'CANCELED' || payment.refunded_money?.amount > 0) return { status:'past_due' };
     }
-    return null;
+    return { status:'pending' };
+  }
+  async function paidOrder(link, expected) {
+    const evidence = await paymentEvidence(link, expected);
+    return evidence.status === 'paid' ? evidence.payment : null;
   }
   async function refresh(entry) {
     if (entry.environment !== environment) throw fail(409, 'This checkout belongs to another payment environment.');
     const next = structuredClone(entry), q = quote(entry.plan, entry.truckCount);
     if (entry.setupLink) next.setupPaid = Boolean(await paidOrder(entry.setupLink,15000));
     if (!entry.subscriptionLink) return next;
-    const payment = await paidOrder(entry.subscriptionLink,q.amount);
-    if (!payment) { next.status = 'pending'; next.currentPeriodEnd = 0; return next; }
+    const initialPayment = await paymentEvidence(entry.subscriptionLink,q.amount);
+    const payment = initialPayment.payment;
+    if (!payment) { next.status = initialPayment.status; next.currentPeriodEnd = 0; return next; }
     let customerId = payment.customer_id || entry.customerId;
     let sub;
     if (entry.subscriptionId) ({ subscription: sub } = await api(`/subscriptions/${identity(entry.subscriptionId)}`));
@@ -139,7 +147,7 @@ function createSquareBilling(env = process.env, fetchImpl = fetch) {
   }
   async function configureWebhook() {
     const url = new URL('/api/square/webhook',returnUrl()).href;
-    const { subscription } = await api('/webhooks/subscriptions', { idempotency_key:key(`${environment}:${url}`,'webhook').slice(0,45), subscription: { name:'Harper billing', notification_url:url, enabled:true, api_version:'2026-08-19', event_types:['payment.updated','refund.updated','subscription.created','subscription.updated','invoice.payment_made','invoice.scheduled_charge_failed'] } });
+    const { subscription } = await api('/webhooks/subscriptions', { idempotency_key:key(`${environment}:${url}`,'webhook').slice(0,45), subscription: { name:'Harper billing', notification_url:url, enabled:true, api_version:'2026-08-19', event_types:['payment.created','payment.updated','refund.updated','subscription.created','subscription.updated','invoice.payment_made','invoice.scheduled_charge_failed'] } });
     if (!subscription.signature_key || subscription.notification_url !== url) throw fail(502,'Square webhook configuration was incomplete.');
     return { id:subscription.id, url, secret:subscription.signature_key, environment };
   }

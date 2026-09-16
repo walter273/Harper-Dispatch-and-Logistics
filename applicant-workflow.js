@@ -144,12 +144,15 @@ function createWorkflow({ env = process.env, getStore, persist, fetchImpl = fetc
       // never an automatic duplicate (neither provider guarantees send idempotency here).
       job.status = 'sending'; job.attempts++; job.attemptedAt = Date.now(); persist();
       const body = message(job);
-      body.html = '<p>' + body.text.replace(/[&<>"{}]/g, c => `&#${c.charCodeAt(0)};`).replace(/\n/g, '<br>') + '</p>';
+      // Plain text only, on both providers. The previous HTML alternative was built but only
+      // reached Twilio, and the SendGrid branch silently dropped it, so the two providers sent
+      // different messages. A single text/plain part keeps them identical and avoids
+      // HTML-related spam heuristics on transactional applicant mail.
       let response;
       try {
         response = await fetchImpl(provider === 'sendgrid' ? 'https://api.sendgrid.com/v3/mail/send' : 'https://comms.twilio.com/v1/Emails', {
           method: 'POST', redirect: 'error', signal: AbortSignal.timeout(15000), headers: { 'Content-Type': 'application/json', Authorization: provider === 'sendgrid' ? `Bearer ${env.SENDGRID_API_KEY}` : `Basic ${Buffer.from(`${twilioUser}:${twilioSecret}`).toString('base64')}` },
-          body: JSON.stringify(provider === 'sendgrid' ? { from: { email: job.from, name: 'Harper Dispatch and Logistics' }, reply_to: { email: job.replyTo }, personalizations: [{ to: [{ email: job.recipient }], custom_args: { applicant_job: job.id } }], subject: body.subject, content: [{ type: 'text/plain', value: body.text }], tracking_settings: { click_tracking: { enable: false, enable_text: false }, open_tracking: { enable: false } } } : { from: { address: job.from, name: 'Harper Dispatch and Logistics' }, to: [{ address: job.recipient }], content: body })
+          body: JSON.stringify(provider === 'sendgrid' ? { from: { email: job.from, name: 'Harper Dispatch and Logistics' }, reply_to: { email: job.replyTo }, personalizations: [{ to: [{ email: job.recipient }], custom_args: { applicant_job: job.id } }], subject: body.subject, content: [{ type: 'text/plain', value: body.text }], tracking_settings: { click_tracking: { enable: false, enable_text: false }, open_tracking: { enable: false } } } : { from: { address: job.from, name: 'Harper Dispatch and Logistics' }, replyTo: { address: job.replyTo }, to: [{ address: job.recipient }], content: { subject: body.subject, text: body.text } })
         });
       } catch { /* Status remains uncertain; no blind retry. */ }
       const current = init().applicantOutbox.find(j => j.id === job.id);

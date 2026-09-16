@@ -95,7 +95,9 @@ test('Twilio provider uses a private basic-auth key and its email payload', asyn
   assert.equal(request.url, 'https://comms.twilio.com/v1/Emails');
   assert.equal(JSON.parse(request.body).to[0].address, 'owner@example.com');
   assert.ok(JSON.parse(request.body).content.text.includes('Create your account'));
-  assert.ok(JSON.parse(request.body).content.html.includes('Create your account'));
+  // Plain text only on both providers: no HTML part is sent, and the reply address must be present.
+  assert.equal(JSON.parse(request.body).content.html, undefined);
+  assert.equal(JSON.parse(request.body).replyTo.address, 'info@harperloadboard.com');
   assert.ok(!JSON.stringify(x.store).includes('private-secret'));
 });
 

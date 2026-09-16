@@ -8,7 +8,9 @@ Onboarding shows account creation, verified current evidence, dispatcher assignm
 
 ## Private service settings
 
-Set ALPHAWAY_APPLICANT_EMAILS_ENABLED=true, ALPHAWAY_EMAIL_PROVIDER=twilio, TWILIO_API_KEY_SID, TWILIO_API_KEY_SECRET, ALPHAWAY_EMAIL_FROM, ALPHAWAY_EMAIL_REPLY_TO, and ALPHAWAY_PUBLIC_ORIGIN. Preserve the existing private ALPHAWAY_SESSION_SECRET (at least 32 characters). The Twilio key needs comms emails Create and emails.operations Read. Authenticate the sending domain. Never commit secrets.
+Set ALPHAWAY_APPLICANT_EMAILS_ENABLED=true, ALPHAWAY_EMAIL_PROVIDER=twilio, TWILIO_API_KEY_SID, TWILIO_API_KEY_SECRET, ALPHAWAY_EMAIL_FROM=dispatch@harperloadboard.com, ALPHAWAY_EMAIL_REPLY_TO=info@harperloadboard.com, and ALPHAWAY_PUBLIC_ORIGIN=https://www.harperloadboard.com. Preserve the existing private ALPHAWAY_SESSION_SECRET (at least 32 characters). The Twilio key needs comms emails Create and emails.operations Read. Authenticate the sending domain. Never commit secrets.
+
+Never configure an @alphawaylogistics.com or @alphawaylogisticsllc.com address or origin. The owner has no access to AlphaWay and no AlphaWay address or domain can be used or recovered. Set these three variables explicitly; a wrong or missing sender means applicant approval and invitation email fails silently.
 
 The persistent outbox sends one job at a time. Request retries do not create duplicate decisions or invitations. Provider acceptance is distinct from confirmed recipient-server delivery; Twilio operation stats are polled once a minute for up to seven days. Opened/read status is not claimed. Rate limits retry with backoff; interrupted or ambiguous sends do not retry automatically. For blocked or uncertain jobs, review Twilio activity and correct configuration before reopening and recording a replacement decision. Reopening cancels queued mail and old invitations. Previously accepted emails cannot be recalled.
 

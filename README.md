@@ -20,7 +20,7 @@ Local mode binds only to `127.0.0.1` and leaves preview authentication off. Runt
 
 ## Current host: Railway
 
-The deployed application is https://alphaway-tms-staging-app-production.up.railway.app, from `walter273/Alphaway-Logistics` branch `main`. The `alphaway-tms-staging-app` service mounts its 500 MB volume at `/app/data`; use one replica. See [operations readiness](./OPERATIONS-READINESS.md) for persistence, migration, company boundaries and launch limitations. `GODADDY-SETUP.md` is a historical alternative-host guide, not the current deployment configuration.
+The deployed application is https://alphaway-tms-staging-app-production.up.railway.app, from `walter273/Harper-Dispatch-and-Logistics` branch `main` (renamed from `Alphaway-Logistics`; GitHub redirects the old URL). The `alphaway-tms-staging-app` service mounts its 500 MB volume at `/app/data`; use one replica. See [operations readiness](./OPERATIONS-READINESS.md) for persistence, migration, company boundaries and launch limitations. `GODADDY-SETUP.md` is a historical alternative-host guide, not the current deployment configuration.
 
 Account authentication protects private operations. Public pages and the public load catalog remain accessible. Stripe webhooks require a valid signature over the original request body.
 

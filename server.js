@@ -39,8 +39,6 @@ const ACCOUNT_COOKIE = 'alphaway_account';
 const ACCOUNT_SESSION_DAYS = 7;
 const FMCSA_API_KEY = String(process.env.ALPHAWAY_FMCSA_QCMOBILE_KEY || '');
 const FMCSA_BASE_URL = String(process.env.ALPHAWAY_FMCSA_BASE_URL || 'https://mobile.fmcsa.dot.gov/qc/services').replace(/\/+$/, '');
-const OPENAI_API_KEY = String(process.env.OPENAI_API_KEY || '');
-const OPENAI_MODEL = String(process.env.OPENAI_MODEL || 'gpt-5-mini').trim();
 const carrierVerifier = createVerifier({ key: FMCSA_API_KEY, baseUrl: FMCSA_BASE_URL });
 const verificationLocks = new Set();
 const HOME_PAGE = 'index.html';
@@ -883,39 +881,6 @@ async function lookupFmcsaBroker(query) {
   return { configured: true, result: payload };
 }
 
-async function askHarperAi(question, user) {
-  if (!OPENAI_API_KEY) throw reject(503, 'Harper AI is awaiting its secure OpenAI connection.');
-  const prompt = cleanText(question, '', 2000);
-  if (prompt.length < 3) throw reject(400, 'Enter a question for Harper AI.');
-  const snapshot = operationSnapshot(user);
-  const context = {
-    loads: store.loads.slice(0, 50).map(({ id, origin, destination, equipment, miles, rate, pickup, delivery, weight, broker, status }) => ({
-      id, origin, destination, equipment, miles, rate,
-      ratePerMile: miles ? Number((rate / miles).toFixed(2)) : null,
-      pickup, delivery, weight, broker, status
-    })),
-    assignments: snapshot.operations.assignments.slice(0, 30).map(({ loadId, driverName, truckId, status }) => ({ loadId, driverName, truckId, status }))
-  };
-  const upstream = await fetch('https://api.openai.com/v1/responses', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: OPENAI_MODEL,
-      max_output_tokens: 700,
-      instructions: 'You are Harper AI, a concise freight dispatch assistant inside Harper Load Board. Help with load comparison, rate-per-mile, dispatch planning, broker and carrier communication, and operational summaries. Use only the supplied business context for load-specific facts. Clearly label estimates, never claim a booking is confirmed, and never provide legal, safety, or compliance guarantees. Format answers for a busy dispatcher with short paragraphs or bullets.',
-      input: `User role: ${user?.role || 'authorized operations user'}\\nCurrent freight context: ${JSON.stringify(context)}\\n\\nQuestion: ${prompt}`
-    })
-  });
-  const payload = await upstream.json().catch(() => ({}));
-  if (!upstream.ok) {
-    console.error(`Harper AI request failed (${upstream.status}): ${JSON.stringify(payload).slice(0, 500)}`);
-    throw reject(502, 'Harper AI is temporarily unavailable. Please try again.');
-  }
-  const answer = String(payload.output_text || payload.output?.flatMap((item) => item.content || []).find((item) => item.type === 'output_text')?.text || '').trim();
-  if (!answer) throw reject(502, 'Harper AI did not return an answer. Please try again.');
-  return { answer };
-}
-
 function readJson(request, maximumBytes) {
   return new Promise((resolve, rejectPromise) => {
     const chunks = [];
@@ -1476,19 +1441,6 @@ const server = http.createServer(async (request, response) => {
         return;
       }
       sendJson(response, 200, await lookupFmcsaBroker(requestUrl.searchParams.get('q')));
-      return;
-    }
-    if (request.method === 'POST' && pathname === '/api/ai/assistant') {
-      if (!hasNetworkAccess(request)) {
-        sendNetworkAccessRequired(response);
-        return;
-      }
-      requireJsonSameOrigin(request);
-      const actor = ACCOUNT_AUTH ? requireAccount(request, ['admin', 'dispatcher', 'carrier-owner', 'broker', 'shipper']) : null;
-      requirePaidSubscription(actor);
-      if (!consumeRateLimit(request, 'harper-ai', 20, EVENT_WINDOW_MS)) throw reject(429, 'Harper AI has received too many requests. Try again shortly.');
-      const body = await readJson(request, 16 * 1024);
-      sendJson(response, 200, await askHarperAi(body?.question, actor));
       return;
     }
     if (request.method === 'POST' && pathname === '/api/operations') {

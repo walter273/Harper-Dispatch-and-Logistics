@@ -14,14 +14,7 @@
   <script src="./dispatch-ui.js" defer></script>
   <script src="./account-nav.js" defer></script>
 <link rel="stylesheet" href="./harper-theme.css">
-<script src="./role-permissions.js" defer></script><script src="./role-workspace.js" defer></script><style>[hidden]{display:none!important}</style><style>
-.ai-panel{position:relative;overflow:hidden;border:1px solid rgba(212,175,55,.45);background:linear-gradient(135deg,rgba(212,175,55,.10),rgba(12,12,12,.98) 42%)}
-.ai-panel::after{content:"AI";position:absolute;right:1.5rem;top:1rem;color:rgba(212,175,55,.08);font-size:7rem;font-weight:800;line-height:1;pointer-events:none}
-.ai-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,.75fr);gap:1.25rem;position:relative;z-index:1}
-.ai-prompt-row{display:flex;flex-wrap:wrap;gap:.55rem;margin:.8rem 0 1rem}.ai-chip{border:1px solid rgba(212,175,55,.35);border-radius:999px;background:rgba(0,0,0,.28);color:inherit;padding:.55rem .8rem;cursor:pointer}
-.ai-question{min-height:110px;resize:vertical}.ai-answer{min-height:220px;white-space:pre-wrap;border-radius:14px;padding:1rem;background:rgba(0,0,0,.36);border:1px solid rgba(255,255,255,.10);line-height:1.55}.ai-answer[aria-busy="true"]{opacity:.65}
-@media(max-width:760px){.ai-layout{grid-template-columns:1fr}.ai-panel::after{font-size:4.5rem}}
-</style></head>
+<script src="./role-permissions.js" defer></script><script src="./role-workspace.js" defer></script><style>[hidden]{display:none!important}</style></head>
 <body>
   <main class="page-shell portal-shell">
     <header class="topbar portal-topbar">
@@ -102,25 +95,6 @@
       <article class="portal-panel module-card" data-feature="board" hidden><span class="module-status">Connected demo</span><h2>Shipment and driver tracking</h2><p>Track assigned loads, route progress, ETA, and exceptions in the operations workspace.</p><a href="./loadboard.html#tmsTitle">View tracking →</a></article>
       <article class="portal-panel module-card" data-feature="broker" hidden><span class="module-status planned-status">Next integration</span><h2>Broker network directory</h2><p>Approved broker profiles, lanes, contacts, and relationship notes will live here.</p><a href="./broker-intake.html">Add broker request →</a></article>
       <article class="portal-panel module-card" data-feature="billing" hidden><span class="module-status">Connected sandbox</span><h2>Documents and subscription billing</h2><p>Collect operations documents, create invoice records, open secure checkout, and manage your subscription.</p><a href="#subscriptionTitle">View subscription billing →</a></article>
-    </section>
-
-    <section class="portal-panel ai-panel" aria-labelledby="harperAiTitle">
-      <div class="ai-layout">
-        <div>
-          <p class="eyebrow">AI freight assistant</p><h2 id="harperAiTitle">Harper AI</h2>
-          <p class="tool-note">Analyze current loads, compare rate-per-mile, plan dispatch moves, or draft a professional message using freight visible in your workspace.</p>
-          <div class="ai-prompt-row" aria-label="Suggested questions">
-            <button class="ai-chip" type="button" data-ai-prompt="Rank the available loads by rate per mile and explain the best three choices.">Best-paying loads</button>
-            <button class="ai-chip" type="button" data-ai-prompt="Review the active assignments and tell me what needs attention first.">Dispatch priorities</button>
-            <button class="ai-chip" type="button" data-ai-prompt="Draft a professional broker message asking for the best available rate and confirming load details.">Broker message</button>
-          </div>
-          <form id="harperAiForm" class="operations-form">
-            <label><span>Ask Harper AI</span><textarea id="harperAiQuestion" class="ai-question" name="question" maxlength="2000" required placeholder="Example: Which reefer load has the strongest rate per mile?"></textarea></label>
-            <button id="harperAiSubmit" class="primary-button" type="submit">Ask Harper AI</button><p id="harperAiStatus" class="form-status" role="status"></p>
-          </form>
-        </div>
-        <div><p class="eyebrow">AI response</p><div id="harperAiAnswer" class="ai-answer" role="region" aria-live="polite">Ask a freight question to get started.</div></div>
-      </div>
     </section>
 
     <section class="operations-tool-grid" aria-label="Connected operations tools">

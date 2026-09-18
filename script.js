@@ -894,7 +894,7 @@ if (isBoardPage) {
   function getDemoEtaLabel(minutes) {
     if (!minutes) return 'Awaiting departure';
     const rounded = Math.max(5, Math.ceil(minutes / 5) * 5);
-    return `~${rounded} min (demo)`;
+    return `~${rounded} min`;
   }
 
   function getDriverInitials(name) {
@@ -956,13 +956,13 @@ if (isBoardPage) {
     tmsAvailableLoads.textContent = Math.max(0, catalog.length - assignments.length);
     tmsAssignedDrivers.textContent = assignments.length;
     tmsAttention.textContent = attentionCount;
-    gpsStatus.textContent = tmsState.demoRunning ? 'Demo updating' : 'Demo paused';
-    toggleGpsDemoButton.textContent = tmsState.demoRunning ? 'Pause demo' : 'Resume demo';
+    gpsStatus.textContent = tmsState.demoRunning ? 'Updating' : 'Paused';
+    toggleGpsDemoButton.textContent = tmsState.demoRunning ? 'Pause' : 'Resume';
     renderTmsDriverList(tmsState, load?.id);
 
     if (!assignment || !load) {
       trackedDriverName.textContent = 'Awaiting assignment';
-      trackerLoadLabel.textContent = load ? `${load.id} · No demo vehicle assigned` : 'Select a load to view demo tracking.';
+      trackerLoadLabel.textContent = load ? `${load.id} · No vehicle assigned` : 'Select a load to view tracking.';
       gpsMarker.style.left = '12%';
       gpsMarker.style.opacity = '0.38';
       gpsLocation.textContent = '—';
@@ -978,14 +978,14 @@ if (isBoardPage) {
     gpsMarker.style.left = `${12 + (tracking.progress * 76)}%`;
     gpsMarker.style.opacity = '1';
     gpsLocation.textContent = getDemoPositionLabel(tracking.progress);
-    gpsSpeed.textContent = tracking.speedMph ? `${tracking.speedMph} mph (demo)` : 'Stopped (demo)';
+    gpsSpeed.textContent = tracking.speedMph ? `${tracking.speedMph} mph` : 'Stopped';
     gpsEta.textContent = getDemoEtaLabel(tracking.etaMinutes);
     trackerLastPing.textContent = getDemoLastPingLabel(tracking.lastPingAt);
   }
 
   function advanceDemoGps({ loadId = null, force = false } = {}) {
     if (isServerConnected()) {
-      sendAppEvent({ type: 'tms.refresh', loadId }).catch((error) => showToast(error.message || 'Demo GPS could not refresh'));
+      sendAppEvent({ type: 'tms.refresh', loadId }).catch((error) => showToast(error.message || 'GPS could not refresh'));
       return;
     }
     const state = getCurrentState();
@@ -1021,7 +1021,7 @@ if (isBoardPage) {
   function setGpsDemoRunning(isRunning) {
     if (isServerConnected()) {
       sendAppEvent({ type: 'tms.set-demo-running', demoRunning: isRunning })
-        .catch((error) => showToast(error.message || 'Demo GPS setting could not be saved'));
+        .catch((error) => showToast(error.message || 'GPS setting could not be saved'));
       return;
     }
     const state = getCurrentState();
@@ -1462,11 +1462,11 @@ if (isBoardPage) {
     if (!selectedLoad) return;
     const hasAssignment = getCurrentState().tms.assignments.some((assignment) => assignment.loadId === selectedLoad.id);
     if (!hasAssignment) {
-      showToast('No demo vehicle is assigned to this load');
+      showToast('No vehicle is assigned to this load');
       return;
     }
     advanceDemoGps({ loadId: selectedLoad.id, force: true });
-    showToast('Demo GPS refreshed');
+    showToast('GPS refreshed');
   });
 
   toggleGpsDemoButton.addEventListener('click', () => {
@@ -1511,7 +1511,7 @@ if (isBoardPage) {
         if (isServerConnected()) {
           selectedLoadState.value = loadId;
           sendAppEvent({ type: 'booking.add', loadId })
-            .then(() => showToast(`${load.id} saved as a demo booking for ${load.lane}`))
+            .then(() => showToast(`${load.id} saved as a booking for ${load.lane}`))
             .catch((error) => showToast(error.message || 'Booking could not be saved'));
           return;
         }

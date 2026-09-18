@@ -1,8 +1,8 @@
 ﻿(() => {
  const loads=[
- {id:'DEMO-1001',from:'Denver, CO',to:'Phoenix, AZ',equipment:'Dry Van',rate:'$2,540',miles:698,driver:'Marcus Lane',truck:'DEMO-204',progress:62,speed:58,status:'In transit'},
- {id:'DEMO-1002',from:'Colorado Springs, CO',to:'Dallas, TX',equipment:'Reefer',rate:'$3,185',miles:874,driver:'Daniela Ruiz',truck:'DEMO-317',progress:12,speed:0,status:'At pickup'},
- {id:'DEMO-1003',from:'Fort Collins, CO',to:'Kansas City, MO',equipment:'Flatbed',rate:'$2,950',miles:992,driver:'Casey Owens',truck:'DEMO-278',progress:45,speed:55,status:'In transit'}
+ {id:'HAR-1001',from:'Denver, CO',to:'Phoenix, AZ',equipment:'Dry Van',rate:'$2,540',miles:698,driver:'Marcus Lane',truck:'Unit 204',progress:62,speed:58,status:'In transit'},
+ {id:'HAR-1002',from:'Colorado Springs, CO',to:'Dallas, TX',equipment:'Reefer',rate:'$3,185',miles:874,driver:'Daniela Ruiz',truck:'Unit 317',progress:12,speed:0,status:'At pickup'},
+ {id:'HAR-1003',from:'Fort Collins, CO',to:'Kansas City, MO',equipment:'Flatbed',rate:'$2,950',miles:992,driver:'Casey Owens',truck:'Unit 278',progress:45,speed:55,status:'In transit'}
  ];
  const byId=id=>document.getElementById(id);if(!byId('hdLoads'))return;
  let selected=loads[0];

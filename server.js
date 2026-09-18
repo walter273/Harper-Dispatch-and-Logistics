@@ -111,6 +111,7 @@ const STATIC_FILES = new Set([
   'assets/harper-dispatch-office.png',
   'assets/harper-load-board.png',
   'assets/alphaway-dispatch-office.jpg',
+  'home-carousel.js',
   'script.js',
   'operations.js',
   'css2'

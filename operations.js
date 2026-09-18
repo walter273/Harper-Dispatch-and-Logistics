@@ -80,7 +80,7 @@
     if (!assignments.length) {
       const empty = document.createElement('p');
       empty.className = 'ops-empty-state';
-      empty.textContent = 'No demo driver assignments match the active catalog.';
+      empty.textContent = 'No driver assignments match the active catalog.';
       trackingList.append(empty);
       return;
     }
@@ -112,7 +112,7 @@
       const meta = document.createElement('div');
       meta.className = 'tracking-meta';
       const speed = document.createElement('span');
-      speed.textContent = assignment.tracking.speedMph ? `${assignment.tracking.speedMph} mph demo` : 'Awaiting departure';
+      speed.textContent = assignment.tracking.speedMph ? `${assignment.tracking.speedMph} mph` : 'Awaiting departure';
       const state = document.createElement('span');
       state.className = `ops-status ${statusClass(assignment.status)}`;
       state.textContent = assignment.status;
@@ -192,7 +192,7 @@
       .toLowerCase()
       .includes(normalizedQuery));
 
-    if (count) count.textContent = `${visibleLoads.length} of ${catalog.length} demo loads`;
+    if (count) count.textContent = `${visibleLoads.length} of ${catalog.length} loads`;
     tableBody.replaceChildren();
 
     if (!visibleLoads.length) {
@@ -266,7 +266,7 @@
       editingId = null;
       form.reset();
       if (idField) idField.readOnly = false;
-      if (formTitle) formTitle.textContent = 'Add a demo load';
+      if (formTitle) formTitle.textContent = 'Add a load';
       if (save) save.textContent = 'Add load';
       if (cancel) cancel.hidden = true;
     };
@@ -326,9 +326,9 @@
         await board.saveLoads(nextCatalog);
         updateTable();
         clearForm();
-        report(`${candidate.id} saved to the ${board.isServerConnected() ? 'shared' : 'local'} demo catalog.`);
+        report(`${candidate.id} saved to the ${board.isServerConnected() ? 'shared' : 'local'} load catalog.`);
       } catch (error) {
-        report(error.message || 'The demo catalog could not be saved.', true);
+        report(error.message || 'The load catalog could not be saved.', true);
       }
     });
 
@@ -338,14 +338,14 @@
       if (editButton) editLoad(getCatalog().find((load) => load.id === editButton.dataset.editLoad));
       if (removeButton) {
         const loadId = removeButton.dataset.removeLoad;
-        if (!window.confirm(`Remove ${loadId} from the ${board.isServerConnected() ? 'shared' : 'local'} demo catalog?`)) return;
+        if (!window.confirm(`Remove ${loadId} from the ${board.isServerConnected() ? 'shared' : 'local'} load catalog?`)) return;
         try {
           await board.saveLoads(getCatalog().filter((load) => load.id !== loadId));
           updateTable();
           if (editingId === loadId) clearForm();
-          report(`${loadId} removed from the ${board.isServerConnected() ? 'shared' : 'local'} demo catalog.`);
+          report(`${loadId} removed from the ${board.isServerConnected() ? 'shared' : 'local'} load catalog.`);
         } catch (error) {
-          report(error.message || 'At least one demo load must remain.', true);
+          report(error.message || 'At least one load must remain.', true);
         }
       }
     });
@@ -356,14 +356,14 @@
       report('Edit cancelled.');
     });
     reset?.addEventListener('click', async () => {
-      if (!window.confirm(`Restore the original demo catalog? Your ${board.isServerConnected() ? 'shared' : 'local'} catalog edits will be removed.`)) return;
+      if (!window.confirm(`Restore the default load catalog? Your ${board.isServerConnected() ? 'shared' : 'local'} catalog edits will be removed.`)) return;
       try {
         await board.resetLoads();
         updateTable();
         clearForm();
-        report('Original demo loads restored.');
+        report('Default loads restored.');
       } catch (error) {
-        report(error.message || 'The demo catalog could not be restored.', true);
+        report(error.message || 'The load catalog could not be restored.', true);
       }
     });
     exportButton?.addEventListener('click', () => {
@@ -371,10 +371,10 @@
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = 'harper-demo-loads.json';
+      link.download = 'harper-load-catalog.json';
       link.click();
       window.setTimeout(() => URL.revokeObjectURL(url), 0);
-      report(`${board.isServerConnected() ? 'Shared' : 'Local'} demo catalog exported.`);
+      report(`${board.isServerConnected() ? 'Shared' : 'Local'} load catalog exported.`);
     });
     importInput?.addEventListener('change', () => {
       const file = importInput.files?.[0];
@@ -386,9 +386,9 @@
           await board.saveLoads(parsed);
           updateTable();
           clearForm();
-          report(`${board.isServerConnected() ? 'Shared' : 'Local'} demo catalog imported.`);
+          report(`${board.isServerConnected() ? 'Shared' : 'Local'} load catalog imported.`);
         } catch (error) {
-          report('Choose a JSON file containing one or more valid demo loads.', true);
+          report('Choose a JSON file containing one or more valid loads.', true);
         }
       });
       reader.readAsText(file);

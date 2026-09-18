@@ -2,7 +2,6 @@
   const catalog = window.AlphawayDispatch;
   if (!catalog) return;
   const byId = id => document.getElementById(id);
-  const money = cents => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(cents / 100);
   const request = async (url, options = {}) => {
     const response = await fetch(url, { ...options, headers: { 'Content-Type': 'application/json' } });
     const result = await response.json();
@@ -12,9 +11,8 @@
   function summary(planId, method, trucks) {
     const plan = catalog.plans[planId];
     if (!plan) return '';
-    if (method === 'percentage') return `${plan.name}: ${plan.percent}% of eligible collected revenue; no weekly retainer. ${catalog.revenueBasis} App access included. $150 onboarding once per fleet. Dispatch reviews your request before billing.`;
     if (!Number.isInteger(trucks) || trucks < 1 || trucks > 100) return 'Enter a whole-number truck count from 1 to 100.';
-    return `${plan.name}: ${money(plan.weeklyCents * trucks)} per week for ${trucks} truck${trucks === 1 ? '' : 's'}. No percentage fee. App access included. First payment is ${money(plan.weeklyCents * trucks + 15000)} if fleet onboarding has not already been paid; applicable taxes are additional.`;
+    return `${plan.name}: ${plan.percent}% only after Harper books an acceptable load that you approve. No onboarding fee, no weekly payment upfront, and no long-term contract. ${catalog.revenueBasis}`;
   }
   const onboardingPlan = byId('onboardingDispatchPlan');
   if (onboardingPlan) {
@@ -32,7 +30,7 @@
     const update = () => {
       const method = byId('workspaceBillingMethod').value;
       byId('dispatchQuote').textContent = summary(byId('workspaceDispatchPlan').value, method, Number(byId('carrierTruckCount').value));
-      byId('dispatchPlanSubmit').textContent = method === 'weekly' ? 'Continue to weekly Checkout' : 'Request percentage billing';
+      byId('dispatchPlanSubmit').textContent = 'Request dispatch trial';
     };
     dispatchForm.addEventListener('input', update);
     dispatchForm.addEventListener('change', update);
@@ -44,13 +42,12 @@
       const submit = byId('dispatchPlanSubmit');
       const billingMethod = byId('workspaceBillingMethod').value;
       submit.disabled = true;
-      status.textContent = billingMethod === 'weekly' ? 'Opening secure weekly Checkout...' : 'Saving your request for dispatch review...';
+      status.textContent = 'Saving your dispatch trial request...';
       try {
-        const result = await request(billingMethod === 'weekly' ? './api/billing/checkout' : './api/dispatch/requests', {
+        await request('./api/dispatch/requests', {
           method: 'POST', body: JSON.stringify({ plan: byId('workspaceDispatchPlan').value, billingMethod, truckCount: Number(byId('carrierTruckCount').value), termsVersion: catalog.termsVersion, requestId: crypto.randomUUID() })
         });
-        if (billingMethod === 'weekly') window.location.assign(result.url);
-        else { status.textContent = 'Request saved. Dispatch will review your package and agreement before billing. No payment has been taken.'; refreshRequests(); }
+        status.textContent = 'Request saved. Dispatch will review your operating details. No payment has been taken.'; refreshRequests();
       } catch (error) { status.textContent = error.message; }
       finally { submit.disabled = false; }
     });

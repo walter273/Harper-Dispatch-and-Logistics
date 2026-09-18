@@ -1665,7 +1665,7 @@ const server = http.createServer(async (request, response) => {
       }
       const candidate = normalizeIntake(await readJson(request, MAX_INTAKE_BYTES));
       if (!candidate) throw reject(400, 'A supported request type is required.');
-      if (candidate.type === 'carrier-onboarding' && (!isDispatchPlan(candidate.fields.dispatch_package) || !['weekly', 'percentage'].includes(candidate.fields.billing_method) || candidate.fields.dispatch_terms !== dispatchTermsVersion || !Number.isInteger(Number(candidate.fields.available_units)) || Number(candidate.fields.available_units) < 1 || Number(candidate.fields.available_units) > 100)) throw reject(400, 'Choose a dispatch package, billing method, 1 to 100 trucks and acknowledge the current terms.');
+      if (candidate.type === 'carrier-onboarding' && (!isDispatchPlan(candidate.fields.dispatch_package) || candidate.fields.billing_method !== 'percentage' || candidate.fields.dispatch_terms !== dispatchTermsVersion || !Number.isInteger(Number(candidate.fields.available_units)) || Number(candidate.fields.available_units) < 1 || Number(candidate.fields.available_units) > 100)) throw reject(400, 'Confirm the 5% dispatch plan, 1 to 100 trucks and acknowledge the current terms.');
       if (candidate.type === 'carrier-onboarding') {
         const fields = candidate.fields;
         // Earlier forms and retained submissions may omit tracking details.

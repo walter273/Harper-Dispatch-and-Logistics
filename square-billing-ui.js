@@ -33,9 +33,9 @@
     const e = value.entry;
     el('mode').textContent = value.environment === 'sandbox' ? 'TEST MODE — no real charges. Test payments never activate customer access.' : 'Secure billing through Square';
     el('status').textContent = !e ? 'Choose your plan from the workspace to begin.' : `Payment status: ${e.status}. ${e.cancelAtPeriodEnd ? 'Renewal cancellation is scheduled.' : ''}`;
-    el('details').textContent = !e ? '' : `${e.plan} · ${e.truckCount} truck(s). ${e.onboardingRequired ? e.setupPaid ? 'One-time fleet setup paid.' : 'Step 1: Pay the $150 one-time fleet setup. Step 2: Start the weekly subscription.' : 'No fleet setup payment required.'} ${e.currentPeriodEnd ? 'Paid through '+new Date(e.currentPeriodEnd*1000).toLocaleDateString()+'.' : ''}`;
+    el('details').textContent = !e ? '' : `${e.plan} · ${e.truckCount} truck(s). ${e.currentPeriodEnd ? 'Paid through '+new Date(e.currentPeriodEnd*1000).toLocaleDateString()+'.' : ''}`;
     el('next').hidden = !e || e.hasSubscription || ['active','past_due','paused','canceled'].includes(e.status);
-    el('next').textContent = e?.onboardingRequired && !e.setupPaid ? 'Pay one-time fleet setup' : 'Continue to subscription checkout';
+    el('next').textContent = 'Continue to subscription checkout';
     el('cancel').hidden = !e?.hasSubscription || e.status === 'canceled' || e.cancelAtPeriodEnd;
     el('invoice').hidden = !e?.invoiceUrl; if(e?.invoiceUrl) el('invoice').href=e.invoiceUrl;
   }

@@ -27,7 +27,7 @@
     <section class="portal-hero compact-portal-hero">
       <div>
         <p class="eyebrow">Carrier portal</p>
-        <h1>Choose your dispatch package</h1>
+        <h1>Start your carrier dispatch trial</h1>
         <p>Share the operating details dispatch needs to begin a conversation about lanes, equipment, and availability.</p>
       </div>
       <aside class="portal-callout warning-callout">
@@ -40,8 +40,8 @@
       <header class="section-panel-header"><div><p class="eyebrow">Initial request</p><h2>Carrier details</h2></div></header>
       <form class="operations-form" data-request-form data-request-type="carrier-onboarding" data-subject="Carrier onboarding request" data-notice="The app server is unavailable, so an email draft is opening with this non-sensitive onboarding summary.">
         <div class="operations-form-grid">
-          <label><span>Dispatch package</span><select name="dispatch_package" id="onboardingDispatchPlan" required><option value="dispatch-basic">Basic Dispatch - $300/truck/week or 5%</option><option value="dispatch-standard" selected>Standard Dispatch - $500/truck/week or 7%</option><option value="dispatch-premium">Premium Dispatch - $700/truck/week or 10%</option></select></label>
-          <label><span>Billing method</span><select name="billing_method" id="onboardingBillingMethod" required><option value="weekly">Fixed weekly fee per truck</option><option value="percentage">Percentage of eligible revenue</option></select></label>
+          <input name="dispatch_package" id="onboardingDispatchPlan" type="hidden" value="dispatch-basic">
+          <input name="billing_method" id="onboardingBillingMethod" type="hidden" value="percentage">
           <label><span>Legal carrier name</span><input name="legal_carrier_name" type="text" autocomplete="organization" required></label>
           <label><span>Primary contact</span><input name="primary_contact" type="text" autocomplete="name" required></label>
           <label><span>Business email</span><input name="business_email" type="email" autocomplete="email" required></label>
@@ -64,8 +64,9 @@
         <p class="tool-note" id="gpsPilotHelp">The pilot starts only after dispatch confirms the truck and records the required carrier and driver authorization. This request does not enable tracking. Do not enter passwords or API keys.</p>
         <label class="full-field"><span>Operational notes</span><textarea name="operational_notes" rows="5" maxlength="1000" placeholder="Dispatch preferences, lane interests, or non-sensitive equipment details"></textarea></label>
         <p class="tool-note" id="onboardingDispatchSummary" aria-live="polite"></p>
-        <p class="tool-note">App access is included. $150 one-time onboarding per fleet. Percentage fees use collected line-haul revenue on Harper-dispatched loads and are reviewed weekly. This request starts no subscription or charge.</p>
-        <label class="dispatch-consent"><input type="checkbox" name="dispatch_terms" value="dispatch-2026-09-10-v1" required><span>I have read the <a href="./carrier-agreement.html">dispatch billing and service overview</a>. Service requires approval and a signed agreement.</span></label>
+        <ul class="dispatch-features"><li>No onboarding fee</li><li>No weekly payment upfront</li><li>5% only after Harper books an acceptable load</li><li>No long-term contract</li><li>First seven days or first load as a trial</li><li>You approve every load before booking</li><li>Rate confirmations and broker details remain visible</li></ul>
+        <p class="tool-note">This request starts no subscription or charge. The 5% fee applies only to collected line-haul revenue on Harper-dispatched loads that you approve.</p>
+        <label class="dispatch-consent"><input type="checkbox" name="dispatch_terms" value="dispatch-2026-09-18-v2" required><span>I have read the <a href="./carrier-agreement.html">dispatch billing and service overview</a>. Service requires approval and a signed agreement.</span></label>
         <div class="portal-actions"><button class="primary-button" type="submit">Submit request</button><a class="ghost-button" href="./carrier-agreement.html">Read agreement overview</a></div>
         <p class="form-status" data-form-status role="status" aria-live="polite"></p>
       </form>

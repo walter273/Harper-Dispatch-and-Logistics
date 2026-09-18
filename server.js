@@ -4,10 +4,26 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { URL } = require('node:url');
+// Square is the only payment provider in use. The legacy Stripe modules are
+// kept loadable so existing deployments do not break, but an unset or
+// misspelled BILLING_PROVIDER used to fall through to Stripe silently, which
+// left checkout dead-ending with nothing in the logs to explain it. That now
+// logs a loud warning instead.
+const requestedProvider = String(process.env.BILLING_PROVIDER || '').trim().toLowerCase();
+const useSquare = requestedProvider === 'square';
+
+if (!useSquare) {
+  console.warn(
+    '[billing] BILLING_PROVIDER is ' +
+    (requestedProvider ? "'" + requestedProvider + "'" : 'unset') +
+    ', so the legacy Stripe path is active. Square is the provider in use. ' +
+    'Set BILLING_PROVIDER=square to enable Square checkout.'
+  );
+}
+
 const { createBilling } = require('./billing');
 const billing = createBilling();
 const squareBilling = require('./square-billing').createSquareBilling();
-const useSquare = process.env.BILLING_PROVIDER === 'square';
 const squareEntitled = require('./square-billing').entitled;
 const billingReview = require('./billing-review').createBillingReview();
 const { createStorage } = require('./storage');

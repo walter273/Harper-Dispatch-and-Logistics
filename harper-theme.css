@@ -49,8 +49,8 @@ body.home-redesign{--bg:#061b33;--surface:#0b2b4a;--surface2:#103857;--ink:#f8f7
 .home-dropdown{position:relative}
 .home-dropdown summary{list-style:none;cursor:pointer;padding:12px 4px;color:#e2ebf5;font-size:.9rem;font-weight:700;white-space:nowrap}
 .home-dropdown summary::-webkit-details-marker{display:none}
-.home-dropdown summary::after{content:"âŒ„";display:inline-block;margin-left:8px;color:#ffcf65}
-.home-dropdown[open] summary::after{transform:rotate(180deg)}
+/* Dropdown arrow marker removed on request: the labels stand on their own. */
+/* Dropdown arrow markers intentionally removed. */
 .home-dropdown summary:focus-visible{outline:2px solid #ffcf65;outline-offset:4px;border-radius:4px}
 .home-dropdown-panel{position:absolute;top:100%;right:0;min-width:230px;padding:8px;background:#0b2b4a;border:1px solid #66809a;border-top:3px solid #efb43c;border-radius:8px;box-shadow:0 15px 35px #0006;z-index:60}
 .home-redesign .home-dropdown-panel a{display:block;padding:12px;border-radius:4px;color:#f8f7ef;font-size:.9rem}

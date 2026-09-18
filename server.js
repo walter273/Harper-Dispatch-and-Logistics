@@ -1,4 +1,4 @@
-const http = require('node:http');
+﻿const http = require('node:http');
 const rolePermissions = require('./role-permissions');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
@@ -59,23 +59,23 @@ const rateLimitBuckets = new Map();
 const checkoutLocks = new Set();
 
 const STATIC_FILES = new Set([
-  'inbox-loader.js', 'inbox-auth.html', 'inbox-bridge.bundle.js', 'home-freight-demo.js', 'home-freight-demo.css', 'command-board.css',
+  'inbox-loader.js', 'inbox-auth.html', 'inbox-bridge.bundle.js', 'home-freight.js', 'home-freight.css', 'command-board.css',
   'role-permissions.js', 'role-workspace.js', 'browser-voice-ui.js',
-  'demo-load-board.html',
-  'demo-dispatch.html',
-  'demo-planning.html',
-  'demo-broker-desk.html',
-  'demo-shipper-control.html',
-  'demo-pricing.html',
-  'demo-carriers.html',
-  'demo-brokers.html',
-  'demo-shippers.html',
-  'demo-contact.html',
-  'demo-phone.html',
-  'demo-general.html',
-  'demo-dispatch-support.html',
-  'demo-billing-support.html',
-  'demo-workspace.html',
+  'product-load-board.html',
+  'product-dispatch.html',
+  'product-planning.html',
+  'product-broker-desk.html',
+  'product-shipper-control.html',
+  'plans-and-pricing.html',
+  'solutions-carriers.html',
+  'solutions-brokers.html',
+  'solutions-shippers.html',
+  'contact.html',
+  'contact-phone.html',
+  'contact-general.html',
+  'support-dispatch.html',
+  'support-billing.html',
+  'workspace-tour.html',
   'public-preview.css',
   'public-access.js',
   'access.html',

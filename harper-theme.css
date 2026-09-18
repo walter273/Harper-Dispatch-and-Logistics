@@ -1,4 +1,4 @@
-/* Harper visual identity: navy, royal blue, metallic gold and warm white. */
+﻿/* Harper visual identity: navy, royal blue, metallic gold and warm white. */
 :root{--bg:#061b33;--bg-2:#092743;--surface:#0b2b4a;--surface2:#103857;--panel:#0b2b4a;--panel-alt:#103857;--panel-soft:#123e60;--line:#315775;--text:#f8f7ef;--ink:#f8f7ef;--muted:#bfcede;--muted-2:#9fb5ca;--accent:#f0b636;--accent-strong:#df9c20;--accent-soft:rgba(240,182,54,.14);--gold:#f0b636;--gold2:#ffda78;--shadow:0 16px 40px rgba(0,22,48,.2)}
 body{background:linear-gradient(150deg,#04162b,#0b3557);color:var(--text)}
 .topbar,.portal-topbar{background:#061d36;border-bottom:3px solid var(--gold)}
@@ -49,7 +49,7 @@ body.home-redesign{--bg:#061b33;--surface:#0b2b4a;--surface2:#103857;--ink:#f8f7
 .home-dropdown{position:relative}
 .home-dropdown summary{list-style:none;cursor:pointer;padding:12px 4px;color:#e2ebf5;font-size:.9rem;font-weight:700;white-space:nowrap}
 .home-dropdown summary::-webkit-details-marker{display:none}
-.home-dropdown summary::after{content:"⌄";display:inline-block;margin-left:8px;color:#ffcf65}
+.home-dropdown summary::after{content:"âŒ„";display:inline-block;margin-left:8px;color:#ffcf65}
 .home-dropdown[open] summary::after{transform:rotate(180deg)}
 .home-dropdown summary:focus-visible{outline:2px solid #ffcf65;outline-offset:4px;border-radius:4px}
 .home-dropdown-panel{position:absolute;top:100%;right:0;min-width:230px;padding:8px;background:#0b2b4a;border:1px solid #66809a;border-top:3px solid #efb43c;border-radius:8px;box-shadow:0 15px 35px #0006;z-index:60}
@@ -58,47 +58,61 @@ body.home-redesign{--bg:#061b33;--surface:#0b2b4a;--surface2:#103857;--ink:#f8f7
 .home-redesign [id]{scroll-margin-top:150px}
 @media(max-width:1100px){.home-dropdown:first-child .home-dropdown-panel{left:0;right:auto}}
 @media(max-width:440px){.home-redesign .home-nav{justify-content:space-between;gap:8px}.home-dropdown-panel{min-width:220px;max-width:calc(100vw - 30px)}.home-dropdown:nth-child(2) .home-dropdown-panel{left:50%;right:auto;transform:translateX(-50%)}.home-redesign [id]{scroll-margin-top:230px}}
-/* --- Homepage vertical section flip --------------------------------------
-   Sections stack normally and fill one screen each. Vertical scrolling snaps
-   between them, so a wheel notch or a flick advances exactly one section,
-   like flipping pages. Scoped to body.home-redesign.
+/* --- Homepage scroll reveal ---------------------------------------------
+   Scrolling stays completely normal. Each section animates into view as it
+   arrives, so the page feels like it moves in panels without hijacking the
+   scroll or locking the viewport. Scoped to body.home-redesign.
 
-   Degradation: without scroll-snap the page is an ordinary vertical scroll and
-   every section remains readable, so nothing is ever unreachable. */
-.home-redesign .section-flip{
-  scroll-snap-type:y mandatory;
-  scroll-behavior:smooth;
-  display:block;
+   Nothing here is required for the page to work: if the observer is missing
+   or animation is suppressed, every section is simply visible. */
+/* Sections are VISIBLE by default. The animation is opt-in: only once the
+   script confirms it can reveal them does it add .reveal-ready to <html>,
+   which is the only thing that hides a section. If the script fails to load,
+   is blocked, or throws, every section stays fully visible. */
+html.reveal-ready .home-redesign .reveal{
+  opacity:0;
+  transform:translateY(28px);
+  transition:opacity .55s ease, transform .55s ease;
+  will-change:opacity, transform;
+}
+html.reveal-ready .home-redesign .reveal.reveal-in{
+  opacity:1;
+  transform:none;
+}
+/* The opening section is revealed by script on load and must never animate in:
+   a hero that fades up from invisible looks broken on a slow connection. */
+html.reveal-ready .home-redesign .reveal.reveal-instant{
+  opacity:1;
+  transform:none;
+  transition:none;
 }
 
-/* Every section is exactly one screen tall so the snap points are evenly
-   spaced. Uneven heights let one wheel notch jump two sections, because the
-   browser snaps to whichever boundary is nearest.
-   A section whose content exceeds the screen scrolls internally instead of
-   growing, so nothing is clipped and every section still snaps identically. */
-.home-redesign .section-flip > section{
-  scroll-snap-align:start;
-  scroll-snap-stop:always;
-  height:calc(100vh - 85px);
-  overflow-y:auto;
-  overflow-x:hidden;
-  overscroll-behavior:contain;
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-  padding-block:40px 56px;
+/* Give each panel comfortable breathing room without pinning it to a height. */
+.home-redesign .section-flow > section{
+  padding-block:56px;
 }
-/* Content taller than the screen aligns to the top so it reads from the start. */
-.home-redesign .section-flip > section.taller-than-view{justify-content:flex-start}
-.home-redesign .section-flip > section::-webkit-scrollbar{width:8px}
-.home-redesign .section-flip > section::-webkit-scrollbar-thumb{background:#315775;border-radius:8px}
 
-/* Keep in-page anchors landing on a whole section. */
-.home-redesign .section-flip [id]{scroll-margin-top:96px}
+/* Stagger children so a section arrives as a group, not one flat block. */
+html.reveal-ready .home-redesign .reveal.reveal-in > *{
+  animation:reveal-child .5s ease backwards;
+}
+html.reveal-ready .home-redesign .reveal.reveal-in > *:nth-child(2){animation-delay:.06s}
+html.reveal-ready .home-redesign .reveal.reveal-in > *:nth-child(3){animation-delay:.12s}
+html.reveal-ready .home-redesign .reveal.reveal-in > *:nth-child(4){animation-delay:.18s}
+@keyframes reveal-child{
+  from{opacity:.001;transform:translateY(14px)}
+  to{opacity:1;transform:none}
+}
 
-/* --- Flip controls ------------------------------------------------------- */
-/* A compact vertical pill on the right edge. Kept narrow and centred so it
-   never overlaps the hero artwork on a short screen. */
+/* Respect a reduced-motion preference: never hide anything. */
+@media(prefers-reduced-motion:reduce){
+  html.reveal-ready .home-redesign .reveal{opacity:1;transform:none;transition:none}
+  html.reveal-ready .home-redesign .reveal.reveal-in > *{animation:none}
+}
+
+/* --- Section progress rail ----------------------------------------------- */
+/* A quiet marker on the right edge showing where the reader is. It only
+   indicates; it never intercepts scrolling. */
 .flip-controls{
   position:fixed;
   right:14px;
@@ -116,8 +130,8 @@ body.home-redesign{--bg:#061b33;--surface:#0b2b4a;--surface2:#103857;--ink:#f8f7
   box-shadow:0 8px 24px rgba(0,12,26,.55);
   transform:translateY(-50%);
 }
-/* Hide the whole control cluster when vertical space is tight. */
 @media(max-height:640px){.flip-controls{display:none}}
+@media(max-width:960px){.flip-controls{display:none}}
 .flip-controls button{
   width:34px;height:34px;
   display:grid;place-items:center;
@@ -144,56 +158,5 @@ body.home-redesign{--bg:#061b33;--surface:#0b2b4a;--surface2:#103857;--ink:#f8f7
 .flip-dots button[aria-current="true"]{background:#ffda78;border-color:#ffda78;height:18px;border-radius:6px}
 .flip-progress{color:#dbe7f1;font-size:.68rem;font-weight:800;letter-spacing:.02em;writing-mode:vertical-rl;line-height:1}
 
-/* Reduce motion: turn snapping off entirely. */
-@media(prefers-reduced-motion:reduce){
-  .home-redesign .section-flip{scroll-behavior:auto;scroll-snap-type:none}
-  .home-redesign .section-flip > section{scroll-snap-align:none}
-}
 
-/* Below the desktop breakpoint the sidebar controls crowd the content, so the
-   page falls back to an ordinary vertical scroll without them. */
-@media(max-width:960px){
-  .home-redesign .section-flip{scroll-snap-type:none}
-  .home-redesign .section-flip > section{min-height:0;padding-block:40px}
-  .flip-controls{display:none}
-}
 
-/* Keep the hero from forcing the slide taller than the viewport. */
-.home-redesign .section-carousel .hero-section .harper-company-art{
-  max-height:min(50vh, 420px);
-  width:auto;
-  object-fit:cover;
-}
-.home-redesign .section-carousel .hero-layout{align-items:center}
-.home-redesign .section-carousel .hero-section{padding-block:0}
-.home-redesign .section-carousel .hero-section .hero-layout{gap:32px}
-.home-redesign .section-carousel .hero-section h1{font-size:clamp(2.2rem,3.6vw,3.4rem);margin-bottom:14px}
-.home-redesign .section-carousel .hero-section .hero-lede{font-size:1rem;margin-bottom:12px}
-.home-redesign .section-carousel .hero-section .hero-detail{margin-bottom:16px}
-.home-redesign .section-carousel .hero-section .trust-line{margin-top:6px;padding-bottom:4px}
-
-/* The footer must not ride along inside a slide: it belongs after the last
-   section, so it is taken out of the wheel flow. */
-.home-redesign .section-carousel ~ .home-footer,
-body.home-redesign.carousel-active .home-footer{position:relative;z-index:1}
-
-/* Stack vertically on small screens: horizontal slides fight mobile scroll
-   and short viewports cannot hold these sections. */
-@media(max-width:820px){
-  .home-redesign .section-carousel{
-    display:block;
-    overflow:visible;
-    scroll-snap-type:none;
-    height:auto;
-  }
-  .home-redesign .section-carousel > section{
-    flex:none;
-    width:auto;
-    min-width:0;
-    height:auto;
-    min-height:0;
-    overflow:visible;
-    scroll-snap-align:none;
-    padding-block:32px;
-  }
-  .carousel-controls{display:none}

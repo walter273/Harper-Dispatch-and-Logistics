@@ -106,6 +106,7 @@ const STATIC_FILES = new Set([
   'contact-portal.html',
   'style.css',
   'harper-theme.css',
+  'assets/harper-dispatch-logo.png',
   'assets/harper-brand-pair.png',
   'assets/harper-dispatch-office.png',
   'assets/harper-load-board.png',

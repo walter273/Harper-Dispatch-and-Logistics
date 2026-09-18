@@ -58,74 +58,67 @@ body.home-redesign{--bg:#061b33;--surface:#0b2b4a;--surface2:#103857;--ink:#f8f7
 .home-redesign [id]{scroll-margin-top:150px}
 @media(max-width:1100px){.home-dropdown:first-child .home-dropdown-panel{left:0;right:auto}}
 @media(max-width:440px){.home-redesign .home-nav{justify-content:space-between;gap:8px}.home-dropdown-panel{min-width:220px;max-width:calc(100vw - 30px)}.home-dropdown:nth-child(2) .home-dropdown-panel{left:50%;right:auto;transform:translateX(-50%)}.home-redesign [id]{scroll-margin-top:230px}}
-/* --- Homepage section carousel -------------------------------------------
-   The seven <section> children of <main> become horizontal slides that snap
-   one at a time, so the page turns like a wheel instead of scrolling away.
-   Scoped to body.home-redesign so no other page is affected.
+/* --- Homepage vertical section flip --------------------------------------
+   Sections stack normally and fill one screen each. Vertical scrolling snaps
+   between them, so a wheel notch or a flick advances exactly one section,
+   like flipping pages. Scoped to body.home-redesign.
 
-   Degradation: without scroll-snap support the track still scrolls normally
-   and every slide stays reachable, so the content is never trapped. */
-.home-redesign .section-carousel{
-  position:relative;
-  display:flex;
-  overflow-x:auto;
-  overflow-y:hidden;
-  scroll-snap-type:x mandatory;
+   Degradation: without scroll-snap the page is an ordinary vertical scroll and
+   every section remains readable, so nothing is ever unreachable. */
+.home-redesign .section-flip{
+  scroll-snap-type:y mandatory;
   scroll-behavior:smooth;
-  scrollbar-width:none;
-  -ms-overflow-style:none;
-  background:#061b33;
+  display:block;
 }
-.home-redesign .section-carousel::-webkit-scrollbar{display:none}
 
-/* One slide per screen. Each slide scrolls internally only if its content is
-   taller than the viewport, so tall sections (plans, command centre) remain
-   fully usable rather than being clipped. */
-/* Each slide fills the viewport so only one section is ever on screen.
-   The header is sticky at 85px, so slides subtract that and the control bar. */
-.home-redesign .section-carousel > section{
-  flex:0 0 100%;
-  width:100%;
-  min-width:100%;
+/* Every section is exactly one screen tall so the snap points are evenly
+   spaced. Uneven heights let one wheel notch jump two sections, because the
+   browser snaps to whichever boundary is nearest.
+   A section whose content exceeds the screen scrolls internally instead of
+   growing, so nothing is clipped and every section still snaps identically. */
+.home-redesign .section-flip > section{
   scroll-snap-align:start;
   scroll-snap-stop:always;
   height:calc(100vh - 85px);
-  min-height:480px;
   overflow-y:auto;
   overflow-x:hidden;
   overscroll-behavior:contain;
-  padding-block:24px 88px;
   display:flex;
   flex-direction:column;
   justify-content:center;
+  padding-block:40px 56px;
 }
-/* A slide whose content is genuinely taller than the viewport aligns to the
-   top instead of centring, so nothing is cut off at either end. */
-.home-redesign .section-carousel > section.overflowing{justify-content:flex-start}
-.home-redesign .section-carousel > section::-webkit-scrollbar{width:8px}
-.home-redesign .section-carousel > section::-webkit-scrollbar-thumb{background:#315775;border-radius:8px}
+/* Content taller than the screen aligns to the top so it reads from the start. */
+.home-redesign .section-flip > section.taller-than-view{justify-content:flex-start}
+.home-redesign .section-flip > section::-webkit-scrollbar{width:8px}
+.home-redesign .section-flip > section::-webkit-scrollbar-thumb{background:#315775;border-radius:8px}
 
-/* Keep in-page anchors working: the nav jumps to a slide, not a pixel offset. */
-.home-redesign [id]{scroll-margin-top:0}
+/* Keep in-page anchors landing on a whole section. */
+.home-redesign .section-flip [id]{scroll-margin-top:96px}
 
-/* --- Controls ------------------------------------------------------------ */
-.carousel-controls{
+/* --- Flip controls ------------------------------------------------------- */
+/* A compact vertical pill on the right edge. Kept narrow and centred so it
+   never overlaps the hero artwork on a short screen. */
+.flip-controls{
   position:fixed;
-  left:50%;
-  bottom:22px;
-  box-shadow:0 8px 24px rgba(0,12,26,.55);
-  transform:translateX(-50%);
+  right:14px;
+  top:50%;
   z-index:60;
   display:flex;
+  flex-direction:column;
   align-items:center;
-  gap:10px;
-  padding:7px 12px;
-  background:rgba(4,22,43,.82);
+  gap:8px;
+  padding:10px 6px;
+  background:rgba(4,22,43,.88);
   border:1px solid #315775;
   border-radius:999px;
   backdrop-filter:blur(6px);
+  box-shadow:0 8px 24px rgba(0,12,26,.55);
+  transform:translateY(-50%);
 }
-.carousel-controls button{
+/* Hide the whole control cluster when vertical space is tight. */
+@media(max-height:640px){.flip-controls{display:none}}
+.flip-controls button{
   width:34px;height:34px;
   display:grid;place-items:center;
   border-radius:50%;
@@ -137,24 +130,32 @@ body.home-redesign{--bg:#061b33;--surface:#0b2b4a;--surface2:#103857;--ink:#f8f7
   cursor:pointer;
   line-height:1;
 }
-.carousel-controls button:hover:not(:disabled){background:#174663;border-color:#ffda78}
-.carousel-controls button:disabled{opacity:.35;cursor:default}
-.carousel-controls button:focus-visible{outline:3px solid #ffc54a;outline-offset:2px}
-.carousel-dots{display:flex;gap:7px;align-items:center}
-.carousel-dots button{
+.flip-controls button:hover:not(:disabled){background:#174663;border-color:#ffda78}
+.flip-controls button:disabled{opacity:.35;cursor:default}
+.flip-controls button:focus-visible{outline:3px solid #ffc54a;outline-offset:2px}
+.flip-dots{display:flex;flex-direction:column;gap:7px;align-items:center}
+.flip-dots button{
   width:9px;height:9px;padding:0;
   border-radius:50%;
   border:1px solid #6c8ba8;
   background:transparent;
   cursor:pointer;
 }
-.carousel-dots button[aria-current="true"]{background:#ffda78;border-color:#ffda78;width:22px;border-radius:6px}
-.carousel-progress{color:#bfcede;font-size:.74rem;font-weight:700;letter-spacing:.06em;min-width:44px;text-align:center}
+.flip-dots button[aria-current="true"]{background:#ffda78;border-color:#ffda78;height:18px;border-radius:6px}
+.flip-progress{color:#dbe7f1;font-size:.68rem;font-weight:800;letter-spacing:.02em;writing-mode:vertical-rl;line-height:1}
 
 /* Reduce motion: turn snapping off entirely. */
 @media(prefers-reduced-motion:reduce){
-  .home-redesign .section-carousel{scroll-behavior:auto;scroll-snap-type:none}
-  .home-redesign .section-carousel > section{scroll-snap-align:none}
+  .home-redesign .section-flip{scroll-behavior:auto;scroll-snap-type:none}
+  .home-redesign .section-flip > section{scroll-snap-align:none}
+}
+
+/* Below the desktop breakpoint the sidebar controls crowd the content, so the
+   page falls back to an ordinary vertical scroll without them. */
+@media(max-width:960px){
+  .home-redesign .section-flip{scroll-snap-type:none}
+  .home-redesign .section-flip > section{min-height:0;padding-block:40px}
+  .flip-controls{display:none}
 }
 
 /* Keep the hero from forcing the slide taller than the viewport. */

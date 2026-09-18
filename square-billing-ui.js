@@ -1,8 +1,33 @@
 (() => {
   const el = id => document.getElementById(id);
+  // Read the body as text first, then parse. Calling response.json() directly
+  // throws a raw parse error ("Unexpected token ...") whenever the server
+  // answers with HTML, plain text or an empty body, and that message was
+  // surfacing to the customer on the payment page.
   async function request(path, body) {
-    const response = await fetch(path,{ method: body ? 'POST' : 'GET', credentials:'same-origin', headers: body ? {'Content-Type':'application/json'} : {}, ...(body ? {body:JSON.stringify(body)} : {}) });
-    const result = await response.json(); if (!response.ok) throw new Error(result.error || 'Billing is unavailable.'); return result;
+    let response;
+    try {
+      response = await fetch(path,{ method: body ? 'POST' : 'GET', credentials:'same-origin', headers: body ? {'Content-Type':'application/json'} : {}, ...(body ? {body:JSON.stringify(body)} : {}) });
+    } catch (networkError) {
+      throw new Error('Could not reach billing. Check your connection and try again.');
+    }
+
+    const raw = await response.text();
+    let result = null;
+    if (raw) {
+      try { result = JSON.parse(raw); }
+      catch (parseError) {
+        // Not JSON at all. Never show the parser message to a customer.
+        throw new Error(response.ok
+          ? 'Billing returned an unexpected response. Please try again.'
+          : 'Billing is temporarily unavailable. Please try again shortly.');
+      }
+    }
+
+    if (!response.ok) {
+      throw new Error((result && result.error) || 'Billing is temporarily unavailable. Please try again shortly.');
+    }
+    return result || {};
   }
   function render(value) {
     const e = value.entry;

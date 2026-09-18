@@ -160,3 +160,123 @@ html.reveal-ready .home-redesign .reveal.reveal-in > *:nth-child(4){animation-de
 
 
 
+/* --- Unified header navigation ------------------------------------------
+   Every page loads this stylesheet, so the shared header menu is styled here
+   rather than in a page-specific file. Covers both the public menu and the
+   simpler menu on signed in pages. */
+header nav.public-nav{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:flex-end;
+  gap:10px 18px;
+  margin-left:auto;
+}
+.public-nav-group{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:10px 16px;
+  padding-right:16px;
+  border-right:1px solid #315775;
+}
+.public-nav-group:last-of-type{border-right:0;padding-right:0}
+.public-nav a{
+  color:#dbe5ef;
+  text-decoration:none;
+  font-weight:600;
+  font-size:.92rem;
+  white-space:nowrap;
+}
+.public-nav a:hover{color:#ffda78;text-decoration:underline}
+.public-nav-cta{
+  padding:8px 15px;
+  border:1px solid #5b7d9b;
+  border-radius:8px;
+}
+.public-nav-cta:hover{border-color:#ffda78;text-decoration:none}
+.public-nav-signin{
+  padding:9px 17px;
+  background:linear-gradient(120deg,#ffda70,#e7a52b);
+  color:#06223d !important;
+  border-radius:8px;
+  font-weight:800;
+}
+.public-nav-signin:hover{color:#06223d !important;text-decoration:none}
+
+/* Brand block: stack the company name above the parent line. */
+header .public-brand,
+header .alpha-brand{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  flex-shrink:0;
+}
+header .public-brand > span:last-child,
+header .alpha-brand > span:last-child{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  line-height:1.2;
+  min-width:0;
+}
+header .public-brand strong,
+header .alpha-brand strong{
+  display:block;
+  color:#ffffff;
+  font-size:.96rem;
+  font-weight:800;
+  letter-spacing:.02em;
+  line-height:1.25;
+}
+header .public-brand small,
+header .alpha-brand small{
+  display:block;
+  color:#9fb5ca;
+  font-size:.66rem;
+  font-weight:700;
+  letter-spacing:.12em;
+  line-height:1.3;
+  margin-top:3px;
+}
+header .harper-emblem{align-self:center}
+
+/* --- Signed in application header ---------------------------------------
+   These pages use a three part topbar: brand, menu, and an action button.
+   The menu needs to flex between them without pushing the button off screen. */
+header.topbar nav.public-nav{
+  flex:1 1 auto;
+  min-width:0;
+  justify-content:center;
+  /* The groups must stay on ONE line. Allowing them to wrap let them
+     overflow the fixed height of the topbar, hiding seven of the nine
+     links entirely. The header is allowed to grow instead. */
+  flex-wrap:nowrap;
+  overflow:visible;
+}
+header.topbar .public-nav-group{
+  gap:8px 14px;
+  flex-wrap:nowrap;
+}
+header.topbar .public-nav a{font-size:.86rem}
+/* The menu already links to the load board, so the duplicate action button
+   is redundant on a narrow header and is dropped. */
+header.topbar .header-actions{display:none}
+/* The topbar must size to its content, not clip a taller menu. */
+header.topbar{
+  height:auto;
+  min-height:110px;
+  flex-wrap:nowrap;
+  align-items:center;
+}
+
+/* Narrow screens: brand on its own row, menu beneath it. */
+@media(max-width:980px){
+  header{flex-wrap:wrap;gap:12px}
+  header nav.public-nav{justify-content:flex-start;width:100%;margin-left:0}
+  .public-nav-group{padding-right:0;border-right:0}
+  header .public-brand strong,
+  header .alpha-brand strong{font-size:.9rem}
+  header .public-brand small,
+  header .alpha-brand small{font-size:.62rem;letter-spacing:.08em}
+}

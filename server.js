@@ -1040,11 +1040,27 @@ const browserVoice = require('./browser-voice').createBrowserVoice({ getStore: (
 committedStore = structuredClone(store);
 persistStore();
 
-if (ACCOUNT_AUTH && store.accounts.users.length === 0 && process.env.ALPHAWAY_ADMIN_EMAIL && process.env.ALPHAWAY_ADMIN_PASSWORD) {
-  const credentials = hashPassword(process.env.ALPHAWAY_ADMIN_PASSWORD);
-  store.accounts.companies.push({ id: 'alphaway', name: 'Harper Dispatch and Logistics', type: 'organization', status: 'active', createdAt: Date.now() });
-  store.accounts.users.push({ id: 'user-admin', email: process.env.ALPHAWAY_ADMIN_EMAIL.trim().toLowerCase(), name: 'Harper Administrator', role: 'admin', companyId: 'alphaway', status: 'active', passwordSalt: credentials.salt, passwordHash: credentials.hash, createdAt: Date.now() });
-  persistStore();
+// Admin account bootstrap.
+// The configured password must actually take effect. The account used to be created
+// only when there were no users at all, so changing ALPHAWAY_ADMIN_PASSWORD later did
+// nothing and the old password kept working. The configured email is now authoritative:
+// when that user already exists, its password is refreshed to match on every start.
+if (ACCOUNT_AUTH && process.env.ALPHAWAY_ADMIN_EMAIL && process.env.ALPHAWAY_ADMIN_PASSWORD) {
+  const adminEmail = process.env.ALPHAWAY_ADMIN_EMAIL.trim().toLowerCase();
+  const adminCredentials = hashPassword(process.env.ALPHAWAY_ADMIN_PASSWORD);
+  const existingAdmin = store.accounts.users.find(u => u.email === adminEmail);
+  if (!existingAdmin) {
+    store.accounts.companies.push({ id: 'alphaway', name: 'Harper Dispatch and Logistics', type: 'organization', status: 'active', createdAt: Date.now() });
+    store.accounts.users.push({ id: 'user-admin', email: adminEmail, name: 'Harper Administrator', role: 'admin', companyId: 'alphaway', status: 'active', passwordSalt: adminCredentials.salt, passwordHash: adminCredentials.hash, createdAt: Date.now() });
+    persistStore();
+  }
+  else if (existingAdmin.passwordHash !== adminCredentials.hash) {
+    existingAdmin.passwordSalt = adminCredentials.salt;
+    existingAdmin.passwordHash = adminCredentials.hash;
+    existingAdmin.role = 'admin';
+    existingAdmin.status = 'active';
+    persistStore();
+  }
 }
 
 const server = http.createServer(async (request, response) => {

@@ -309,3 +309,55 @@ header nav.public-nav a{
 @media(max-width:900px){
   header nav.public-nav{justify-content:flex-start}
 }
+
+/* --- Application menu dropdowns ------------------------------------------
+   The signed in menu carried eleven links on one row, which cannot fit at any
+   ordinary window width. They are grouped into three dropdowns so the header
+   stays on one line, matching how the homepage already works. */
+.public-dropdown{position:relative;display:inline-block}
+.public-dropdown>summary{
+  list-style:none;
+  cursor:pointer;
+  color:#dbe5ef;
+  font-weight:600;
+  font-size:.92rem;
+  padding:8px 4px;
+  white-space:nowrap;
+  user-select:none;
+}
+.public-dropdown>summary::-webkit-details-marker{display:none}
+.public-dropdown>summary:hover{color:#ffda78}
+.public-dropdown[open]>summary{color:#ffda78}
+/* Closed details must stay hidden. Setting display:flex unconditionally
+   would override the browser and show every panel at once. */
+.public-dropdown:not([open])>.public-dropdown-panel{display:none}
+.public-dropdown[open]>.public-dropdown-panel{
+  position:absolute;
+  top:calc(100% + 8px);
+  left:0;
+  z-index:80;
+  min-width:200px;
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  padding:10px;
+  background:#0b2b4a;
+  border:1px solid #315775;
+  border-radius:10px;
+  box-shadow:0 14px 34px rgba(0,12,26,.55);
+}
+.public-dropdown-panel a{
+  display:block;
+  padding:8px 10px;
+  border-radius:6px;
+  color:#dbe5ef;
+  text-decoration:none;
+  font-size:.9rem;
+  white-space:nowrap;
+}
+.public-dropdown-panel a:hover{background:#123e60;color:#ffda78;text-decoration:none}
+/* Never let a dropdown run off the right edge of the screen. */
+.public-dropdown:last-of-type .public-dropdown-panel{left:auto;right:0}
+@media(max-width:900px){
+  .public-dropdown-panel{position:static;box-shadow:none;border:0;background:transparent;padding:4px 0 4px 12px}
+}

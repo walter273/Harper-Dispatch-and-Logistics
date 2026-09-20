@@ -361,3 +361,32 @@ header nav.public-nav a{
 @media(max-width:900px){
   .public-dropdown-panel{position:static;box-shadow:none;border:0;background:transparent;padding:4px 0 4px 12px}
 }
+
+/* --- Header width override ----------------------------------------------
+   public-preview.css caps the header at 1150px and loads after this file, so
+   its max-width won on every page and the eleven item menu overflowed it.
+   These rules are deliberately more specific, and use !important on the cap
+   alone, so the header can use the full width of the screen. */
+body header,
+body > header{
+  max-width:100% !important;
+  width:100%;
+  box-sizing:border-box;
+  flex-wrap:wrap;
+}
+body header nav.public-nav,
+body > header nav.public-nav{
+  flex:1 1 auto;
+  min-width:0;
+  max-width:100%;
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:flex-end;
+  gap:10px 16px;
+}
+body header nav.public-nav > a,
+body header nav.public-nav .public-nav-group > a{
+  flex:0 0 auto;
+  white-space:nowrap;
+}

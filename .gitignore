@@ -1,4 +1,4 @@
-# Runtime data is created by the local app and may contain operational requests.
+﻿# Runtime data is created by the local app and may contain operational requests.
 data/alphaway-store.json
 data/*.tmp
 data/
@@ -14,3 +14,6 @@ node_modules/
 .env.*
 !.env.example
 .DS_Store
+
+# Local working copies created by another tool. Not part of the site.
+*-Goku.*

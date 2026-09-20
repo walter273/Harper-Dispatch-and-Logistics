@@ -280,3 +280,32 @@ header.topbar{
   header .public-brand small,
   header .alpha-brand small{font-size:.62rem;letter-spacing:.08em}
 }
+
+/* --- Header layout -------------------------------------------------------
+   public-preview.css constrains the header to a max width but never made it
+   a flex container, so the nav links collapsed together with no gaps and
+   drifted past the right edge of the page. These rules give the header a real
+   two part layout that wraps instead of overflowing. */
+header{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:14px 20px;
+  max-width:100%;
+}
+header nav.public-nav{
+  flex:1 1 auto;
+  min-width:0;
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:flex-end;
+  gap:10px 16px;
+}
+header nav.public-nav a{
+  flex:0 0 auto;
+  text-decoration:none;
+}
+@media(max-width:900px){
+  header nav.public-nav{justify-content:flex-start}
+}

@@ -276,6 +276,10 @@ function networkAccessTokenIsValid(token) {
 
 function hasNetworkAccess(request) {
   if (!PRIVATE_NETWORK) return true;
+  // The private-network invitation is a carrier gate. Staff already have an
+  // authenticated, role-checked account and must be able to open Admin and
+  // other operations pages without also carrying a carrier invitation cookie.
+  if (staff(accountFromRequest(request))) return true;
   return networkAccessTokenIsValid(parseCookies(request)[NETWORK_ACCESS_COOKIE]);
 }
 

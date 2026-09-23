@@ -979,11 +979,16 @@ function serveStatic(request, response, pathname) {
   if (privatePages.has(requestedPath)) {
     const actor = accountFromRequest(request);
     if (!actor) {
+      console.warn('[page.access] sign-in required', { page: requestedPath });
       response.writeHead(302, responseHeaders({ Location: `/access.html?next=${encodeURIComponent(requestedPath)}`, 'Cache-Control': 'no-store' }));
       response.end(); return;
     }
-    if (rolePermissions.pages[requestedPath] && !rolePermissions.allowed(actor.role, rolePermissions.pages[requestedPath])) { sendJson(response,403,{error:'This tool is not included for your account role.'}); return; }
+    if (rolePermissions.pages[requestedPath] && !rolePermissions.allowed(actor.role, rolePermissions.pages[requestedPath])) {
+      console.warn('[page.access] role denied', { page: requestedPath, role: actor.role });
+      sendJson(response,403,{error:'This tool is not included for your account role.'}); return;
+    }
     if ((requestedPath === 'admin.html' && actor.role !== 'admin') || (requestedPath === 'intake-review.html' && !['admin','dispatcher'].includes(actor.role))) {
+      console.warn('[page.access] staff role denied', { page: requestedPath, role: actor.role });
       sendJson(response, 403, { error: 'Your account cannot access this staff page.' }); return;
     }
   }
@@ -1344,6 +1349,8 @@ const server = http.createServer(async (request, response) => {
       return;
     }
     if (!hasNetworkAccess(request) && ['/api/app', '/api/events'].includes(pathname)) {
+      const actor = accountFromRequest(request);
+      console.warn('[network.access] invitation required', { path: pathname, signedIn: Boolean(actor), role: actor?.role || null });
       sendNetworkAccessRequired(response);
       return;
     }
@@ -1352,6 +1359,7 @@ const server = http.createServer(async (request, response) => {
       const body = await readJson(request, 16 * 1024);
       const user = store.accounts.users.find((entry) => entry.email === cleanText(body?.email, '', 160).toLowerCase());
       if (!user || user.status !== 'active' || !verifyPassword(body?.password, user)) {
+        console.warn('[account.signin] denied', { accountFound: Boolean(user), accountActive: user?.status === 'active' });
         throw reject(401, 'Invalid credentials or inactive account.');
       }
       const rawToken = crypto.randomBytes(32).toString('hex');
@@ -1362,6 +1370,7 @@ const server = http.createServer(async (request, response) => {
       }].slice(-1000);
       addAudit(user.id, 'account.signin', user.id);
       persistStore();
+      console.info('[account.signin] success', { role: user.role });
       sendJson(response, 200, { account: { id: user.id, name: user.name, email: user.email, role: user.role, companyId: user.companyId } }, {
         'Set-Cookie': `${ACCOUNT_COOKIE}=${rawToken}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${ACCOUNT_SESSION_DAYS * 86400}${(SECURE_COOKIES || request.socket.encrypted) ? '; Secure' : ''}`
       });

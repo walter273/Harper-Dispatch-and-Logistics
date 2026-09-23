@@ -1,4 +1,9 @@
 (() => {
+  const guestSignIn = document.querySelector('.public-nav-signin[href="/index.html"]');
+  if (guestSignIn) {
+    guestSignIn.href = '/access.html';
+    guestSignIn.textContent = 'Sign in';
+  }
   const status = document.getElementById('onboardingStatus'), steps = document.getElementById('onboardingSteps');
   const labels = { approval: 'Application approval', evidence: 'Documents and agreement reviewed', account: 'Account created', dispatcher: 'Dispatcher assigned', payment: 'Payment setup confirmed' };
   async function refresh() {

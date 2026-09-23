@@ -393,3 +393,26 @@ body header nav.public-nav .public-nav-group > a{
   flex:0 0 auto;
   white-space:nowrap;
 }
+
+/* --- Guest navigation ---------------------------------------------------
+   Public pages carry a fuller menu than the signed-in workspace. Give that
+   menu a real flexible row so Member sign in stays reachable instead of
+   being pushed past the right edge by the brand or grouped links. */
+body:not(.home-redesign) > header:not(.topbar) nav.public-nav{
+  flex:1 1 680px;
+  margin-left:auto;
+}
+body:not(.home-redesign) > header:not(.topbar) .public-nav-group{
+  flex:1 1 270px;
+  min-width:0;
+}
+body:not(.home-redesign) > header:not(.topbar) .public-nav-signin{
+  flex:0 0 auto;
+}
+@media(max-width:1180px){
+  body:not(.home-redesign) > header:not(.topbar) nav.public-nav{
+    flex-basis:100%;
+    margin-left:0;
+    justify-content:flex-start;
+  }
+}

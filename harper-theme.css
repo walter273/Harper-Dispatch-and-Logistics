@@ -245,18 +245,17 @@ header .harper-emblem{align-self:center}
    These pages use a three part topbar: brand, menu, and an action button.
    The menu needs to flex between them without pushing the button off screen. */
 header.topbar nav.public-nav{
-  flex:1 1 auto;
+  flex:1 1 680px;
   min-width:0;
-  justify-content:center;
-  /* The groups must stay on ONE line. Allowing them to wrap let them
-     overflow the fixed height of the topbar, hiding seven of the nine
-     links entirely. The header is allowed to grow instead. */
-  flex-wrap:nowrap;
+  justify-content:flex-end;
+  /* The role-aware menu gains Admin and Intake review after sign-in. Let it
+     wrap inside the header instead of forcing its last controls off-screen. */
+  flex-wrap:wrap;
   overflow:visible;
 }
 header.topbar .public-nav-group{
   gap:8px 14px;
-  flex-wrap:nowrap;
+  flex-wrap:wrap;
 }
 header.topbar .public-nav a{font-size:.86rem}
 /* The menu already links to the load board, so the duplicate action button
@@ -266,8 +265,12 @@ header.topbar .header-actions{display:none}
 header.topbar{
   height:auto;
   min-height:110px;
-  flex-wrap:nowrap;
+  flex-wrap:wrap;
   align-items:center;
+}
+
+@media(max-width:1180px){
+  header.topbar nav.public-nav{justify-content:flex-start}
 }
 
 /* Narrow screens: brand on its own row, menu beneath it. */

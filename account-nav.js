@@ -256,10 +256,9 @@
       .then((payload) => ensureAssignmentBridge(payload.account))
       .catch(() => {});
   });
-  if (isLiveOperationsPage() && typeof MutationObserver !== 'undefined' && document.body) {
-    const observer = new MutationObserver(() => polishOperationalCopy());
-    observer.observe(document.body, { childList: true, subtree: true });
-  }
+  // The explicit account and app-update events above keep operational copy in
+  // sync. Watching the entire page here can recursively queue mutations when
+  // this script updates text, leaving the Admin page unresponsive.
   const initialRevision = revision;
   fetch('/api/accounts/me', { credentials: 'same-origin', cache: 'no-store' })
     .then((response) => response.ok ? response.json() : { account: null })

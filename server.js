@@ -80,6 +80,7 @@ const sseClients = new Set();
 const rateLimitBuckets = new Map();
 
 const STATIC_FILES = new Set([
+  'robots.txt', 'sitemap.xml', 'favicon.ico',
   'inbox-loader.js', 'inbox-auth.html', 'inbox-bridge.bundle.js', 'home-reveal.js', 'command-board.css',
   'role-permissions.js', 'role-workspace.js', 'browser-voice-ui.js',
   'product-load-board.html',
@@ -957,6 +958,8 @@ function contentTypeFor(filePath) {
   if (path.basename(filePath) === 'css2') return 'text/css; charset=utf-8';
   const extension = path.extname(filePath).toLowerCase();
   return {
+    '.txt': 'text/plain; charset=utf-8',
+    '.xml': 'application/xml; charset=utf-8',
     '.html': 'text/html; charset=utf-8',
     '.js': 'text/javascript; charset=utf-8',
     '.css': 'text/css; charset=utf-8',

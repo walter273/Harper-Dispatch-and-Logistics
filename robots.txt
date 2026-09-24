@@ -1,0 +1,15 @@
+User-agent: *
+Disallow: /api/
+Disallow: /access.html
+Disallow: /accept-invitation.html
+Disallow: /applicant-response.html
+Disallow: /inbox-auth.html
+Disallow: /workspace.html
+Disallow: /admin.html
+Disallow: /loadboard.html
+Disallow: /tms.html
+Disallow: /planning-tools.html
+Disallow: /intake-review.html
+Disallow: /square-billing.html
+
+Sitemap: https://www.harperloadboard.com/sitemap.xml

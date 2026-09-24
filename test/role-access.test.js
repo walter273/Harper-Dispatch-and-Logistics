@@ -1,4 +1,4 @@
-﻿const {test}=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');const os=require('node:os');const path=require('node:path');
+const {test}=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');const os=require('node:os');const path=require('node:path');
 const {start}=require('../test-support/server');const {seed}=require('../test-support/review-fixture');
 test('roles restrict direct pages, operational writes, catalog and plan selection',async t=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'harper-roles-')),file=path.join(dir,'store.json');const {tokens}=seed(file);const app=await start({HARPER_DATA_FILE:file,HARPER_ACCOUNT_AUTH:'true'});

@@ -1,4 +1,4 @@
-﻿# Harper Load Board 
+# Harper Load Board 
 Powered by Harper Dispatch and Logistics (private prototype)
 
 

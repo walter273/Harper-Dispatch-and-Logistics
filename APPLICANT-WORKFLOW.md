@@ -1,4 +1,4 @@
-﻿# Applicant onboarding
+# Applicant onboarding
 
 Staff still verify evidence and an administrator makes approval or denial decisions. Check Email this decision and write the applicant message when recording an approval, denial, or needs-information status. Internal review notes are never included. Existing applications are not automatically notified.
 

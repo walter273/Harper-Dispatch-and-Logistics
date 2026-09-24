@@ -1,4 +1,4 @@
-﻿# Harper Load Board launch audit
+# Harper Load Board launch audit
 
 Date: 2026-09-15
 

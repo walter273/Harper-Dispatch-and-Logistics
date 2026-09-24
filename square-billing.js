@@ -1,4 +1,4 @@
-﻿const crypto = require('node:crypto');
+const crypto = require('node:crypto');
 const { plans, isDispatchPlan } = require('./dispatch-plans');
 const fail = (statusCode, message) => Object.assign(new Error(message), { statusCode });
 const money = amount => ({ amount, currency: 'USD' });

@@ -1,4 +1,4 @@
-﻿# Intake review
+# Intake review
 
 Open `/intake-review.html` from the staff navigation or the Admin page. All queue, detail, history, and export APIs require an active admin or dispatcher account, including local configurations without preview Basic authentication. Customer roles cannot read or change these records.
 

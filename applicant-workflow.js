@@ -1,4 +1,4 @@
-﻿const crypto = require('node:crypto');
+const crypto = require('node:crypto');
 const DAY = 86400000;
 const email = value => typeof value === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 const fail = (message, statusCode = 400) => { throw Object.assign(new Error(message), { statusCode }); };

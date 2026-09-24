@@ -1,4 +1,4 @@
-﻿# Persistence and account boundaries
+# Persistence and account boundaries
 
 This service is a single-process Node application with an atomic JSON store. Keep one Railway replica and mount the service volume at `/app/data`. Set `HARPER_DATA_FILE=/app/data/harper-store.json`. Uploaded document files use the sibling `documents` directory.
 

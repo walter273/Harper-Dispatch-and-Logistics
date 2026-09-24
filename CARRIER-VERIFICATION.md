@@ -1,4 +1,4 @@
-﻿# Automatic carrier screening
+# Automatic carrier screening
 
 New carrier intakes receive a server-generated screening report. Staff can run
 checks on older intakes or refresh them in Intake Review. Reports include the

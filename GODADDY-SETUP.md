@@ -1,4 +1,4 @@
-﻿> Historical alternative-host guide. The active app uses Railway; see README.md and OPERATIONS-READINESS.md. Old example Price IDs require replacement with prices matching the current carrier terms.
+> Historical alternative-host guide. The active app uses Railway; see README.md and OPERATIONS-READINESS.md. Old example Price IDs require replacement with prices matching the current carrier terms.
 
 # GoDaddy setup for Harper Dispatch and Logistics
 

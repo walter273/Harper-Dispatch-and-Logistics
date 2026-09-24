@@ -1,4 +1,4 @@
-﻿const path = require('node:path');
+const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { once } = require('node:events');
 async function start(extra = {}) {

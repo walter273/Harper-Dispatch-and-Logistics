@@ -1,4 +1,4 @@
-﻿const http = require('node:http');
+const http = require('node:http');
 const rolePermissions = require('./role-permissions');
 const crypto = require('node:crypto');
 const fs = require('node:fs');

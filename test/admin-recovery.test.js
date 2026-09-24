@@ -79,3 +79,23 @@ test('stale duplicate account cookies cannot override a valid sign-in and logout
   await fetch(app.url+'/api/accounts/signout',{method:'POST',headers:{'content-type':'application/json',cookie:valid+'; harper_account=expired'},body:'{}'});
   assert.equal((await fetch(app.url+'/workspace.html',{headers:{cookie:valid},redirect:'manual'})).status,302);
 });
+
+test('sessions bind to the authenticated email when legacy account IDs collide', async t => {
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'harper-collision-'));
+  const file=path.join(dir,'store.json');
+  fs.writeFileSync(file,JSON.stringify({loads:[],operations:{},accounts:{companies:[],users:[
+    {id:'user-admin',email:'old@example.com',status:'suspended',role:'driver'},
+    {id:'user-admin',email:'admin@example.com',status:'active',role:'admin'}],sessions:[]}}));
+  const config={HARPER_DATA_FILE:file,HARPER_ACCOUNT_AUTH:'true',HARPER_ADMIN_EMAIL:'admin@example.com',HARPER_ADMIN_PASSWORD:'collision-test-password-123'};
+  let app=await start(config);
+  t.after(async()=>{await app.stop();fs.rmSync(dir,{recursive:true,force:true});});
+  const login=await fetch(app.url+'/api/accounts/signin',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:'admin@example.com',password:'collision-test-password-123'})});
+  assert.equal(login.status,200);
+  const cookie=login.headers.get('set-cookie').split(';')[0];
+  for(let i=0;i<2;i++) {
+    const me=await (await fetch(app.url+'/api/accounts/me',{headers:{cookie}})).json();
+    assert.equal(me.account.email,'admin@example.com');
+    assert.equal((await fetch(app.url+'/workspace.html',{headers:{cookie},redirect:'manual'})).status,200);
+    if(i===0){await app.stop();app=await start(config);}
+  }
+});

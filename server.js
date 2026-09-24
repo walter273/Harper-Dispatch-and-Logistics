@@ -304,7 +304,8 @@ function accountFromRequest(request) {
   for (const raw of accountTokens(request)) {
     const tokenHash = crypto.createHash('sha256').update(raw).digest('hex');
     const session = store.accounts.sessions.find(entry => entry.tokenHash === tokenHash && entry.expiresAt > Date.now());
-    const user = session && store.accounts.users.find(entry => entry.id === session.userId);
+    const users = session ? store.accounts.users.filter(entry => entry.id === session.userId && (!session.accountEmail || entry.email === session.accountEmail)) : [];
+    const user = users.length === 1 ? users[0] : null;
     if (user?.status === 'active') return user;
   }
   return null;
@@ -717,6 +718,7 @@ function normalizeAccounts(candidate) {
   const sessions = Array.isArray(source.sessions) ? source.sessions.slice(-1000).filter((session) => session?.tokenHash && session?.userId).map((session) => ({
     tokenHash: cleanText(session.tokenHash, '', 160),
     userId: cleanText(session.userId, '', 80),
+    accountEmail: cleanText(session.accountEmail, '', 160).toLowerCase(),
     expiresAt: cleanNumber(session.expiresAt, 0, 0, Number.MAX_SAFE_INTEGER)
   })) : [];
   const audit = Array.isArray(source.audit) ? source.audit.slice(-1000).map((entry) => ({
@@ -1380,6 +1382,7 @@ const server = http.createServer(async (request, response) => {
       store.accounts.sessions = [...store.accounts.sessions, {
         tokenHash: crypto.createHash('sha256').update(rawToken).digest('hex'),
         userId: user.id,
+        accountEmail: user.email,
         expiresAt: Date.now() + ACCOUNT_SESSION_DAYS * 86400000
       }].slice(-1000);
       addAudit(user.id, 'account.signin', user.id);
@@ -1417,7 +1420,7 @@ const server = http.createServer(async (request, response) => {
       invitation.status = 'accepted';
       addAudit(user.id, 'account.accept-invitation', user.id);
       const rawToken = crypto.randomBytes(32).toString('hex');
-      store.accounts.sessions.push({ tokenHash: crypto.createHash('sha256').update(rawToken).digest('hex'), userId: user.id, expiresAt: Date.now() + ACCOUNT_SESSION_DAYS * 86400000 });
+      store.accounts.sessions.push({ tokenHash: crypto.createHash('sha256').update(rawToken).digest('hex'), userId: user.id, accountEmail: user.email, expiresAt: Date.now() + ACCOUNT_SESSION_DAYS * 86400000 });
       persistStore();
       sendJson(response, 201, { account: { id: user.id, name, email: user.email, role: user.role, companyId: user.companyId } }, {
         'Set-Cookie': `${ACCOUNT_COOKIE}=${rawToken}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${ACCOUNT_SESSION_DAYS * 86400}${cookieSecurity(request)}${cookieDomain(request)}`

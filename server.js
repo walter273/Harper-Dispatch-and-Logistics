@@ -147,8 +147,11 @@ const SECURITY_HEADERS = Object.freeze({
   'X-Frame-Options': 'DENY'
 });
 
-if (HOSTED && (!REQUIRE_PREVIEW_AUTH || !PRIVATE_NETWORK || !ACCOUNT_AUTH)) {
-  throw new Error('Hosted previews require HARPER_REQUIRE_AUTH, HARPER_PRIVATE_NETWORK, and HARPER_ACCOUNT_AUTH=true.');
+if (HOSTED && !ACCOUNT_AUTH) {
+  throw new Error('Hosted deployments require HARPER_ACCOUNT_AUTH=true.');
+}
+if (HOSTED && (!ACCOUNT_SESSION_SECRET || ACCOUNT_SESSION_SECRET === 'local-account-secret')) {
+  throw new Error('Hosted deployments require a private account session secret.');
 }
 if (!BIND_HOST) throw new Error('HARPER_HOST must not be blank.');
 if (REQUIRE_PREVIEW_AUTH && (!PREVIEW_USERNAME || !PREVIEW_PASSWORD)) {

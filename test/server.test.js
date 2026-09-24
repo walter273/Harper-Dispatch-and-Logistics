@@ -103,3 +103,20 @@ test('company boundaries apply to HTTP snapshots, stream updates, invitations an
 });
 
 
+
+
+test('production serves public pages while protecting operational pages and APIs', async t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'harper-public-production-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const app = await start({ NODE_ENV: 'production', HARPER_ACCOUNT_AUTH: 'true', HARPER_ACCOUNT_SESSION_SECRET: crypto.randomBytes(32).toString('hex'), HARPER_DATA_FILE: path.join(dir, 'store.json') });
+  t.after(() => app.stop());
+  for (const route of ['/', '/robots.txt', '/sitemap.xml', '/favicon.ico', '/api/health']) {
+    assert.equal((await fetch(app.url + route)).status, 200, route);
+  }
+  for (const route of ['/admin.html', '/workspace.html', '/loadboard.html']) {
+    assert.equal((await fetch(app.url + route, { redirect: 'manual' })).status, 302, route);
+  }
+  for (const route of ['/api/operations', '/api/accounts/users', '/api/inbox/config']) {
+    assert.equal((await fetch(app.url + route)).status, 401, route);
+  }
+});

@@ -489,8 +489,8 @@ function createStore() {
     intakeReviews: {},
     operations: normalizeOperations(),
     accounts: normalizeAccounts(seeded ? {
-      companies: [{ id: 'alphaway', name: 'Harper Dispatch and Logistics', type: 'organization', status: 'active' }],
-      users: [{ id: 'user-admin', email: adminEmail, name: 'Harper Administrator', role: 'admin', companyId: 'alphaway', status: 'active', passwordSalt: seeded.salt, passwordHash: seeded.hash }]
+      companies: [{ id: 'harper', name: 'Harper Dispatch and Logistics', type: 'organization', status: 'active' }],
+      users: [{ id: 'user-admin', email: adminEmail, name: 'Harper Administrator', role: 'admin', companyId: 'harper', status: 'active', passwordSalt: seeded.salt, passwordHash: seeded.hash }]
     } : {})
   };
 }
@@ -1034,12 +1034,54 @@ const squareWorkflow = require('./square-workflow').createSquareWorkflow({ billi
 } });
 const squareTimer = setInterval(() => { squareWorkflow.reconcile().catch(() => {}); }, 60000);
 squareTimer.unref();
-// Rename only the application's legacy default labels; retain tenant IDs and history.
+// The default company was created as 'alphaway' before the Harper rename. Its ID is
+// a data key that every account, workflow, invitation, subscription and audit
+// record points at, so renaming the label alone would leave those references
+// dangling. Move the ID and every reference in the same pass, and keep the label
+// rewrite that corrects the display name.
+const LEGACY_COMPANY_ID = 'alphaway';
+const DEFAULT_COMPANY_ID = 'harper';
+if (!store.accounts.companies.some((c) => c.id === DEFAULT_COMPANY_ID)) {
+  let moved = false;
+  for (const company of store.accounts.companies) {
+    if (company.id === LEGACY_COMPANY_ID) { company.id = DEFAULT_COMPANY_ID; moved = true; }
+  }
+  if (moved) {
+    for (const user of store.accounts.users) {
+      if (user.companyId === LEGACY_COMPANY_ID) user.companyId = DEFAULT_COMPANY_ID;
+    }
+    for (const session of store.accounts.sessions || []) {
+      if (session.companyId === LEGACY_COMPANY_ID) session.companyId = DEFAULT_COMPANY_ID;
+    }
+    for (const invitation of store.accounts.invitations || []) {
+      if (invitation.companyId === LEGACY_COMPANY_ID) invitation.companyId = DEFAULT_COMPANY_ID;
+    }
+    for (const subscription of store.operations.billingSubscriptions || []) {
+      if (subscription.companyId === LEGACY_COMPANY_ID) subscription.companyId = DEFAULT_COMPANY_ID;
+    }
+    for (const entry of store.squareBilling || []) {
+      if (entry.companyId === LEGACY_COMPANY_ID) entry.companyId = DEFAULT_COMPANY_ID;
+    }
+    for (const entry of store.dispatchRequests || []) {
+      if (entry.companyId === LEGACY_COMPANY_ID) entry.companyId = DEFAULT_COMPANY_ID;
+    }
+    for (const workflow of Object.values(store.applicantWorkflows || {})) {
+      if (workflow.companyId === LEGACY_COMPANY_ID) workflow.companyId = DEFAULT_COMPANY_ID;
+    }
+    if (Object.hasOwn(store.companyStates || {}, LEGACY_COMPANY_ID)) {
+      store.companyStates[DEFAULT_COMPANY_ID] = store.companyStates[LEGACY_COMPANY_ID];
+      delete store.companyStates[LEGACY_COMPANY_ID];
+    }
+    store.carrierOnboardedCompanies = [...new Set((store.carrierOnboardedCompanies || []).map((id) => (id === LEGACY_COMPANY_ID ? DEFAULT_COMPANY_ID : id)))];
+    console.info('[migration] default company id moved to', DEFAULT_COMPANY_ID);
+  }
+}
+// Correct the legacy display labels wherever they survived.
 for (const company of store.accounts.companies) {
-  if (company.id === 'alphaway' && /^alphaway logistics(?: llc)?$/i.test(company.name || '')) company.name = 'Harper Dispatch and Logistics LLC';
+  if (company.id === DEFAULT_COMPANY_ID && /^alphaway logistics(?: llc)?$/i.test(company.name || '')) company.name = 'Harper Dispatch and Logistics LLC';
 }
 for (const user of store.accounts.users) {
-  if (user.id === 'user-admin' && /^alphaway administrator$/i.test(user.name || '')) user.name = 'Harper Administrator';
+  if (/^alphaway administrator$/i.test(user.name || '')) user.name = 'Harper Administrator';
 }
 const applicantWorkflow = createWorkflow({ getStore: () => store, persist: persistStore });
 applicantWorkflow.recover();
@@ -1061,7 +1103,7 @@ if (ACCOUNT_AUTH && process.env.HARPER_ADMIN_EMAIL && process.env.HARPER_ADMIN_P
   const adminCredentials = hashPassword(process.env.HARPER_ADMIN_PASSWORD);
   const existingAdmin = store.accounts.users.find(u => u.email === adminEmail);
   if (!existingAdmin) {
-    store.accounts.companies.push({ id: 'alphaway', name: 'Harper Dispatch and Logistics', type: 'organization', status: 'active', createdAt: Date.now() });
+    store.accounts.companies.push({ id: 'harper', name: 'Harper Dispatch and Logistics', type: 'organization', status: 'active', createdAt: Date.now() });
     store.accounts.users.push({ id: 'user-admin', email: adminEmail, name: 'Harper Administrator', role: 'admin', companyId: 'alphaway', status: 'active', passwordSalt: adminCredentials.salt, passwordHash: adminCredentials.hash, createdAt: Date.now() });
     persistStore();
   }

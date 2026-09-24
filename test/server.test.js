@@ -22,7 +22,7 @@ async function start(extra = {}) {
 }
 
 test('account auth protects intakes and catalog even without preview basic auth', async (t) => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'alphaway-access-test-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'harper-access-test-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const password = crypto.randomBytes(24).toString('hex');
   const app = await start({ HARPER_DATA_FILE: path.join(dir, 'store.json'), HARPER_ACCOUNT_AUTH: 'true', HARPER_ADMIN_EMAIL: 'admin@example.com', HARPER_ADMIN_PASSWORD: password, RAILWAY_ENVIRONMENT_ID: 'test-environment' });
@@ -50,7 +50,7 @@ test('account auth protects intakes and catalog even without preview basic auth'
 
 
 test('company boundaries apply to HTTP snapshots, stream updates, invitations and restart', async t => {
-  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'alphaway-tenants-')); t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'harper-tenants-')); t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
   const file=path.join(dir,'store.json'), password=crypto.randomBytes(24).toString('hex');
   const config={HARPER_DATA_FILE:file,HARPER_ACCOUNT_AUTH:'true',HARPER_ADMIN_EMAIL:'admin@example.com',HARPER_ADMIN_PASSWORD:password};
   let app=await start(config); t.after(()=>app.stop());

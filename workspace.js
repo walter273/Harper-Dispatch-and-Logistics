@@ -53,7 +53,7 @@
     const summary = byId('accountSummary');
     if (summary) {
       summary.textContent = signedInAccount
-        ? `Signed in as ${signedInAccount.name} (${signedInAccount.role}) · company ${(signedInAccount.companyId === 'alphaway' ? 'Harper Dispatch and Logistics' : signedInAccount.companyId) || 'Harper Dispatch and Logistics'}`
+        ? `Signed in as ${signedInAccount.name} (${signedInAccount.role}) · company ${(['harper', 'alphaway'].includes(signedInAccount.companyId) ? 'Harper Dispatch and Logistics' : signedInAccount.companyId) || 'Harper Dispatch and Logistics'}`
         : 'Accounts are separated by company, role, and assignment scope.';
     }
 

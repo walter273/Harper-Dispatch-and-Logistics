@@ -336,8 +336,8 @@
   "accounts": {
     "companies": [
       {
-        "id": "alphaway",
-        "name": "Alphaway TMS",
+        "id": "harper",
+        "name": "Harper TMS",
         "type": "organization",
         "status": "active",
         "createdAt": 1788750711628
@@ -346,10 +346,10 @@
     "users": [
       {
         "id": "user-admin",
-        "email": "admin@alphaway.local",
-        "name": "Alphaway Administrator",
+        "email": "admin@harper.local",
+        "name": "Harper Administrator",
         "role": "admin",
-        "companyId": "alphaway",
+        "companyId": "harper",
         "status": "active",
         "passwordSalt": "ced0ac6e7a5efd83040a54b2bfdfd6ef",
         "passwordHash": "c3dcc397571c9be1164846363d4d77afc4b50fabd681c97b6d3b22548c451f3f44f90474cee65c59230ab1b4c60e185f766b0c197973b328985677af96cd41e3",

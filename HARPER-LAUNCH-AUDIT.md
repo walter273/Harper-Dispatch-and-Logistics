@@ -4,9 +4,9 @@ Date: 2026-09-15
 
 ## Current production path
 
-- Repository: `walter273/Alphaway-Logistics`
+- Repository: `walter273/Harper-Dispatch-and-Logistics`
 - Production branch: `main`
-- Railway project: `AlphaWay TMS Staging`
+- Railway project: `Harper Dispatch and Logistics`
 - Active app service: `harper-tms-staging-app`
 - Public Railway domain: `harper-tms-staging-app-production.up.railway.app`
 - Custom domain attached in Railway: `www.harperloadboard.com`

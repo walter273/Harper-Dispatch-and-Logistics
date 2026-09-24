@@ -21,7 +21,7 @@ test('subscription ordering, cancellation, Checkout linkage and duplicate delive
  assert.equal(reduceSubscription(active, event('customer.subscription.updated', 101, 'past_due')).status, 'past_due');
 });
 test('storage migration preserves records once, survives restart and keeps backup', t => {
- const dir=fs.mkdtempSync(path.join(os.tmpdir(),'alphaway-storage-')); t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'harper-storage-')); t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
  const file=path.join(dir,'store.json');
  const original={loads:[], accounts:{users:[{id:'preserved'}]}, operations:{}, revision:1};
  const disk=createStorage(file,{HARPER_MIGRATION_JSON:JSON.stringify(original)});
@@ -35,7 +35,7 @@ test('storage migration preserves records once, survives restart and keeps backu
  assert.equal(fs.readFileSync(file,'utf8'),'broken');
 });
 test('bad migration checksum fails without creating store',t=>{
- const dir=fs.mkdtempSync(path.join(os.tmpdir(),'alphaway-checksum-')); t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'harper-checksum-')); t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
  const file=path.join(dir,'store.json');
  assert.throws(()=>createStorage(file,{HARPER_MIGRATION_JSON:JSON.stringify({loads:[],accounts:{},operations:{}}),HARPER_MIGRATION_SHA256:'wrong'}).read(),/checksum/);
  assert.equal(fs.existsSync(file),false);

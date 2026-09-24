@@ -8,7 +8,7 @@ const { start } = require('../test-support/server');
 const { seed } = require('../test-support/review-fixture');
 
 test('staff queue: private APIs, immutable originals, approval, durable history, conflicts and failed-write retry', { timeout: 300000 }, async t => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'alphaway-review-test-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'harper-review-test-'));
   const file = path.join(dir, 'store.json');
   const { tokens, original } = seed(file);
   const config = { HARPER_DATA_FILE: file, HARPER_ACCOUNT_AUTH: 'true' };

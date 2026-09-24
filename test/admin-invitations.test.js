@@ -8,7 +8,7 @@ const { start } = require('../test-support/server');
 const { seed } = require('../test-support/review-fixture');
 
 test('admin invitations support private password setup, role enforcement, one use, and restart', { timeout: 180000 }, async t => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'alphaway-admin-invites-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'harper-admin-invites-'));
   const file = path.join(dir, 'store.json'); const { tokens } = seed(file, 0);
   const expiredToken = crypto.randomBytes(24).toString('hex');
   const saved = JSON.parse(fs.readFileSync(file));

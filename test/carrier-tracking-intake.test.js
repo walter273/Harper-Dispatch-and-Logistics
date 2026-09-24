@@ -8,7 +8,7 @@ const { seed } = require('../test-support/review-fixture');
 const { termsVersion } = require('../dispatch-plans');
 
 test('carrier tracking details survive submission, staff search, export and restart without granting access', { timeout: 180000 }, async t => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'alphaway-gps-intake-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'harper-gps-intake-'));
   const file = path.join(dir, 'store.json');
   const { tokens, original } = seed(file, 0);
   const config = { HARPER_DATA_FILE: file, HARPER_ACCOUNT_AUTH: 'true' };

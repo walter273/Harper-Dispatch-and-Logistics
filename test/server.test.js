@@ -32,9 +32,18 @@ test('account auth protects intakes and catalog even without preview basic auth'
   assert.equal((await post('/api/events', { type: 'catalog.reset', baseRevision: 0 })).status, 401);
   const signin = await post('/api/accounts/signin', { email: 'admin@example.com', password });
   assert.equal(signin.status, 200);
-  assert.match(signin.headers.get('set-cookie'), /; Secure/);
-  const cookie = signin.headers.get('set-cookie').split(';')[0];
+  const issued = signin.headers.get('set-cookie');
+  // A plain-HTTP request must NOT be given a Secure cookie: the browser would
+  // refuse it and the session would be silently dropped on the next navigation.
+  assert.doesNotMatch(issued, /; Secure/);
+  // SameSite must be Lax, not Strict, or the cookie is withheld on the redirect
+  // that follows sign-in and the visitor bounces straight back to the form.
+  assert.match(issued, /SameSite=Lax/);
+  const cookie = issued.split(';')[0];
   assert.equal((await fetch(app.url + '/api/intakes', { headers: { cookie } })).status, 200);
+  // Behind a TLS-terminating proxy the visitor is on HTTPS, so Secure is set.
+  const viaProxy = await fetch(app.url + '/api/accounts/signin', { method: 'POST', headers: { 'content-type': 'application/json', 'x-forwarded-proto': 'https' }, body: JSON.stringify({ email: 'admin@example.com', password }) });
+  assert.match(viaProxy.headers.get('set-cookie'), /; Secure/);
   const snapshot = await (await fetch(app.url + '/api/app')).json();
   assert.equal((await post('/api/events', { type: 'catalog.reset', baseRevision: snapshot.revision }, cookie)).status, 200);
 });

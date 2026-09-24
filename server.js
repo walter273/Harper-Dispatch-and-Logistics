@@ -15,7 +15,18 @@ const { createWorkflow } = require('./applicant-workflow');
 const { reduceSubscription } = require('./subscription-state');
 const { plans: dispatchPlans, isDispatchPlan, termsVersion: dispatchTermsVersion } = require('./dispatch-plans');
 const HOSTED = process.env.NODE_ENV === 'production';
-const SECURE_COOKIES = HOSTED || Boolean(process.env.RAILWAY_ENVIRONMENT_ID);
+// A Secure cookie is only valid when the browser itself is on HTTPS. Railway and
+// similar hosts terminate TLS at their proxy, so the container sees plain HTTP
+// even though the visitor does not. Trusting the host name alone marked cookies
+// Secure in cases where the browser then refused to store them, which silently
+// dropped the session: sign-in succeeded, and the next page load saw no account.
+function requestIsSecure(request) {
+  const forwarded = String(request?.headers?.['x-forwarded-proto'] || '').split(',')[0].trim().toLowerCase();
+  return forwarded === 'https' || Boolean(request?.socket?.encrypted);
+}
+function cookieSecurity(request) {
+  return requestIsSecure(request) ? '; Secure' : '';
+}
 
 const ROOT_DIR = __dirname;
 const PORT = Number(process.env.PORT || 4173);
@@ -106,7 +117,7 @@ const STATIC_FILES = new Set([
   'assets/harper-brand-pair.png',
   'assets/harper-dispatch-office.png',
   'assets/harper-load-board.png',
-  'assets/alphaway-dispatch-office.jpg',
+  'assets/harper-dispatch-office.jpg',
   'home-reveal.js',
   'script.js',
   'operations.js',
@@ -296,7 +307,7 @@ function sendUnauthorized(response) {
 
 function sendNetworkAccessRequired(response) {
   sendJson(response, 403, { error: 'An invitation code is required to access the private carrier network.' }, {
-    'X-Alphaway-Private-Network': 'true'
+    'X-Harper-Private-Network': 'true'
   });
 }
 
@@ -1241,9 +1252,8 @@ const server = http.createServer(async (request, response) => {
       }
       const issuedAt = Date.now();
       const signature = crypto.createHmac('sha256', NETWORK_INVITE_CODE).update(String(issuedAt)).digest('hex');
-      const secure = (SECURE_COOKIES || request.socket.encrypted) ? '; Secure' : '';
       sendJson(response, 200, { ok: true }, {
-        'Set-Cookie': `${NETWORK_ACCESS_COOKIE}=${issuedAt}.${signature}; HttpOnly; SameSite=Strict; Path=/; Max-Age=604800${secure}`
+        'Set-Cookie': `${NETWORK_ACCESS_COOKIE}=${issuedAt}.${signature}; HttpOnly; SameSite=Lax; Path=/; Max-Age=604800${cookieSecurity(request)}`
       });
       return;
     }
@@ -1271,7 +1281,7 @@ const server = http.createServer(async (request, response) => {
       persistStore();
       console.info('[account.signin] success', { role: user.role });
       sendJson(response, 200, { account: { id: user.id, name: user.name, email: user.email, role: user.role, companyId: user.companyId } }, {
-        'Set-Cookie': `${ACCOUNT_COOKIE}=${rawToken}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${ACCOUNT_SESSION_DAYS * 86400}${(SECURE_COOKIES || request.socket.encrypted) ? '; Secure' : ''}`
+        'Set-Cookie': `${ACCOUNT_COOKIE}=${rawToken}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${ACCOUNT_SESSION_DAYS * 86400}${cookieSecurity(request)}`
       });
       return;
     }
@@ -1305,7 +1315,7 @@ const server = http.createServer(async (request, response) => {
       store.accounts.sessions.push({ tokenHash: crypto.createHash('sha256').update(rawToken).digest('hex'), userId: user.id, expiresAt: Date.now() + ACCOUNT_SESSION_DAYS * 86400000 });
       persistStore();
       sendJson(response, 201, { account: { id: user.id, name, email: user.email, role: user.role, companyId: user.companyId } }, {
-        'Set-Cookie': `${ACCOUNT_COOKIE}=${rawToken}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${ACCOUNT_SESSION_DAYS * 86400}${(SECURE_COOKIES || request.socket.encrypted) ? '; Secure' : ''}`
+        'Set-Cookie': `${ACCOUNT_COOKIE}=${rawToken}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${ACCOUNT_SESSION_DAYS * 86400}${cookieSecurity(request)}`
       });
       return;
     }
@@ -1316,7 +1326,7 @@ const server = http.createServer(async (request, response) => {
       store.accounts.sessions = store.accounts.sessions.filter((session) => session.tokenHash !== tokenHash);
       if (user) addAudit(user.id, 'account.signout', user.id);
       persistStore();
-      sendJson(response, 200, { ok: true }, { 'Set-Cookie': `${ACCOUNT_COOKIE}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0` });
+      sendJson(response, 200, { ok: true }, { 'Set-Cookie': `${ACCOUNT_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0` });
       return;
     }
     if (request.method === 'GET' && pathname === '/api/accounts/me') {

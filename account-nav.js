@@ -178,7 +178,7 @@
         const data = new FormData(form);
         const loadId = String(data.get('loadId') || '').trim().toUpperCase();
         const notes = String(data.get('notes') || '').replace(/[<>]/g, '').trim().slice(0, 180);
-        const board = window.AlphawayLoadboard;
+        const board = window.HarperLoadboard;
         if (!board) { status.textContent = 'Load board connection is unavailable.'; return; }
         submit.disabled = true;
         status.textContent = 'Closing load…';
@@ -245,11 +245,11 @@
     polishOperationalCopy();
   };
 
-  window.addEventListener('alphaway:account-changed', (event) => {
+  window.addEventListener('harper:account-changed', (event) => {
     revision += 1;
     render(event.detail);
   });
-  window.addEventListener('alphaway-app-updated', () => {
+  window.addEventListener('harper-app-updated', () => {
     polishOperationalCopy();
     fetch('/api/accounts/me', { credentials: 'same-origin', cache: 'no-store' })
       .then((response) => response.ok ? response.json() : { account: null })

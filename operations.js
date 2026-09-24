@@ -1,6 +1,6 @@
 (() => {
-  const board = window.AlphawayLoadboard;
-  const boardStateKey = 'alphaway-loadboard-state';
+  const board = window.HarperLoadboard;
+  const boardStateKey = 'harper-loadboard-state';
   const supportedEquipment = ['Dry Van', 'Reefer', 'Flatbed', 'Power Only'];
   const supportedStatuses = ['Hot', 'New', 'Available', 'Booked'];
   const defaultAssignments = [
@@ -398,7 +398,7 @@
     window.addEventListener('storage', (event) => {
       if (event.key === board.catalogStorageKey) updateTable();
     });
-    window.addEventListener('alphaway-app-updated', updateTable);
+    window.addEventListener('harper-app-updated', updateTable);
 
     clearForm();
     updateTable();
@@ -411,7 +411,7 @@
   window.addEventListener('storage', (event) => {
     if (event.key === boardStateKey || event.key === board?.catalogStorageKey) renderTmsOverview();
   });
-  window.addEventListener('alphaway-app-updated', renderTmsOverview);
+  window.addEventListener('harper-app-updated', renderTmsOverview);
   board?.whenReady?.().then(renderTmsOverview);
 })();
 

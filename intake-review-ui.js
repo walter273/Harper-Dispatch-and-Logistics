@@ -258,7 +258,7 @@
   $('queuePrevious').addEventListener('click', () => { page--; loadQueue().catch(error => message(error.message, true)); });
   $('queueNext').addEventListener('click', () => { page++; loadQueue().catch(error => message(error.message, true)); });
   window.addEventListener('hashchange', () => { const id = location.hash.slice(1); if (/^[a-zA-Z0-9_-]+$/.test(id)) openRecord(id); });
-  window.addEventListener('alphaway:account-changed', event => { if (!['admin', 'dispatcher'].includes(event.detail?.role)) lockAccess(); });
+  window.addEventListener('harper:account-changed', event => { if (!['admin', 'dispatcher'].includes(event.detail?.role)) lockAccess(); });
   // Clear private records restored from browser back/forward cache and recheck the session.
   window.addEventListener('pagehide', lockAccess);
   window.addEventListener('pageshow', event => { if (event.persisted) location.reload(); });

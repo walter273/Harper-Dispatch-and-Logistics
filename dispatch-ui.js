@@ -1,5 +1,5 @@
 (() => {
-  const catalog = window.AlphawayDispatch;
+  const catalog = window.HarperDispatch;
   if (!catalog) return;
   const byId = id => document.getElementById(id);
   const request = async (url, options = {}) => {
@@ -123,8 +123,8 @@
       }
     } catch { panel.hidden = true; list.replaceChildren(); }
   }
-  window.addEventListener('alphaway:account-changed', refreshRequests);
-  window.addEventListener('alphaway:account-changed', loadApprovedTerms);
+  window.addEventListener('harper:account-changed', refreshRequests);
+  window.addEventListener('harper:account-changed', loadApprovedTerms);
   loadApprovedTerms();
   refreshRequests(); loadIntakes();
 })();

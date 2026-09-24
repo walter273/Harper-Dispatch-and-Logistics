@@ -13,7 +13,7 @@
  });
  hangup.addEventListener('click',()=>{epoch++;cleanup();status.textContent='Call ended.';refresh();});
  document.getElementById('deskVoiceSetup')?.addEventListener('click',async()=>{try{await request('/api/voice/setup',{});await refresh();}catch(e){ready.textContent=e.message;}});
- window.addEventListener('alphaway:account-changed',()=>{epoch++;cleanup();form.reset();status.textContent='';document.getElementById('deskCallHistory').replaceChildren();refresh();});
+ window.addEventListener('harper:account-changed',()=>{epoch++;cleanup();form.reset();status.textContent='';document.getElementById('deskCallHistory').replaceChildren();refresh();});
  window.addEventListener('pagehide',cleanup);
  document.getElementById('deskRefresh')?.addEventListener('click',refresh);
  refresh();

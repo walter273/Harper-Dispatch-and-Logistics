@@ -33,10 +33,10 @@ test('Staff navigation follows server role and sign-out', async () => {
   });
   await flush(); assert.equal(links.get('data-admin-nav').textContent, 'Admin'); assert.equal(links.get('data-admin-nav').href, './admin.html');
   assert.equal(links.get('data-intake-nav').href, './intake-review.html');
-  listeners['alphaway:account-changed']({ detail: null }); assert.equal(links.size, 0);
-  listeners['alphaway:account-changed']({ detail: { role: 'dispatcher' } }); assert.equal(links.has('data-admin-nav'), false); assert.equal(links.has('data-intake-nav'), true);
+  listeners['harper:account-changed']({ detail: null }); assert.equal(links.size, 0);
+  listeners['harper:account-changed']({ detail: { role: 'dispatcher' } }); assert.equal(links.has('data-admin-nav'), false); assert.equal(links.has('data-intake-nav'), true);
   for (const role of ['carrier-owner', 'driver', 'broker', 'shipper']) {
-    listeners['alphaway:account-changed']({ detail: { role } }); assert.equal(links.size, 0);
+    listeners['harper:account-changed']({ detail: { role } }); assert.equal(links.size, 0);
   }
 });
 test('late session response cannot restore admin link after sign-out', async () => {
@@ -46,7 +46,7 @@ test('late session response cannot restore admin link after sign-out', async () 
     window: { addEventListener: (name, fn) => listeners[name] = fn },
     fetch: () => new Promise(r => resolve = r)
   });
-  listeners['alphaway:account-changed']({ detail: null });
+  listeners['harper:account-changed']({ detail: null });
   resolve({ ok: true, json: async () => ({ account: { role: 'admin' } }) });
   await flush(); assert.equal(link, undefined);
 });

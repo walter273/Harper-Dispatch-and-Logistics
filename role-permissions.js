@@ -9,6 +9,6 @@
  };
  const pages={'loadboard.html':'board','planning-tools.html':'planning','tms.html':'operations','square-billing.html':'billing','admin.html':'admin','intake-review.html':'staff'};
  const allowed=(role,feature)=>Boolean(rules[feature]?.includes(role));
- const planAllowed=(role,plan)=>role==='admin'||(role==='carrier-owner'&&/^dispatch-(basic|standard|premium)$/.test(plan))||(role==='broker'&&plan==='broker')||(role==='shipper'&&plan==='shipper');
+ const planAllowed=(role,plan)=>role==='admin'||(role==='carrier-owner'&&plan==='dispatch-basic')||(role==='broker'&&plan==='broker')||(role==='shipper'&&plan==='shipper');
  const api={allowed,pages,planAllowed}; if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.HarperPermissions=api;
 })(typeof window!=='undefined'?window:this);

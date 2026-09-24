@@ -1,7 +1,7 @@
 (function (root, factory) {
   const catalog = factory();
   if (typeof module === 'object' && module.exports) module.exports = catalog;
-  else root.AlphawayDispatch = catalog;
+  else root.HarperDispatch = catalog;
 })(typeof globalThis === 'object' ? globalThis : this, function () {
   const plans = Object.freeze({
     'dispatch-basic': Object.freeze({ name: 'Carrier Dispatch', weeklyCents: 0, percent: 5 })

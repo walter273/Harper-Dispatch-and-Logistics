@@ -243,8 +243,8 @@ const statePositions = {
   WI: { x: 52, y: 30 }, WY: { x: 32, y: 28 }
 };
 
-const LOAD_CATALOG_STORAGE_KEY = 'alphaway-loadboard-catalog';
-const BOARD_STATE_STORAGE_KEY = 'alphaway-loadboard-state';
+const LOAD_CATALOG_STORAGE_KEY = 'harper-loadboard-catalog';
+const BOARD_STATE_STORAGE_KEY = 'harper-loadboard-state';
 const allowedEquipment = ['Dry Van', 'Reefer', 'Flatbed', 'Power Only'];
 const allowedLoadStatuses = ['Hot', 'New', 'Available', 'Booked'];
 
@@ -348,7 +348,7 @@ function cloneDefaultLoads() {
   return loads.map((load, index) => normalizeLoadRecord(load, index));
 }
 
-const APP_UPDATED_EVENT = 'alphaway-app-updated';
+const APP_UPDATED_EVENT = 'harper-app-updated';
 let remoteAppSnapshot = null;
 let appHydrationGeneration = 0;
 let appEventStream = null;
@@ -447,9 +447,9 @@ async function hydrateApp() {
           if (/\/(loadboard|tms)\.html$/.test(window.location.pathname)) window.location.assign('./onboarding.html');
         }
       }
-      if (response.status === 403 && response.headers.get('X-Alphaway-Private-Network') === 'true') {
+      if (response.status === 403 && response.headers.get('X-Harper-Private-Network') === 'true') {
         privateAccessLocked = true;
-        window.dispatchEvent(new CustomEvent('alphaway-private-access-required'));
+        window.dispatchEvent(new CustomEvent('harper-private-access-required'));
       }
       throw new Error('Server snapshot unavailable.');
     }
@@ -525,7 +525,7 @@ async function resetLoadCatalog() {
   return defaultCatalog;
 }
 
-window.AlphawayLoadboard = Object.freeze({
+window.HarperLoadboard = Object.freeze({
   catalogStorageKey: LOAD_CATALOG_STORAGE_KEY,
   getLoads: getLoadCatalog,
   saveLoads: saveLoadCatalog,
@@ -645,7 +645,7 @@ if (isBoardPage) {
   const paginationControls = document.querySelectorAll('[data-pagination]');
   const selectedLoadState = { value: null };
   const storageKey = BOARD_STATE_STORAGE_KEY;
-  const chatChannelName = 'alphaway-loadboard-chat';
+  const chatChannelName = 'harper-loadboard-chat';
   const pageSize = 6;
   let currentPage = 1;
   let chatChannel = null;
@@ -1559,7 +1559,7 @@ if (isBoardPage) {
     renderLoads();
   });
 
-  window.addEventListener('alphaway-private-access-required', () => {
+  window.addEventListener('harper-private-access-required', () => {
     renderLoads({ resetPage: true });
     setNetworkAccessModal(true);
   });
@@ -1572,7 +1572,7 @@ if (isBoardPage) {
   startGpsDemo();
 }
 
-window.addEventListener('alphaway:account-changed', () => {
+window.addEventListener('harper:account-changed', () => {
   appEventStream?.close();
   appEventStream = null;
   remoteAppSnapshot = null;

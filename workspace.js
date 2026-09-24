@@ -41,7 +41,7 @@
       const renewal = subscription.currentPeriodEnd
         ? ` Current period ends ${new Date(subscription.currentPeriodEnd * 1000).toLocaleDateString()}.`
         : '';
-      status.textContent = `${window.AlphawayDispatch?.plans?.[subscription.plan]?.name || subscription.plan || 'Stripe'} plan · ${subscription.status}.${renewal}`;
+      status.textContent = `${window.HarperDispatch?.plans?.[subscription.plan]?.name || subscription.plan || 'Stripe'} plan · ${subscription.status}.${renewal}`;
       manage.hidden = !['carrier-owner', 'shipper', 'broker'].includes(signedInAccount.role);
     } catch (error) {
       status.textContent = error.message;
@@ -49,7 +49,7 @@
   };
 
   const renderAccount = () => {
-    window.dispatchEvent(new CustomEvent('alphaway:account-changed', { detail: signedInAccount }));
+    window.dispatchEvent(new CustomEvent('harper:account-changed', { detail: signedInAccount }));
     const summary = byId('accountSummary');
     if (summary) {
       summary.textContent = signedInAccount

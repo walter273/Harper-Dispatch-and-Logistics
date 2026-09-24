@@ -34,7 +34,7 @@
   if(title)title.textContent=({'carrier-owner':'Your carrier workspace',driver:'Your assigned work',broker:'Your broker workspace',shipper:'Your shipper workspace',dispatcher:'Your dispatch workspace',admin:'Your administration workspace'})[role]||'Your workspace';
   const intro=document.getElementById('workspaceIntro');if(intro)intro.textContent='Tools for your role, with records limited to your company and permitted assignments. Features remain subject to your approved service and plan.';
  }
- window.addEventListener('alphaway:account-changed',e=>{version++;render(e.detail);});
+ window.addEventListener('harper:account-changed',e=>{version++;render(e.detail);});
  const initial=version;
  fetch('/api/accounts/me',{cache:'no-store'}).then(r=>r.ok?r.json():{}).then(p=>{if(initial===version)render(p.account);}).catch(()=>render(null));
  render(null);
@@ -67,6 +67,6 @@
   finally{button.disabled=false;}
  });
  document.getElementById('deskRefresh')?.addEventListener('click',refresh);
- window.addEventListener('alphaway:account-changed',()=>{generation++;pending=null;emailForm?.reset();status.textContent='';document.getElementById('deskEmailHistory').replaceChildren();refresh();});
+ window.addEventListener('harper:account-changed',()=>{generation++;pending=null;emailForm?.reset();status.textContent='';document.getElementById('deskEmailHistory').replaceChildren();refresh();});
  refresh();
 })();

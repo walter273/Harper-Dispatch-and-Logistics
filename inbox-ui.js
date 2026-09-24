@@ -17,7 +17,7 @@ async function load(more=false){if(busy||!account)return;busy=true;controls();co
 connect.addEventListener('click',async()=>{if(busy)return;busy=true;controls();const version=epoch;try{await init();const result=await app.loginPopup({scopes,loginHint:'wharper031@outlook.com',prompt:'select_account'});if(version!==epoch){await app.clearCache();return;}account=result.account;const me=await graph('https://graph.microsoft.com/v1.0/me?$select=mail,userPrincipalName');if(![me.mail,me.userPrincipalName,account.username].some(x=>String(x||'').toLowerCase()==='wharper031@outlook.com')){reset();await app.clearCache();throw new Error('Connect wharper031@outlook.com for the Harper inbox.');}busy=false;await load();}catch(e){if(version===epoch)sayError(e);}finally{busy=false;controls();}});
 refresh.addEventListener('click',()=>load());older.addEventListener('click',()=>load(true));disconnect.addEventListener('click',async()=>{reset();await app?.clearCache();state.textContent='Disconnected from Outlook on this page.';});
 async function visibility(){try{await admin();panel.hidden=false;}catch{reset();await app?.clearCache();panel.hidden=true;}}
-window.addEventListener('alphaway:account-changed',()=>{reset();app?.clearCache();visibility();});
+window.addEventListener('harper:account-changed',()=>{reset();app?.clearCache();visibility();});
 window.addEventListener('pagehide',()=>{reset();app?.clearCache();});
 setInterval(()=>{if(account&&!busy)visibility();},30000);
 visibility();controls();

@@ -40,7 +40,7 @@ Add these values in GoDaddy's environment or Secrets settings. Generate every pa
 | `STRIPE_PRICE_CARRIER` | `price_1UDWf7Kqpp58H3DU1oRYxBT0` |
 | `STRIPE_PRICE_SHIPPER` | `price_1UDWfCKqpp58H3DU1xjnfinA` |
 | `STRIPE_PRICE_BROKER` | `price_1UDWfGKqpp58H3DUgiOa6GtG` |
-| `STRIPE_PUBLIC_BASE_URL` | `https://app.alphawaylogistics.com` |
+| `STRIPE_PUBLIC_BASE_URL` | `https://app.harperloadboard.com` |
 
 Leave `STRIPE_SUCCESS_URL` and `STRIPE_CANCEL_URL` blank unless you need custom same-origin destinations. The server derives safe defaults from `STRIPE_PUBLIC_BASE_URL`.
 
@@ -82,11 +82,11 @@ The selected sandbox currently has no active customer-portal configuration. In t
 
 ## 6. Assign the GoDaddy subdomain
 
-The root domain `https://alphawaylogistics.com` already serves the public Harper Dispatch and Logistics LLC site through GoDaddy Website Builder. Keep that site in place and attach the Node.js application to `https://app.alphawaylogistics.com` unless the owner explicitly decides to replace the public site.
+The root domain `https://harperloadboard.com` already serves the public Harper Dispatch and Logistics LLC site through GoDaddy Website Builder. Keep that site in place and attach the Node.js application to `https://app.harperloadboard.com` unless the owner explicitly decides to replace the public site.
 
-Use the Node.js Hosting domain settings to attach `app.alphawaylogistics.com`. Set `STRIPE_PUBLIC_BASE_URL=https://app.alphawaylogistics.com` and redeploy. If GoDaddy asks for a DNS record, use only the target value GoDaddy shows for this Node.js application; do not guess an IP address or copy the root Website Builder records.
+Use the Node.js Hosting domain settings to attach `app.harperloadboard.com`. Set `STRIPE_PUBLIC_BASE_URL=https://app.harperloadboard.com` and redeploy. If GoDaddy asks for a DNS record, use only the target value GoDaddy shows for this Node.js application; do not guess an IP address or copy the root Website Builder records.
 
-The Stripe sandbox webhook URL for this configuration is `https://app.alphawaylogistics.com/api/stripe/webhook`. If the hostname changes, update the webhook, replace `STRIPE_WEBHOOK_SECRET` with the new endpoint's secret if Stripe issues one, and repeat the signed-event tests.
+The Stripe sandbox webhook URL for this configuration is `https://app.harperloadboard.com/api/stripe/webhook`. If the hostname changes, update the webhook, replace `STRIPE_WEBHOOK_SECRET` with the new endpoint's secret if Stripe issues one, and repeat the signed-event tests.
 
 ## 7. Acceptance checklist
 

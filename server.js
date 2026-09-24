@@ -310,6 +310,13 @@ function accountFromRequest(request) {
   return null;
 }
 
+function sessionDiagnostics(request) {
+  const tokens = accountTokens(request);
+  const hashes = new Set(tokens.map(raw => crypto.createHash('sha256').update(raw).digest('hex')));
+  const matches = store.accounts.sessions.filter(session => hashes.has(session.tokenHash));
+  return { cookieCount: tokens.length, matchedSessions: matches.length, unexpiredSessions: matches.filter(session => session.expiresAt > Date.now()).length, activeUsers: matches.filter(session => store.accounts.users.some(user => user.id === session.userId && user.status === 'active')).length, accountAuth: ACCOUNT_AUTH };
+}
+
 function requireAccount(request, roles = null) {
   const user = accountFromRequest(request);
   if (!user) throw reject(401, 'A signed-in account is required.');
@@ -1001,7 +1008,7 @@ function serveStatic(request, response, pathname) {
   if (privatePages.has(requestedPath)) {
     const actor = accountFromRequest(request);
     if (!actor) {
-      console.warn('[page.access] sign-in required', { page: requestedPath });
+      console.warn('[page.access] sign-in required', { page: requestedPath, ...sessionDiagnostics(request) });
       response.writeHead(302, responseHeaders({ Location: `/access.html?next=${encodeURIComponent(requestedPath)}`, 'Cache-Control': 'no-store' }));
       response.end(); return;
     }
@@ -1428,6 +1435,7 @@ const server = http.createServer(async (request, response) => {
       return;
     }
     if (request.method === 'GET' && pathname === '/api/accounts/me') {
+      if (!accountFromRequest(request)) console.warn('[account.session] missing', sessionDiagnostics(request));
       sendJson(response, 200, { account: accountFromRequest(request) ? operationSnapshot(accountFromRequest(request)).account : null });
       return;
     }

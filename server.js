@@ -27,6 +27,18 @@ function requestIsSecure(request) {
 function cookieSecurity(request) {
   return requestIsSecure(request) ? '; Secure' : '';
 }
+// The site answers on both the bare domain and www, and a host-only cookie is not
+// sent across that boundary. Scoping it to the registrable domain keeps the
+// session valid whichever hostname the visitor reached us on.
+function cookieDomain(request) {
+  if (!requestIsSecure(request)) return '';
+  const host = String(request?.headers?.host || '').split(':')[0].toLowerCase();
+  if (!host || host === 'localhost' || /^\d+(\.\d+){3}$/.test(host)) return '';
+  const parts = host.split('.');
+  if (parts.length < 2) return '';
+  // Keep the last two labels, which covers harperloadboard.com and any www prefix.
+  return `; Domain=.${parts.slice(-2).join('.')}`;
+}
 
 const ROOT_DIR = __dirname;
 const PORT = Number(process.env.PORT || 4173);
@@ -1253,7 +1265,7 @@ const server = http.createServer(async (request, response) => {
       const issuedAt = Date.now();
       const signature = crypto.createHmac('sha256', NETWORK_INVITE_CODE).update(String(issuedAt)).digest('hex');
       sendJson(response, 200, { ok: true }, {
-        'Set-Cookie': `${NETWORK_ACCESS_COOKIE}=${issuedAt}.${signature}; HttpOnly; SameSite=Lax; Path=/; Max-Age=604800${cookieSecurity(request)}`
+        'Set-Cookie': `${NETWORK_ACCESS_COOKIE}=${issuedAt}.${signature}; HttpOnly; SameSite=Lax; Path=/; Max-Age=604800${cookieSecurity(request)}${cookieDomain(request)}`
       });
       return;
     }
@@ -1281,7 +1293,7 @@ const server = http.createServer(async (request, response) => {
       persistStore();
       console.info('[account.signin] success', { role: user.role });
       sendJson(response, 200, { account: { id: user.id, name: user.name, email: user.email, role: user.role, companyId: user.companyId } }, {
-        'Set-Cookie': `${ACCOUNT_COOKIE}=${rawToken}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${ACCOUNT_SESSION_DAYS * 86400}${cookieSecurity(request)}`
+        'Set-Cookie': `${ACCOUNT_COOKIE}=${rawToken}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${ACCOUNT_SESSION_DAYS * 86400}${cookieSecurity(request)}${cookieDomain(request)}`
       });
       return;
     }
@@ -1315,7 +1327,7 @@ const server = http.createServer(async (request, response) => {
       store.accounts.sessions.push({ tokenHash: crypto.createHash('sha256').update(rawToken).digest('hex'), userId: user.id, expiresAt: Date.now() + ACCOUNT_SESSION_DAYS * 86400000 });
       persistStore();
       sendJson(response, 201, { account: { id: user.id, name, email: user.email, role: user.role, companyId: user.companyId } }, {
-        'Set-Cookie': `${ACCOUNT_COOKIE}=${rawToken}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${ACCOUNT_SESSION_DAYS * 86400}${cookieSecurity(request)}`
+        'Set-Cookie': `${ACCOUNT_COOKIE}=${rawToken}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${ACCOUNT_SESSION_DAYS * 86400}${cookieSecurity(request)}${cookieDomain(request)}`
       });
       return;
     }

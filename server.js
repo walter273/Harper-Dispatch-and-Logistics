@@ -291,14 +291,23 @@ function hasNetworkAccess(request) {
   return networkAccessTokenIsValid(parseCookies(request)[NETWORK_ACCESS_COOKIE]);
 }
 
+function accountTokens(request) {
+  return String(headerValue(request, 'cookie') || '').split(';').map(part => part.trim())
+    .filter(part => part.startsWith(`${ACCOUNT_COOKIE}=`))
+    .map(part => part.slice(ACCOUNT_COOKIE.length + 1)).filter(Boolean);
+}
+
 function accountFromRequest(request) {
   if (!ACCOUNT_AUTH) return null;
-  const raw = parseCookies(request)[ACCOUNT_COOKIE];
-  if (!raw) return null;
-  const tokenHash = crypto.createHash('sha256').update(raw).digest('hex');
-  const session = store.accounts.sessions.find((entry) => entry.tokenHash === tokenHash && entry.expiresAt > Date.now());
-  const user = session && store.accounts.users.find((entry) => entry.id === session.userId);
-  return user?.status === 'active' ? user : null;
+  // A stale parent-domain cookie can accompany the current host-only cookie.
+  // Check each token rather than letting the last duplicate overwrite it.
+  for (const raw of accountTokens(request)) {
+    const tokenHash = crypto.createHash('sha256').update(raw).digest('hex');
+    const session = store.accounts.sessions.find(entry => entry.tokenHash === tokenHash && entry.expiresAt > Date.now());
+    const user = session && store.accounts.users.find(entry => entry.id === session.userId);
+    if (user?.status === 'active') return user;
+  }
+  return null;
 }
 
 function requireAccount(request, roles = null) {
@@ -1410,9 +1419,9 @@ const server = http.createServer(async (request, response) => {
     }
     if (request.method === 'POST' && pathname === '/api/accounts/signout') {
       requireJsonSameOrigin(request);
-      const tokenHash = crypto.createHash('sha256').update(parseCookies(request)[ACCOUNT_COOKIE] || '').digest('hex');
+      const tokenHashes = new Set(accountTokens(request).map(raw => crypto.createHash('sha256').update(raw).digest('hex')));
       const user = accountFromRequest(request);
-      store.accounts.sessions = store.accounts.sessions.filter((session) => session.tokenHash !== tokenHash);
+      store.accounts.sessions = store.accounts.sessions.filter((session) => !tokenHashes.has(session.tokenHash));
       if (user) addAudit(user.id, 'account.signout', user.id);
       persistStore();
       sendJson(response, 200, { ok: true }, { 'Set-Cookie': `${ACCOUNT_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0` });

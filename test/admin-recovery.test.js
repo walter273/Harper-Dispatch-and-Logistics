@@ -67,3 +67,15 @@ test('a drifted admin account is repaired on boot and can sign in again', { time
   const workspace = await fetch(app.url + '/workspace.html', { headers: { cookie }, redirect: 'manual' });
   assert.equal(workspace.status, 200, 'the repaired session must reach a private page');
 });
+test('stale duplicate account cookies cannot override a valid sign-in and logout revokes presented sessions', async t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'harper-cookie-'));
+  const app = await start({ HARPER_DATA_FILE: path.join(dir,'store.json'), HARPER_ACCOUNT_AUTH:'true', HARPER_ADMIN_EMAIL:'admin@example.com', HARPER_ADMIN_PASSWORD:'test-cookie-password-123' });
+  t.after(async()=>{await app.stop();fs.rmSync(dir,{recursive:true,force:true});});
+  const login = await fetch(app.url+'/api/accounts/signin',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:'admin@example.com',password:'test-cookie-password-123'})});
+  const valid = login.headers.get('set-cookie').split(';')[0];
+  for (const cookie of [valid+'; harper_account=expired', 'harper_account=expired; '+valid]) {
+    assert.equal((await fetch(app.url+'/workspace.html',{headers:{cookie},redirect:'manual'})).status,200);
+  }
+  await fetch(app.url+'/api/accounts/signout',{method:'POST',headers:{'content-type':'application/json',cookie:valid+'; harper_account=expired'},body:'{}'});
+  assert.equal((await fetch(app.url+'/workspace.html',{headers:{cookie:valid},redirect:'manual'})).status,302);
+});

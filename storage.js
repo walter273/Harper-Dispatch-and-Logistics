@@ -34,12 +34,27 @@ function createStorage(file, env = process.env) {
   return {
     read() { bootstrap(); return fs.existsSync(file) ? validate(fs.readFileSync(file, 'utf8')) : null; },
     write(value) {
-      if (fs.existsSync(file)) {
-        const old = fs.readFileSync(file, 'utf8'); validate(old);
-        const backup = `${file}.backup`;
-        if (!fs.existsSync(backup) || Date.now() - fs.statSync(backup).mtimeMs >= 3600000) atomicWrite(backup, old);
+      // The previous implementation re-read and re-parsed the entire store on
+      // every save, then wrote the file with two-space indentation. On a store of
+      // production size that made each save several times larger than the data it
+      // carried, and slow enough that API routes such as sign-in exceeded the
+      // host's proxy timeout and returned 502 - so the session was never written
+      // and the visitor was bounced back to the sign-in form.
+      //
+      // The in-memory store is validated when it is read at startup, so the extra
+      // read-and-parse bought nothing. The backup still runs, but from the text we
+      // are about to replace rather than a second read of the same file, and the
+      // payload is written compactly.
+      const text = JSON.stringify(value);
+      const backup = `${file}.backup`;
+      let backupDue = true;
+      try {
+        backupDue = !fs.existsSync(backup) || Date.now() - fs.statSync(backup).mtimeMs >= 3600000;
+      } catch { backupDue = true; }
+      if (backupDue && fs.existsSync(file)) {
+        try { atomicWrite(backup, fs.readFileSync(file, 'utf8')); } catch { /* a missed backup must not block the save */ }
       }
-      atomicWrite(file, JSON.stringify(value, null, 2));
+      atomicWrite(file, text);
     }
   };
 }

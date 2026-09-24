@@ -1088,6 +1088,30 @@ for (const company of store.accounts.companies) {
 for (const user of store.accounts.users) {
   if (/^alphaway administrator$/i.test(user.name || '')) user.name = 'Harper Administrator';
 }
+// The configured admin email is the operator's recovery path. If that account
+// drifts - suspended, demoted, detached from its company, or holding a stale
+// password hash - the deployment would have no way back in, because every
+// repair route needs a working administrator. Startup therefore reasserts the
+// configured account whenever its values disagree, and says so in the log.
+if (process.env.HARPER_ADMIN_EMAIL && process.env.HARPER_ADMIN_PASSWORD) {
+  const recoveryEmail = process.env.HARPER_ADMIN_EMAIL.trim().toLowerCase();
+  const recoveryCredentials = hashPassword(process.env.HARPER_ADMIN_PASSWORD);
+  const recovery = store.accounts.users.find((user) => user.email === recoveryEmail);
+  if (recovery) {
+    const repairs = [];
+    if (recovery.status !== 'active') { recovery.status = 'active'; repairs.push('status'); }
+    if (recovery.role !== 'admin') { recovery.role = 'admin'; repairs.push('role'); }
+    if (!recovery.companyId) { recovery.companyId = DEFAULT_COMPANY_ID; repairs.push('companyId'); }
+    if (recovery.passwordHash !== recoveryCredentials.hash) {
+      recovery.passwordSalt = recoveryCredentials.salt;
+      recovery.passwordHash = recoveryCredentials.hash;
+      repairs.push('password');
+    }
+    if (repairs.length) {
+      console.info('[admin-recovery] repaired configured admin account:', repairs.join(', '));
+    }
+  }
+}
 const applicantWorkflow = createWorkflow({ getStore: () => store, persist: persistStore });
 applicantWorkflow.recover();
 const communications = require('./communications').createCommunications({ getStore: () => store, persist: persistStore });

@@ -14,7 +14,7 @@ test('carrier screening persists, is staff-only, rejects stale changes and never
   t.after(async () => { await app.stop(); fs.rmSync(dir, { recursive: true, force: true }); });
   const headers = role => ({ 'content-type': 'application/json', cookie: role ? `alphaway_account=${tokens[`user-${role}`]}` : '' });
   const post = (route, data, role = 'admin') => fetch(app.url + route, { method: 'POST', headers: headers(role), body: JSON.stringify(data) });
-  const submitted = await post('/api/intakes', { type: 'carrier-onboarding', fields: { legal_carrier_name: 'TEST ONLY carrier', primary_contact: 'TEST contact', business_email: 'test@example.com', dot_number: '000000', mc_number: '000000', dispatch_package: 'dispatch-standard', billing_method: 'weekly', dispatch_terms: termsVersion, available_units: '1' } }, '');
+  const submitted = await post('/api/intakes', { type: 'carrier-onboarding', fields: { legal_carrier_name: 'TEST ONLY carrier', primary_contact: 'TEST contact', business_email: 'test@example.com', dot_number: '000000', mc_number: '000000', dispatch_package: 'dispatch-basic', billing_method: 'percentage', dispatch_terms: termsVersion, available_units: '1' } }, '');
   assert.equal(submitted.status, 201);
   const { intake } = await submitted.json();
   assert.equal(intake.automation, undefined, 'private report is not returned to anonymous submitter');

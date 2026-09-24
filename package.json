@@ -5,12 +5,10 @@
   "description": "Private Alphaway Logistics freight operations application.",
   "main": "server.js",
   "scripts": {
-    "build": "node build-inbox.js && node --check server.js && node --check billing.js && node --check script.js && node --check workspace.js && node --check account-nav.js && node --check storage.js && node --check subscription-state.js && node --check dispatch-plans.js && node --check dispatch-ui.js && node --check operations.js && node --check applicant-workflow.js && node --check onboarding.js && node --check applicant-response.js && node --check carrier-verification.js && node --check intake-review.js && node --check intake-review-ui.js && node --check accept-invitation.js && node --check square-billing.js && node --check square-workflow.js && node --check square-billing-ui.js",
+    "build": "node build-inbox.js && node --check server.js && node --check script.js && node --check workspace.js && node --check account-nav.js && node --check storage.js && node --check subscription-state.js && node --check dispatch-plans.js && node --check dispatch-ui.js && node --check operations.js && node --check applicant-workflow.js && node --check onboarding.js && node --check applicant-response.js && node --check carrier-verification.js && node --check intake-review.js && node --check intake-review-ui.js && node --check accept-invitation.js && node --check square-billing.js && node --check square-workflow.js && node --check square-billing-ui.js",
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "node --test",
-    "stripe:review": "node scripts/stripe-readiness.js",
-    "stripe:configure-portal": "node scripts/stripe-readiness.js --configure-portal"
+    "test": "node --test"
   },
   "engines": {
     "node": ">=20"
@@ -19,7 +17,6 @@
     "@azure/msal-browser": "5.21.0",
     "@twilio/voice-sdk": "2.18.5",
     "esbuild": "0.28.2",
-    "stripe": "22.6.1",
     "twilio": "6.1.1"
   },
   "allowScripts": {

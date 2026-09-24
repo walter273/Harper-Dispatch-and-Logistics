@@ -26,7 +26,7 @@ test('decision, outbox and isolated invitation commit together; replay and resta
   let stored = JSON.parse(fs.readFileSync(file));
   assert.equal(stored.applicantOutbox.length, 1); assert.equal(stored.accounts.invitations.length, 1);
   const invite = stored.accounts.invitations[0];
-  assert.notEqual(invite.companyId, 'alphaway');
+  assert.notEqual(invite.companyId, stored.accounts.users.find(u => u.id === 'user-admin').companyId);
   await app.stop(); app = await start(env);
   assert.equal((await fetch(app.url + route + '/workflow')).status, 401);
   const detail = await fetch(app.url + route + '/workflow', { headers }).then(r => r.json());
@@ -42,9 +42,11 @@ test('decision, outbox and isolated invitation commit together; replay and resta
   assert.equal((await fetch(app.url + '/api/app', { headers: ownerHeaders })).status, 403);
   assert.equal((await fetch(app.url + '/api/events', { headers: ownerHeaders })).status, 403);
   assert.equal((await post('/api/events', { type: 'booking.create', loadId: 'TEST' }, { ...ownerHeaders, 'content-type': 'application/json' })).status, 403);
-  assert.equal(progress.onboarding.plan, 'dispatch-standard');
+  assert.equal(progress.onboarding.plan, 'dispatch-basic');
   assert.equal(progress.onboarding.truckCount, 2);
-  assert.equal((await post('/api/stripe/checkout', { plan: 'dispatch-basic', truckCount: 1, billingMethod: 'weekly', termsVersion: require('../dispatch-plans').termsVersion }, { ...ownerHeaders, 'content-type': 'application/json' })).status, 400);
+  // The legacy Stripe checkout route is gone; the replacement Square route rejects an
+  // unapproved billing method rather than opening a payment.
+  assert.equal((await post('/api/billing/checkout', { plan: 'dispatch-basic', truckCount: 1, billingMethod: 'weekly', termsVersion: require('../dispatch-plans').termsVersion }, { ...ownerHeaders, 'content-type': 'application/json' })).status, 400);
   assert.equal((await fetch(app.url + route + '/workflow', { headers: ownerHeaders })).status, 403);
   stored = JSON.parse(fs.readFileSync(file));
   assert.equal(stored.applicantOutbox[0].status, 'queued');

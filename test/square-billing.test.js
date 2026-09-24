@@ -13,15 +13,23 @@ test('Square defaults to sandbox and live collection is locked without explicit 
   assert.equal(entitled({provider:'square',environment:'production',status:'active',currentPeriodEnd:1}),false);
 });
 test('server prices preserve fleet quantity and invalid plans cannot create a payment',()=>{
- assert.equal(quote('dispatch-basic',3).amount,90000);assert.equal(quote('shipper').amount,79900);
+ // Carrier Dispatch is billed as a percentage of collected line-haul, not a weekly
+ // per-truck fee, so there is no server-side weekly amount to quote.
+ assert.equal(require('../dispatch-plans').plans['dispatch-basic'].weeklyCents,0);
+ assert.equal(require('../dispatch-plans').plans['dispatch-basic'].percent,5);
+ assert.equal(quote('shipper').amount,79900);
  for(const args of [['bad',1],['broker',2],['dispatch-basic',0],['dispatch-basic',1.5]])assert.throws(()=>quote(...args));
 });
 test('checkout retries reuse IDs; onboarding is one time and recurring pricing excludes setup',async()=>{
  const calls=[];const b=createSquareBilling(env,async(url,opt)=>{const body=opt.body&&JSON.parse(opt.body);calls.push({url,body});return result(url.includes('/locations/')?{location:{id:'location',status:'ACTIVE',currency:'USD',capabilities:['CREDIT_CARD_PROCESSING']}}:url.endsWith('/catalog/object')?{catalog_object:{id:body.object.type==='SUBSCRIPTION_PLAN'?'plan':'variation'}}:{payment_link:{id:'link',order_id:'order',url:'https://sandbox.square.link/u/test'}});});
- const e={id:'entry',plan:'dispatch-basic',truckCount:2}; await b.createLink(e,true);await b.createLink(e,true);await b.createLink(e,false);
+ const e={id:'entry',plan:'broker',truckCount:1}; await b.createLink(e,true);await b.createLink(e,true);await b.createLink(e,false);
  const links=calls.filter(c=>c.url.endsWith('/payment-links')).map(c=>c.body);
- assert.equal(links[0].idempotency_key,links[1].idempotency_key);assert.equal(links[0].quick_pay.price_money.amount,15000);assert.equal(links[2].quick_pay.price_money.amount,60000);assert.equal(links[2].checkout_options.allow_tipping,false);
+ assert.equal(links[0].idempotency_key,links[1].idempotency_key);assert.equal(links[0].quick_pay.price_money.amount,15000);assert.equal(links[2].quick_pay.price_money.amount,29900);assert.equal(links[2].checkout_options.allow_tipping,false);
  assert.equal(links[2].checkout_options.subscription_plan_id,'variation');
+ // A dispatch plan is percentage-billed, so it only ever pays the one-time onboarding fee.
+ const before=calls.length;await b.createLink({id:'plan-entry',plan:'dispatch-basic',truckCount:1},true);
+ const setup=calls.slice(before).find(c=>c.url.endsWith('/payment-links')).body;
+ assert.equal(setup.quick_pay.price_money.amount,15000);
 });
 test('Square invoiced period requires a matching paid invoice and an unrefunded payment',async()=>{
  let until='2020-01-01',customer='customer',invoiceStatus='UNPAID',paymentStatus='COMPLETED',refunded=0;

@@ -17,7 +17,7 @@ test('carrier tracking details survive submission, staff search, export and rest
   app = await start(config);
   const get = (route, role = 'admin') => fetch(app.url + route, { headers: { cookie: role ? `alphaway_account=${tokens[`user-${role}`]}` : '' } });
   const base = { legal_carrier_name: 'Pilot Intake Test', primary_contact: 'Test Dispatcher', business_email: 'pilot@example.com',
-    dispatch_package: 'dispatch-standard', billing_method: 'weekly', dispatch_terms: termsVersion, available_units: '1' };
+    dispatch_package: 'dispatch-basic', billing_method: 'percentage', dispatch_terms: termsVersion, available_units: '1' };
   const post = fields => fetch(app.url + '/api/intakes', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'carrier-onboarding', fields: { ...base, ...fields } }) });
   const selected = { eld_gps_provider: 'Motive', gps_pilot_truck: 'PILOT-101', gps_pilot_requested: 'yes' };
   const response = await post(selected);

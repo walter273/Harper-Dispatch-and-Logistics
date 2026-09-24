@@ -4,7 +4,7 @@ const crypto = require('node:crypto');
 const { createWorkflow } = require('../applicant-workflow');
 const { createReview } = require('../intake-review');
 function setup(fetchImpl = async () => new Response(null, { status: 202 })) {
-  const record = { id: 'intake-unit', type: 'carrier-onboarding', fields: { legal_carrier_name: 'Example Carrier', business_email: 'owner@example.com', billing_method: 'weekly', dispatch_package: 'dispatch-standard' } };
+  const record = { id: 'intake-unit', type: 'carrier-onboarding', fields: { legal_carrier_name: 'Example Carrier', business_email: 'owner@example.com', billing_method: 'percentage', dispatch_package: 'dispatch-basic' } };
   const review = createReview(record); review.status = 'approved'; review.version = 2;
   const actor = { id: 'staff', role: 'admin', name: 'Staff', status: 'active' };
   let store = { intakes: [record], intakeReviews: { [record.id]: review }, accounts: { companies: [], users: [actor], invitations: [] }, operations: { billingSubscriptions: [] } };
@@ -55,9 +55,9 @@ test('readiness requires matching paid plan, active account, staff assignment an
   x.store.accounts.users.push({ id: 'owner', companyId: w.companyId, role: 'carrier-owner', email: 'owner@example.com', status: 'active' });
   x.w.update(x.record, x.review, { version: 2, dispatcherId: 'staff' }, x.actor);
   assert.equal(x.w.summary(x.record, x.review).workflow.ready, false);
-  x.store.operations.billingSubscriptions.push({ companyId: w.companyId, userId: 'owner', plan: 'dispatch-standard', status: 'active' });
+  // Percentage billing is proven by a recorded billing reference, not a subscription record.
   assert.equal(x.w.summary(x.record, x.review).workflow.ready, false);
-  x.store.operations.billingSubscriptions[0].truckCount = 2;
+  x.w.update(x.record, x.review, { version: x.review.version, dispatcherId: 'staff', billingReference: 'REF-0001' }, x.actor);
   assert.equal(x.w.summary(x.record, x.review).workflow.ready, true);
   x.review.checks.insurance.expiresOn = '2020-01-01';
   assert.equal(x.w.summary(x.record, x.review).workflow.ready, false);

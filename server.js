@@ -4,28 +4,10 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { URL } = require('node:url');
-// Square is the only payment provider in use. The legacy Stripe modules are
-// kept loadable so existing deployments do not break, but an unset or
-// misspelled BILLING_PROVIDER used to fall through to Stripe silently, which
-// left checkout dead-ending with nothing in the logs to explain it. That now
-// logs a loud warning instead.
-const requestedProvider = String(process.env.BILLING_PROVIDER || '').trim().toLowerCase();
-const useSquare = requestedProvider === 'square';
-
-if (!useSquare) {
-  console.warn(
-    '[billing] BILLING_PROVIDER is ' +
-    (requestedProvider ? "'" + requestedProvider + "'" : 'unset') +
-    ', so the legacy Stripe path is active. Square is the provider in use. ' +
-    'Set BILLING_PROVIDER=square to enable Square checkout.'
-  );
-}
-
-const { createBilling } = require('./billing');
-const billing = createBilling();
+// Square is the only payment provider in use. The legacy Stripe path has been
+// removed entirely; there is no provider switch and no silent fallback.
 const squareBilling = require('./square-billing').createSquareBilling();
 const squareEntitled = require('./square-billing').entitled;
-const billingReview = require('./billing-review').createBillingReview();
 const { createStorage } = require('./storage');
 const intakeReview = require('./intake-review');
 const { createVerifier, attachReport } = require('./carrier-verification');
@@ -72,7 +54,6 @@ const INTAKE_LIMIT = 12;
 const OPERATION_LIMIT = 60;
 const sseClients = new Set();
 const rateLimitBuckets = new Map();
-const checkoutLocks = new Set();
 
 const STATIC_FILES = new Set([
   'inbox-loader.js', 'inbox-auth.html', 'inbox-bridge.bundle.js', 'home-reveal.js', 'command-board.css',
@@ -98,7 +79,6 @@ const STATIC_FILES = new Set([
 
   'square-billing.html', 'square-billing-ui.js',
   'planning-tools.html', 'planning-tools.css', 'planning-model.js', 'planning-tools.js',
-  'billing-review-ui.js',
   'onboarding.html', 'onboarding.js', 'applicant-response.html', 'applicant-response.js',
   'account-nav.js',
   'home-nav.js',
@@ -515,8 +495,7 @@ function normalizeStore(candidate) {
     dispatchRequests: Array.isArray(candidate?.dispatchRequests) ? candidate.dispatchRequests.filter(entry => isDispatchPlan(entry?.plan) && entry.companyId && entry.billingMethod === 'percentage') : [],
     squareWebhook: candidate?.squareWebhook || null,
     squareBilling: Array.isArray(candidate?.squareBilling) ? candidate.squareBilling : [],
-    billingCheckouts: Array.isArray(candidate?.billingCheckouts) ? candidate.billingCheckouts : [],
-    accounts: normalizeAccounts(candidate?.accounts)
+    billingCheckouts: Array.isArray(candidate?.billingCheckouts) ? candidate.billingCheckouts : [],    accounts: normalizeAccounts(candidate?.accounts)
   };
 }
 
@@ -628,7 +607,7 @@ function normalizeOperations(candidate) {
   })) : [];
   const billingSubscriptions = Array.isArray(source.billingSubscriptions) ? source.billingSubscriptions.map((subscription, index) => ({
     id: cleanText(subscription?.id, `subscription-${index}`, 100),
-    provider: subscription?.provider === 'square' ? 'square' : 'stripe',
+    provider: 'square',
     environment: subscription?.environment === 'production' ? 'production' : subscription?.provider === 'square' ? 'sandbox' : '',
     customerId: cleanText(subscription?.customerId, '', 100),
     userId: cleanText(subscription?.userId, '', 100),
@@ -1030,7 +1009,7 @@ const squareWorkflow = require('./square-workflow').createSquareWorkflow({ billi
   const application = store.intakes.find(i => i.id === w.intakeId);
   if (!application || store.intakeReviews[application.id]?.status !== 'approved' || w.status !== 'approved' || application.fields.dispatch_package !== entry.plan || Number(application.fields.available_units) !== entry.truckCount || application.fields.billing_method !== 'weekly') throw reject(403,'Your current application and billing terms must be approved before payment.');
 } });
-const squareTimer = setInterval(() => { if (useSquare) squareWorkflow.reconcile().catch(() => {}); }, 60000);
+const squareTimer = setInterval(() => { squareWorkflow.reconcile().catch(() => {}); }, 60000);
 squareTimer.unref();
 // Rename only the application's legacy default labels; retain tenant IDs and history.
 for (const company of store.accounts.companies) {
@@ -1096,54 +1075,6 @@ const server = http.createServer(async (request, response) => {
       console.log('Square signed webhook accepted.');
       await squareWorkflow.reconcile();
       sendJson(response, 200, { received: true }); return;
-    }
-    if (request.method === 'POST' && pathname === '/api/stripe/webhook') {
-      const raw = await readRaw(request, 256 * 1024);
-      const event = billing.event(raw, headerValue(request, 'stripe-signature'));
-      const tracked = ['checkout.session.completed', 'checkout.session.async_payment_succeeded', 'customer.subscription.created', 'customer.subscription.updated', 'customer.subscription.deleted'];
-      if (tracked.includes(event.type) && !store.operations.billingEvents.some((entry) => entry.id === event.id)) {
-        const object = event.data.object;
-        const stripeId = (value) => cleanText(typeof value === 'string' ? value : value?.id, '', 100);
-        const previousEvents = store.operations.billingEvents;
-        const previousSubscriptions = store.operations.billingSubscriptions;
-        const previousRevision = store.revision;
-        const previousOnboarded = store.carrierOnboardedCompanies;
-        const subscriptionId = stripeId(event.type.startsWith('checkout.session.') ? object.subscription : object.id);
-        const existingSubscription = previousSubscriptions.find((entry) => entry.id === subscriptionId);
-        const metadata = object.metadata || {};
-        if (event.type.startsWith('checkout.session.') && object.payment_status === 'paid' && (metadata.plan === 'carrier' || isDispatchPlan(metadata.plan)) && metadata.onboardingCharged === 'true' && metadata.companyId) {
-          store.carrierOnboardedCompanies = [...new Set([...previousOnboarded, metadata.companyId])];
-        }
-        store.operations.billingEvents = [...previousEvents, {
-          id: event.id, type: event.type,
-          customerId: stripeId(object.customer),
-          subscriptionId,
-          status: cleanText(object.status, '', 40),
-          paymentStatus: cleanText(object.payment_status, '', 40),
-          userId: cleanText(object.metadata?.userId, '', 100),
-          companyId: cleanText(object.metadata?.companyId, '', 100),
-          eventCreated: event.created,
-          createdAt: Date.now()
-        }].slice(-500);
-        if (subscriptionId) {
-          const nextSubscription = reduceSubscription(existingSubscription, event);
-          if (nextSubscription && nextSubscription !== existingSubscription) {
-            store.operations.billingSubscriptions = [...previousSubscriptions.filter(entry => entry.id !== subscriptionId), nextSubscription];
-          }
-        }
-        store.revision += 1;
-        try { persistStore(); }
-        catch (error) {
-          // Leave retries eligible when the write fails.
-          store.operations.billingEvents = previousEvents;
-          store.operations.billingSubscriptions = previousSubscriptions;
-          store.revision = previousRevision;
-          store.carrierOnboardedCompanies = previousOnboarded;
-          throw error;
-        }
-      }
-      sendJson(response, 200, { received: true });
-      return;
     }
     if (!hasPreviewAccess(request)) {
       if (!consumeRateLimit(request, 'auth', AUTH_FAILURE_LIMIT, AUTH_FAILURE_WINDOW_MS)) {
@@ -1218,7 +1149,7 @@ const server = http.createServer(async (request, response) => {
     if (request.method === 'GET' && pathname === '/api/admin/billing-review') {
       requireAccount(request, ['admin']);
       response.setHeader('Cache-Control', 'no-store');
-      sendJson(response, 200, await billingReview());
+      sendJson(response, 200, await squareBilling.verify()); return;
       return;
     }
     if (pathname === '/api/dispatch/requests') {
@@ -1245,7 +1176,7 @@ const server = http.createServer(async (request, response) => {
       const truckCount = Number(body.truckCount);
       if (!Number.isInteger(truckCount) || truckCount < 1 || truckCount > 100) throw reject(400, 'Choose a whole-number truck count from 1 to 100.');
       if (store.operations.billingSubscriptions.some(sub => sub.companyId === actor.companyId && ['active', 'trialing', 'past_due', 'unpaid', 'incomplete', 'paused'].includes(sub.status))) throw reject(409, 'Contact dispatch to change an existing subscription.');
-      if (store.billingCheckouts.some(entry => entry.companyId === actor.companyId && entry.createdAt > Date.now() - 86400000)) throw reject(409, 'A checkout is pending. Contact dispatch before changing billing methods.');
+      if ((store.squareBilling || []).some(entry => entry.companyId === actor.companyId && entry.createdAt > Date.now() - 86400000)) throw reject(409, 'A checkout is pending. Contact dispatch before changing billing methods.');
       if (previous) {
         if (previous.plan !== body.plan || previous.truckCount !== truckCount) throw reject(409, 'Withdraw the pending request before choosing different terms.');
         sendJson(response, 200, { request: previous });
@@ -1257,7 +1188,7 @@ const server = http.createServer(async (request, response) => {
       sendJson(response, 201, { request: entry });
       return;
     }
-    if (request.method === 'POST' && ['/api/stripe/checkout','/api/billing/checkout'].includes(pathname)) {
+    if (request.method === 'POST' && ['/api/square/checkout','/api/billing/checkout'].includes(pathname)) {
       requireJsonSameOrigin(request);
       if (!hasNetworkAccess(request)) throw reject(403, 'An invitation code is required before Checkout.');
       const actor = ACCOUNT_AUTH ? requireAccount(request, ['admin', 'carrier-owner', 'shipper', 'broker']) : null;
@@ -1283,50 +1214,18 @@ const server = http.createServer(async (request, response) => {
         if (plan !== application.fields.dispatch_package || body.billingMethod !== application.fields.billing_method || truckCount !== Number(application.fields.available_units)) throw reject(400, 'Use the package, billing method and truck count approved in your application. Contact the team for changes.');
       }
       const lock = companyId || actor?.id || 'preview';
-      if (useSquare) {
-        if (store.operations.billingSubscriptions.some(sub => sub.provider !== 'square' && sub.companyId === companyId && ['active','trialing','past_due','unpaid','incomplete','paused'].includes(sub.status))) throw reject(409,'An existing subscription must be resolved before switching payment providers.');
-        sendJson(response,200,await squareWorkflow.start(actor,{ plan, truckCount, onboardingRequired: dispatch && !store.carrierOnboardedCompanies.includes(companyId) })); return;
-      }
-      if (billing.ready === false) throw reject(503, 'Stripe Checkout is not configured yet. Dispatch can review your onboarding request.');
-      if (checkoutLocks.has(lock)) throw reject(409, 'Checkout is already being prepared for this company.');
-      if (store.operations.billingSubscriptions.some(sub => sub.companyId === companyId && ['active','trialing','past_due','unpaid','incomplete','paused'].includes(sub.status))) throw reject(409, 'This company already has a subscription. Use billing management.');
-      let pending = store.billingCheckouts.find(entry => entry.companyId === lock && entry.createdAt > Date.now() - 24 * 60 * 60 * 1000);
-      if (pending) {
-        if (pending.plan !== plan || pending.truckCount !== truckCount) throw reject(409, 'An existing checkout is pending. Complete it or contact dispatch before changing quantities.');
-        if (pending.url) {
-          sendJson(response, 200, { url: pending.url, sessionId: pending.sessionId });
-          return;
-        }
-        if (pending.userId !== (actor?.id || 'preview')) throw reject(409, 'Another company member has a checkout in progress.');
-      }
-      checkoutLocks.add(lock);
-      try {
-        // Save the retry identity before contacting Stripe. A lost response or failed final write
-        // must reuse the same remote session, including its one-time onboarding item.
-        if (!pending) {
-          pending = { companyId: lock, userId: actor?.id || 'preview', email, plan, truckCount, onboardingRequired: dispatch && !store.carrierOnboardedCompanies.includes(companyId), requestId: crypto.randomUUID(), createdAt: Date.now() };
-          store.billingCheckouts = [...store.billingCheckouts.filter(entry => entry.companyId !== lock), pending];
-          persistStore();
-        }
-        const checkout = await billing.checkout(plan, pending.email, actor, pending.requestId, { truckCount, onboardingRequired: pending.onboardingRequired, billingMethod: dispatch ? 'weekly' : undefined });
-        store.billingCheckouts = [...store.billingCheckouts.filter(entry => entry.companyId !== lock), { ...pending, ...checkout }];
-        persistStore();
-        sendJson(response, 200, checkout);
-      } finally { checkoutLocks.delete(lock); }
-      return;
+      if (store.operations.billingSubscriptions.some(sub => sub.provider !== 'square' && sub.companyId === companyId && ['active','trialing','past_due','unpaid','incomplete','paused'].includes(sub.status))) throw reject(409,'An existing subscription must be resolved before switching payment providers.');
+      sendJson(response,200,await squareWorkflow.start(actor,{ plan, truckCount, onboardingRequired: dispatch && !store.carrierOnboardedCompanies.includes(companyId) })); return;
     }
-    if (request.method === 'GET' && ['/api/stripe/subscription','/api/billing/subscription'].includes(pathname)) {
+    if (request.method === 'GET' && ['/api/square/subscription','/api/billing/subscription'].includes(pathname)) {
       const actor = ACCOUNT_AUTH ? requireAccount(request) : null;
       sendJson(response, 200, { required: REQUIRE_SUBSCRIPTION, subscription: publicSubscription(subscriptionForUser(actor)) });
       return;
     }
-    if (request.method === 'POST' && ['/api/stripe/portal','/api/billing/portal'].includes(pathname)) {
+    if (request.method === 'POST' && ['/api/square/portal','/api/billing/portal'].includes(pathname)) {
       requireJsonSameOrigin(request);
       const actor = requireAccount(request, ['carrier-owner', 'shipper', 'broker']);
-      if (useSquare) { sendJson(response,200,{url:'/square-billing.html'}); return; }
-      const subscription = subscriptionForUser(actor);
-      if (!subscription?.customerId) throw reject(409, 'Complete Stripe Checkout before opening billing management.');
-      sendJson(response, 200, await billing.portal(subscription.customerId));
+      sendJson(response,200,{url:'/square-billing.html'}); return;
       return;
     }
     if (request.method === 'POST' && pathname === '/api/access') {
@@ -1612,7 +1511,7 @@ const server = http.createServer(async (request, response) => {
       const actor = requireAccount(request, ['carrier-owner']);
       const w = Object.values(store.applicantWorkflows || {}).find(w => w.companyId === actor.companyId);
       const record = w && store.intakes.find(i => i.id === w.intakeId);
-      sendJson(response, 200, { onboarding: record ? { company: record.fields.legal_carrier_name, status: store.intakeReviews[record.id].status, plan: record.fields.dispatch_package, billingMethod: record.fields.billing_method, truckCount: Number(record.fields.available_units), paymentConfigured: useSquare ? squareBilling.ready && squareBilling.environment === 'production' : Boolean(billing.ready), ...applicantWorkflow.readiness(record, store.intakeReviews[record.id], w) } : null });
+      sendJson(response, 200, { onboarding: record ? { company: record.fields.legal_carrier_name, status: store.intakeReviews[record.id].status, plan: record.fields.dispatch_package, billingMethod: record.fields.billing_method, truckCount: Number(record.fields.available_units), paymentConfigured: squareBilling.ready && squareBilling.environment === 'production', ...applicantWorkflow.readiness(record, store.intakeReviews[record.id], w) } : null });
       return;
     }
     const intakeRoute = pathname.match(/^\/api\/intakes\/([a-zA-Z0-9_-]+)(?:\/(review|history|export|verification|workflow))?$/);
@@ -1789,7 +1688,7 @@ process.once('SIGTERM', () => shutdown('SIGTERM'));
 server.listen(PORT, BIND_HOST, () => {
   console.log(`Harper app running at http://${BIND_HOST}:${server.address().port}`);
   console.log(`Data store: ${DATA_FILE}`);
-  if (useSquare && squareBilling.ready) {
+  if (squareBilling.ready) {
     squareBilling.verify().then(async () => {
       console.log('Square connection verified: ' + squareBilling.environment);
       if (squareBilling.environment === 'sandbox' && process.env.SQUARE_SANDBOX_SMOKE_TEST === 'true') {

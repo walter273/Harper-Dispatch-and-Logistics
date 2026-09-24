@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { createVerifier, attachReport } = require('../carrier-verification');
 const { createReview, applyReview } = require('../intake-review');
 const { termsVersion } = require('../dispatch-plans');
-const intake = { id: 'carrier-test', type: 'carrier-onboarding', fields: { legal_carrier_name: 'Example Freight LLC', primary_contact: 'Owner', business_email: 'owner@example.com', business_phone: '3035550100', dot_number: '123456', mc_number: 'MC-654321', available_units: '1', dispatch_package: 'dispatch-standard', billing_method: 'weekly', dispatch_terms: termsVersion } };
+const intake = { id: 'carrier-test', type: 'carrier-onboarding', fields: { legal_carrier_name: 'Example Freight LLC', primary_contact: 'Owner', business_email: 'owner@example.com', business_phone: '3035550100', dot_number: '123456', mc_number: 'MC-654321', available_units: '1', dispatch_package: 'dispatch-basic', billing_method: 'percentage', dispatch_terms: termsVersion } };
 const carrier = { dotNumber: 123456, legalName: 'Example Freight LLC', allowToOperate: 'Y', outOfService: 'N' };
 const response = rows => new Response(JSON.stringify({ content: rows.map(carrier => ({ carrier })) }));
 const run = (fetchImpl, subject = intake, review = createReview(subject)) => createVerifier({ key: 'secret-key', fetchImpl }).run(subject, review);

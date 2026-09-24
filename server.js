@@ -31,13 +31,14 @@ function cookieSecurity(request) {
 // sent across that boundary. Scoping it to the registrable domain keeps the
 // session valid whichever hostname the visitor reached us on.
 function cookieDomain(request) {
-  if (!requestIsSecure(request)) return '';
-  const host = String(request?.headers?.host || '').split(':')[0].toLowerCase();
-  if (!host || host === 'localhost' || /^\d+(\.\d+){3}$/.test(host)) return '';
-  const parts = host.split('.');
-  if (parts.length < 2) return '';
-  // Keep the last two labels, which covers harperloadboard.com and any www prefix.
-  return `; Domain=.${parts.slice(-2).join('.')}`;
+  // Deliberately returns nothing. Railway rewrites the Host header before the app
+  // sees it, so deriving a Domain from it yields a different registrable domain
+  // than the one the browser is on - and a browser silently discards any cookie
+  // whose Domain does not match the current host. That produced a sign-in that
+  // succeeded server-side while the session never existed in the browser.
+  // A host-only cookie has no such failure mode: the browser always accepts it
+  // for the exact host that set it.
+  return '';
 }
 
 const ROOT_DIR = __dirname;
@@ -330,7 +331,11 @@ function requireJsonSameOrigin(request) {
   }
   const origin = headerValue(request, 'origin');
   if (!origin) return;
-  const host = headerValue(request, 'host');
+  // Behind a proxy the Host header can be rewritten to the internal service
+  // address, which made the browser's Origin look like a cross-site request.
+  // Compare against the forwarded host when one is present.
+  const forwardedHost = String(headerValue(request, 'x-forwarded-host') || '').split(',')[0].trim();
+  const host = forwardedHost || headerValue(request, 'host');
   if (!host || (origin !== `http://${host}` && origin !== `https://${host}`)) {
     throw reject(403, 'Cross-site requests are not allowed.');
   }

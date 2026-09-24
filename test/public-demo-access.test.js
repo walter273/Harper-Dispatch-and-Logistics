@@ -1,4 +1,4 @@
-const {test}=require('node:test');
+﻿const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const os=require('node:os');
@@ -8,9 +8,9 @@ const {seed}=require('../test-support/review-fixture');
 test('public demos are independent and working pages require active accounts', async t=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'harper-public-'));
  const file=path.join(dir,'store.json'); const {tokens}=seed(file);
- const app=await start({ALPHAWAY_DATA_FILE:file,ALPHAWAY_ACCOUNT_AUTH:'true'});
+ const app=await start({HARPER_DATA_FILE:file,HARPER_ACCOUNT_AUTH:'true'});
  t.after(async()=>{await app.stop();fs.rmSync(dir,{recursive:true,force:true});});
- const get=(route,role)=>fetch(app.url+route,{redirect:'manual',headers:role?{cookie:`alphaway_account=${tokens['user-'+role]}`}:{}});
+ const get=(route,role)=>fetch(app.url+route,{redirect:'manual',headers:role?{cookie:`harper_account=${tokens['user-'+role]}`}:{}});
  for(const name of fs.readdirSync(path.join(__dirname,'..')).filter(n=>n.startsWith('demo-')&&n.endsWith('.html'))){
   const response=await get('/'+name);assert.equal(response.status,200);
   const html=await response.text();assert.match(html,/SAMPLE CONTENT ONLY/);assert.match(html,/Sign up \/ request access/);assert.doesNotMatch(html,/script\.js|operations\.js|\/api\//);

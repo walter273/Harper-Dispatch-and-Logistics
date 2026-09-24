@@ -1,4 +1,4 @@
-const { test } = require('node:test');
+﻿const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -11,11 +11,11 @@ test('staff queue: private APIs, immutable originals, approval, durable history,
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'alphaway-review-test-'));
   const file = path.join(dir, 'store.json');
   const { tokens, original } = seed(file);
-  const config = { ALPHAWAY_DATA_FILE: file, ALPHAWAY_ACCOUNT_AUTH: 'true' };
+  const config = { HARPER_DATA_FILE: file, HARPER_ACCOUNT_AUTH: 'true' };
   let app;
   t.after(async () => { if (app) await app.stop(); fs.rmSync(dir, { recursive: true, force: true }); });
   app = await start(config);
-  const cookie = role => role ? `alphaway_account=${tokens[`user-${role}`]}` : '';
+  const cookie = role => role ? `harper_account=${tokens[`user-${role}`]}` : '';
   const get = (route, role = 'admin') => fetch(app.url + route, { headers: { cookie: cookie(role) } });
   const post = (route, body, role = 'admin', headers = {}) => fetch(app.url + route, { method: 'POST', headers: { 'content-type': 'application/json', cookie: cookie(role), ...headers }, body: JSON.stringify(body) });
   const recordPath = '/api/intakes/legacy-carrier';
@@ -81,6 +81,6 @@ test('staff queue: private APIs, immutable originals, approval, durable history,
   const saved = JSON.parse(fs.readFileSync(file)); assert.equal(saved.intakes.length, 257);
   assert.equal(saved.accounts.users.length, original.accounts.users.length, 'approval does not create accounts');
   assert.equal(saved.operations.billingSubscriptions.length, 0, 'approval does not grant paid entitlement');
-  await app.stop(); app = await start({ ...config, ALPHAWAY_ACCOUNT_AUTH: 'false' });
+  await app.stop(); app = await start({ ...config, HARPER_ACCOUNT_AUTH: 'false' });
   assert.equal((await get('/api/intakes')).status, 403); assert.equal((await get(recordPath)).status, 401);
 });

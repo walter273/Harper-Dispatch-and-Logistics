@@ -8,11 +8,11 @@ const { spawn } = require('node:child_process');
 const { once } = require('node:events');
 
 async function start(extra = {}) {
-  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(ALPHAWAY_|HARPER_|SQUARE_|NODE_ENV$|PORT$|HOST$)/.test(key)));
-  const child = spawn(process.execPath, ['--max-old-space-size=128', 'server.js'], { cwd: path.resolve(__dirname,'..'), env: {...env, PORT:'0', ALPHAWAY_HOST:'127.0.0.1', ...extra}, windowsHide: true });
+  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(HARPER_|HARPER_|SQUARE_|NODE_ENV$|PORT$|HOST$)/.test(key)));
+  const child = spawn(process.execPath, ['--max-old-space-size=128', 'server.js'], { cwd: path.resolve(__dirname,'..'), env: {...env, PORT:'0', HARPER_HOST:'127.0.0.1', ...extra}, windowsHide: true });
   let output = '', errors = '';
   const url = await new Promise((resolve,reject) => {
-    const startupTimeout = Math.min(180000, Math.max(45000, Number(process.env.ALPHAWAY_TEST_STARTUP_TIMEOUT_MS) || 45000));
+    const startupTimeout = Math.min(180000, Math.max(45000, Number(process.env.HARPER_TEST_STARTUP_TIMEOUT_MS) || 45000));
     const timer = setTimeout(() => { child.kill(); reject(new Error(`Server startup timed out: ${errors || output}`)); },startupTimeout);
     child.stdout.on('data', chunk => { output += chunk; const match = output.match(/http:\/\/127\.0\.0\.1:\d+/); if (match) { clearTimeout(timer); resolve(match[0]); } });
     child.stderr.on('data', chunk => { errors += chunk; });
@@ -25,7 +25,7 @@ test('account auth protects intakes and catalog even without preview basic auth'
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'alphaway-access-test-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const password = crypto.randomBytes(24).toString('hex');
-  const app = await start({ ALPHAWAY_DATA_FILE: path.join(dir, 'store.json'), ALPHAWAY_ACCOUNT_AUTH: 'true', ALPHAWAY_ADMIN_EMAIL: 'admin@example.com', ALPHAWAY_ADMIN_PASSWORD: password, RAILWAY_ENVIRONMENT_ID: 'test-environment' });
+  const app = await start({ HARPER_DATA_FILE: path.join(dir, 'store.json'), HARPER_ACCOUNT_AUTH: 'true', HARPER_ADMIN_EMAIL: 'admin@example.com', HARPER_ADMIN_PASSWORD: password, RAILWAY_ENVIRONMENT_ID: 'test-environment' });
   t.after(() => app.stop());
   const post = (route, body, cookie = '') => fetch(app.url + route, { method: 'POST', headers: { 'content-type': 'application/json', cookie }, body: JSON.stringify(body) });
   assert.equal((await fetch(app.url + '/api/intakes')).status, 403);
@@ -43,7 +43,7 @@ test('account auth protects intakes and catalog even without preview basic auth'
 test('company boundaries apply to HTTP snapshots, stream updates, invitations and restart', async t => {
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'alphaway-tenants-')); t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
   const file=path.join(dir,'store.json'), password=crypto.randomBytes(24).toString('hex');
-  const config={ALPHAWAY_DATA_FILE:file,ALPHAWAY_ACCOUNT_AUTH:'true',ALPHAWAY_ADMIN_EMAIL:'admin@example.com',ALPHAWAY_ADMIN_PASSWORD:password};
+  const config={HARPER_DATA_FILE:file,HARPER_ACCOUNT_AUTH:'true',HARPER_ADMIN_EMAIL:'admin@example.com',HARPER_ADMIN_PASSWORD:password};
   let app=await start(config); t.after(()=>app.stop());
   const post=(route,body,cookie='')=>fetch(app.url+route,{method:'POST',headers:{'content-type':'application/json',cookie},body:JSON.stringify(body)});
   const get=(route,cookie='')=>fetch(app.url+route,{headers:{cookie}});

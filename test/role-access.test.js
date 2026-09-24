@@ -1,9 +1,9 @@
-const {test}=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');const os=require('node:os');const path=require('node:path');
+﻿const {test}=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');const os=require('node:os');const path=require('node:path');
 const {start}=require('../test-support/server');const {seed}=require('../test-support/review-fixture');
 test('roles restrict direct pages, operational writes, catalog and plan selection',async t=>{
- const dir=fs.mkdtempSync(path.join(os.tmpdir(),'harper-roles-')),file=path.join(dir,'store.json');const {tokens}=seed(file);const app=await start({ALPHAWAY_DATA_FILE:file,ALPHAWAY_ACCOUNT_AUTH:'true'});
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'harper-roles-')),file=path.join(dir,'store.json');const {tokens}=seed(file);const app=await start({HARPER_DATA_FILE:file,HARPER_ACCOUNT_AUTH:'true'});
  t.after(async()=>{await app.stop();fs.rmSync(dir,{recursive:true,force:true});});
- const request=(url,role,body)=>fetch(app.url+url,{redirect:'manual',method:body?'POST':'GET',headers:{cookie:`alphaway_account=${tokens['user-'+role]}`,'content-type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});
+ const request=(url,role,body)=>fetch(app.url+url,{redirect:'manual',method:body?'POST':'GET',headers:{cookie:`harper_account=${tokens['user-'+role]}`,'content-type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});
  for(const role of ['broker','shipper','driver']) for(const page of ['loadboard.html','planning-tools.html','tms.html']) assert.equal((await request('/'+page,role)).status,403);
  for(const role of ['carrier-owner','broker','shipper','driver']) assert.equal((await request('/workspace.html',role)).status,200);
  for(const role of ['broker','shipper']){

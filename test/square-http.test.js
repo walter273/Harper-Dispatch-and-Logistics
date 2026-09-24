@@ -1,12 +1,12 @@
-const {test}=require('node:test');
+﻿const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');const os=require('node:os');const path=require('node:path');
 const {start}=require('../test-support/server');const {seed}=require('../test-support/review-fixture');
 test('Square HTTP checkout is admin-only in sandbox, persists retries, and keeps secrets private',async t=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'harper-square-'));const file=path.join(dir,'store.json');const {tokens}=seed(file,0);
- const config={ALPHAWAY_DATA_FILE:file,ALPHAWAY_ACCOUNT_AUTH:'true',BILLING_PROVIDER:'square',SQUARE_ENVIRONMENT:'sandbox'};let app=await start(config);
+ const config={HARPER_DATA_FILE:file,HARPER_ACCOUNT_AUTH:'true',BILLING_PROVIDER:'square',SQUARE_ENVIRONMENT:'sandbox'};let app=await start(config);
  t.after(async()=>{await app.stop();fs.rmSync(dir,{recursive:true,force:true});});
- const cookie=role=>`alphaway_account=${tokens['user-'+role]}`;
+ const cookie=role=>`harper_account=${tokens['user-'+role]}`;
  const post=(route,body,role='admin',origin)=>fetch(app.url+route,{method:'POST',headers:{'content-type':'application/json',cookie:cookie(role),...(origin?{origin}:{})},body:JSON.stringify(body)});
  assert.equal((await fetch(app.url+'/api/square/state')).status,401);
  assert.equal((await fetch(app.url+'/api/square/production-connection')).status,401);
@@ -26,9 +26,9 @@ test('Square HTTP checkout is admin-only in sandbox, persists retries, and keeps
 test('paid Square access survives restart and expires without relying on another webhook',async t=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'harper-square-access-'));const file=path.join(dir,'store.json');const {tokens}=seed(file,0);
  const saved=JSON.parse(fs.readFileSync(file));saved.operations.billingSubscriptions=[{id:'square_fixture',provider:'square',environment:'production',customerId:'customer',userId:'user-broker',companyId:'company-broker',plan:'broker',truckCount:1,status:'active',currentPeriodEnd:Date.now()/1000+3600}];fs.writeFileSync(file,JSON.stringify(saved));
- const config={ALPHAWAY_DATA_FILE:file,ALPHAWAY_ACCOUNT_AUTH:'true',ALPHAWAY_REQUIRE_SUBSCRIPTION:'true'};let app=await start(config);
+ const config={HARPER_DATA_FILE:file,HARPER_ACCOUNT_AUTH:'true',HARPER_REQUIRE_SUBSCRIPTION:'true'};let app=await start(config);
  t.after(async()=>{await app.stop();fs.rmSync(dir,{recursive:true,force:true});});
- const get=()=>fetch(app.url+'/api/operations',{headers:{cookie:`alphaway_account=${tokens['user-broker']}`}});
+ const get=()=>fetch(app.url+'/api/operations',{headers:{cookie:`harper_account=${tokens['user-broker']}`}});
  assert.equal((await get()).status,200);await app.stop();app=await start(config);assert.equal((await get()).status,200);
  await app.stop();const expired=JSON.parse(fs.readFileSync(file));expired.operations.billingSubscriptions[0].currentPeriodEnd=1;fs.writeFileSync(file,JSON.stringify(expired));app=await start(config);assert.equal((await get()).status,402);
 });

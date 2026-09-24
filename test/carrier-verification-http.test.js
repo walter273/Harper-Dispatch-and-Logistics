@@ -1,4 +1,4 @@
-const { test } = require('node:test');
+﻿const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -10,9 +10,9 @@ test('carrier screening persists, is staff-only, rejects stale changes and never
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'carrier-checks-'));
   const file = path.join(dir, 'store.json');
   const { tokens } = seed(file, 0);
-  let app = await start({ ALPHAWAY_DATA_FILE: file, ALPHAWAY_ACCOUNT_AUTH: 'true' });
+  let app = await start({ HARPER_DATA_FILE: file, HARPER_ACCOUNT_AUTH: 'true' });
   t.after(async () => { await app.stop(); fs.rmSync(dir, { recursive: true, force: true }); });
-  const headers = role => ({ 'content-type': 'application/json', cookie: role ? `alphaway_account=${tokens[`user-${role}`]}` : '' });
+  const headers = role => ({ 'content-type': 'application/json', cookie: role ? `harper_account=${tokens[`user-${role}`]}` : '' });
   const post = (route, data, role = 'admin') => fetch(app.url + route, { method: 'POST', headers: headers(role), body: JSON.stringify(data) });
   const submitted = await post('/api/intakes', { type: 'carrier-onboarding', fields: { legal_carrier_name: 'TEST ONLY carrier', primary_contact: 'TEST contact', business_email: 'test@example.com', dot_number: '000000', mc_number: '000000', dispatch_package: 'dispatch-basic', billing_method: 'percentage', dispatch_terms: termsVersion, available_units: '1' } }, '');
   assert.equal(submitted.status, 201);
@@ -30,7 +30,7 @@ test('carrier screening persists, is staff-only, rejects stale changes and never
   assert.equal(updated.review.decision, null);
   assert.equal(updated.review.historyCount, 2);
   assert.equal((await post(route + '/review', { version: 2, requestId: 'forged-automation-123', action: 'automatic_checks', automation: { overall: 'passed' } })).status, 400);
-  await app.stop(); app = await start({ ALPHAWAY_DATA_FILE: file, ALPHAWAY_ACCOUNT_AUTH: 'true' });
+  await app.stop(); app = await start({ HARPER_DATA_FILE: file, HARPER_ACCOUNT_AUTH: 'true' });
   assert.deepEqual((await get()).review.automation, updated.review.automation);
   const saved = JSON.parse(fs.readFileSync(file));
   assert.equal(saved.operations.billingSubscriptions.length, 0);

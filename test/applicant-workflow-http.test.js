@@ -1,4 +1,4 @@
-const { test } = require('node:test');
+﻿const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs'), os = require('node:os'), path = require('node:path'), crypto = require('node:crypto');
 const { start } = require('../test-support/server');
@@ -6,10 +6,10 @@ const { seed } = require('../test-support/review-fixture');
 test('decision, outbox and isolated invitation commit together; replay and restart do not duplicate; onboarding is private', { timeout: 180000 }, async t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'applicant-flow-')), file = path.join(dir, 'store.json');
   const { tokens } = seed(file, 0), secret = 'z'.repeat(48);
-  const env = { ALPHAWAY_DATA_FILE: file, ALPHAWAY_ACCOUNT_AUTH: 'true', ALPHAWAY_SESSION_SECRET: secret };
+  const env = { HARPER_DATA_FILE: file, HARPER_ACCOUNT_AUTH: 'true', HARPER_SESSION_SECRET: secret };
   let app = await start(env);
   t.after(async () => { await app.stop(); fs.rmSync(dir, { recursive: true, force: true }); });
-  const headers = { 'content-type': 'application/json', cookie: `alphaway_account=${tokens['user-admin']}` };
+  const headers = { 'content-type': 'application/json', cookie: `harper_account=${tokens['user-admin']}` };
   const route = '/api/intakes/legacy-carrier';
   const post = (url, body, h = headers) => fetch(app.url + url, { method: 'POST', headers: h, body: JSON.stringify(body) });
   let version = 1;

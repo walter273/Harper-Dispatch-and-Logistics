@@ -1,4 +1,4 @@
-const fs = require('node:fs');
+﻿const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 function atomicWrite(file, text) {
@@ -21,11 +21,11 @@ function createStorage(file, env = process.env) {
     return value;
   };
   function bootstrap() {
-    if (fs.existsSync(file) || !env.ALPHAWAY_MIGRATION_JSON) return;
-    const text = env.ALPHAWAY_MIGRATION_JSON;
+    if (fs.existsSync(file) || !env.HARPER_MIGRATION_JSON) return;
+    const text = env.HARPER_MIGRATION_JSON;
     validate(text);
     const digest = crypto.createHash('sha256').update(text).digest('hex');
-    if (env.ALPHAWAY_MIGRATION_SHA256 && digest !== env.ALPHAWAY_MIGRATION_SHA256) throw new Error('Migration checksum mismatch');
+    if (env.HARPER_MIGRATION_SHA256 && digest !== env.HARPER_MIGRATION_SHA256) throw new Error('Migration checksum mismatch');
     atomicWrite(`${file}.migration-backup`, text);
     atomicWrite(file, text);
     if (fs.readFileSync(file, 'utf8') !== text) throw new Error('Migration verification failed');

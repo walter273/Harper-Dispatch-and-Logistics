@@ -1,4 +1,4 @@
-const { test } = require('node:test');
+﻿const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -14,14 +14,14 @@ test('admin invitations support private password setup, role enforcement, one us
   const saved = JSON.parse(fs.readFileSync(file));
   saved.accounts.invitations = [{ id: 'expired', email: 'expired@example.com', role: 'admin', companyId: 'alphaway', status: 'pending', expiresAt: 1, tokenHash: crypto.createHash('sha256').update(expiredToken).digest('hex') }];
   fs.writeFileSync(file, JSON.stringify(saved));
-  const config = { ALPHAWAY_DATA_FILE: file, ALPHAWAY_ACCOUNT_AUTH: 'true' }; let app;
+  const config = { HARPER_DATA_FILE: file, HARPER_ACCOUNT_AUTH: 'true' }; let app;
   t.after(async () => { if (app) await app.stop(); fs.rmSync(dir, { recursive: true, force: true }); });
   app = await start(config);
-  const adminCookie = `alphaway_account=${tokens['user-admin']}`;
+  const adminCookie = `harper_account=${tokens['user-admin']}`;
   const post = (route, body, cookie = '', headers = {}) => fetch(app.url + route, { method: 'POST', headers: { 'content-type': 'application/json', cookie, ...headers }, body: JSON.stringify(body) });
   const invite = { email: 'new-admin@example.com', role: 'admin', companyId: 'alphaway' };
   for (const role of ['dispatcher', 'carrier-owner', 'driver', 'broker', 'shipper']) {
-    assert.equal((await post('/api/accounts/invitations', invite, `alphaway_account=${tokens[`user-${role}`]}`)).status, 403);
+    assert.equal((await post('/api/accounts/invitations', invite, `harper_account=${tokens[`user-${role}`]}`)).status, 403);
   }
   assert.equal((await post('/api/accounts/invitations', invite)).status, 401);
   assert.equal((await post('/api/accounts/invitations', { ...invite, email: 'admin@example.com' }, adminCookie)).status, 409);

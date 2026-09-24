@@ -1,4 +1,4 @@
-# Harper Load Board launch audit
+﻿# Harper Load Board launch audit
 
 Date: 2026-09-15
 
@@ -7,8 +7,8 @@ Date: 2026-09-15
 - Repository: `walter273/Alphaway-Logistics`
 - Production branch: `main`
 - Railway project: `AlphaWay TMS Staging`
-- Active app service: `alphaway-tms-staging-app`
-- Public Railway domain: `alphaway-tms-staging-app-production.up.railway.app`
+- Active app service: `harper-tms-staging-app`
+- Public Railway domain: `harper-tms-staging-app-production.up.railway.app`
 - Custom domain attached in Railway: `www.harperloadboard.com`
 - Persistent volume: 500 MB mounted at `/app/data`
 - Latest audited Railway deployment: commit `3dda6aa693d3e355e22ae320c34e28d49f637801`, status SUCCESS
@@ -39,7 +39,7 @@ Railway currently has `www.harperloadboard.com` attached. The apex domain `harpe
 
 ### Runtime naming and legacy configuration
 
-The public product has been rebranded to Harper, but the repository, Railway service names, internal storage path, cookie names, event names and many environment variables retain the historical `ALPHAWAY_` prefix. These internal identifiers should not be renamed casually because doing so could break persistence, sessions, deployment variables and integrations. Public-facing branding should remain Harper while legacy internal identifiers are migrated only through a planned compatibility change.
+The public product has been rebranded to Harper, but the repository, Railway service names, internal storage path, cookie names, event names and many environment variables retain the historical `HARPER_` prefix. These internal identifiers should not be renamed casually because doing so could break persistence, sessions, deployment variables and integrations. Public-facing branding should remain Harper while legacy internal identifiers are migrated only through a planned compatibility change.
 
 ### Public-versus-private hosting model
 
@@ -80,7 +80,7 @@ Before calling Harper Load Board fully production-ready, verify all of the follo
 
 - Existing persistent store location and schema
 - Existing cookie/session names used by active users
-- Existing legacy `ALPHAWAY_` environment variable names
+- Existing legacy `HARPER_` environment variable names
 - Billing price IDs or live-payment switches
 - Twilio credentials or callback URLs
 - Microsoft inbox application/consent configuration

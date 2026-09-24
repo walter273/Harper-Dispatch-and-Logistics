@@ -1,4 +1,4 @@
-const { test } = require('node:test');
+﻿const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const { createWorkflow } = require('../applicant-workflow');
@@ -8,7 +8,7 @@ function setup(fetchImpl = async () => new Response(null, { status: 202 })) {
   const review = createReview(record); review.status = 'approved'; review.version = 2;
   const actor = { id: 'staff', role: 'admin', name: 'Staff', status: 'active' };
   let store = { intakes: [record], intakeReviews: { [record.id]: review }, accounts: { companies: [], users: [actor], invitations: [] }, operations: { billingSubscriptions: [] } };
-  const env = { ALPHAWAY_SESSION_SECRET: 'a'.repeat(48), SENDGRID_API_KEY: 'SG.test', ALPHAWAY_APPLICANT_EMAILS_ENABLED: 'true' };
+  const env = { HARPER_SESSION_SECRET: 'a'.repeat(48), SENDGRID_API_KEY: 'SG.test', HARPER_APPLICANT_EMAILS_ENABLED: 'true' };
   let saved;
   const w = createWorkflow({ env, getStore: () => store, persist: () => { saved = structuredClone(store); }, fetchImpl });
   const transition = (action = 'approve') => w.transition(record, review, { action, notifyApplicant: true, applicantMessage: 'Welcome. Please complete onboarding.', note: 'INTERNAL PRIVATE NOTE' }, actor);
@@ -88,7 +88,7 @@ test('secure information response validates token, rejects executable files, and
 test('Twilio provider uses a private basic-auth key and its email payload', async () => {
   let request;
   const x = setup();
-  const env = { ...x.env, ALPHAWAY_EMAIL_PROVIDER: 'twilio', TWILIO_API_KEY_SID: 'SKexample', TWILIO_API_KEY_SECRET: 'private-secret' };
+  const env = { ...x.env, HARPER_EMAIL_PROVIDER: 'twilio', TWILIO_API_KEY_SID: 'SKexample', TWILIO_API_KEY_SECRET: 'private-secret' };
   const w = createWorkflow({ env, getStore: () => x.store, persist() {}, fetchImpl: async (url, options) => { request = { url, ...options }; return new Response(JSON.stringify({ operationId: 'op-1' }), { status: 202 }); } });
   w.transition(x.record, x.review, { action: 'approve', notifyApplicant: true, applicantMessage: 'Welcome.' }, x.actor);
   await w.drain();
@@ -103,7 +103,7 @@ test('Twilio provider uses a private basic-auth key and its email payload', asyn
 
 test('Twilio acceptance and operation completion are not confused with delivery', async () => {
   const x = setup(); let delivered = 0, sent = 0;
-  const w = createWorkflow({ env: { ...x.env, ALPHAWAY_EMAIL_PROVIDER: 'twilio', TWILIO_API_KEY_SID: 'SKtest', TWILIO_API_KEY_SECRET: 'secret' }, getStore: () => x.store, persist() {}, fetchImpl: async (url, options) => {
+  const w = createWorkflow({ env: { ...x.env, HARPER_EMAIL_PROVIDER: 'twilio', TWILIO_API_KEY_SID: 'SKtest', TWILIO_API_KEY_SECRET: 'secret' }, getStore: () => x.store, persist() {}, fetchImpl: async (url, options) => {
     if (options.method === 'POST') { sent++; return new Response(JSON.stringify({ operationId: 'comms_operation_test' }), { status: 202 }); }
     assert.equal(url, 'https://comms.twilio.com/v1/Emails/Operations/comms_operation_test');
     return new Response(JSON.stringify({ status: 'COMPLETED', stats: { recipients: 1, delivered } }));

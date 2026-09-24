@@ -1,4 +1,4 @@
-const { test } = require('node:test');
+﻿const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -24,10 +24,10 @@ test('storage migration preserves records once, survives restart and keeps backu
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'alphaway-storage-')); t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
  const file=path.join(dir,'store.json');
  const original={loads:[], accounts:{users:[{id:'preserved'}]}, operations:{}, revision:1};
- const disk=createStorage(file,{ALPHAWAY_MIGRATION_JSON:JSON.stringify(original)});
+ const disk=createStorage(file,{HARPER_MIGRATION_JSON:JSON.stringify(original)});
  assert.deepEqual(disk.read(),original);
  disk.write({...original,revision:2});
- assert.equal(createStorage(file,{ALPHAWAY_MIGRATION_JSON:JSON.stringify(original)}).read().revision,2);
+ assert.equal(createStorage(file,{HARPER_MIGRATION_JSON:JSON.stringify(original)}).read().revision,2);
  assert.equal(JSON.parse(fs.readFileSync(file+'.migration-backup')).accounts.users[0].id,'preserved');
  assert.equal(JSON.parse(fs.readFileSync(file+'.backup')).revision,1);
  fs.writeFileSync(file,'broken');
@@ -37,6 +37,6 @@ test('storage migration preserves records once, survives restart and keeps backu
 test('bad migration checksum fails without creating store',t=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'alphaway-checksum-')); t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
  const file=path.join(dir,'store.json');
- assert.throws(()=>createStorage(file,{ALPHAWAY_MIGRATION_JSON:JSON.stringify({loads:[],accounts:{},operations:{}}),ALPHAWAY_MIGRATION_SHA256:'wrong'}).read(),/checksum/);
+ assert.throws(()=>createStorage(file,{HARPER_MIGRATION_JSON:JSON.stringify({loads:[],accounts:{},operations:{}}),HARPER_MIGRATION_SHA256:'wrong'}).read(),/checksum/);
  assert.equal(fs.existsSync(file),false);
 });

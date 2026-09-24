@@ -1,9 +1,9 @@
-const { test } = require('node:test');
+﻿const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const { createSquareBilling, quote, entitled } = require('../square-billing');
 const { createSquareWorkflow } = require('../square-workflow');
-const env = { SQUARE_SANDBOX_ACCESS_TOKEN:'fixture', SQUARE_SANDBOX_LOCATION_ID:'location', ALPHAWAY_PUBLIC_ORIGIN:'https://harper.example' };
+const env = { SQUARE_SANDBOX_ACCESS_TOKEN:'fixture', SQUARE_SANDBOX_LOCATION_ID:'location', HARPER_PUBLIC_ORIGIN:'https://harper.example' };
 const result = data => ({ok:true,json:async()=>data});
 test('Square defaults to sandbox and live collection is locked without explicit release',async()=>{
   const calls=[];const b=createSquareBilling({...env,SQUARE_ACCESS_TOKEN:'live'},async(url)=>{calls.push(url);return result({location:{id:'location',status:'ACTIVE',currency:'USD',capabilities:['CREDIT_CARD_PROCESSING']}});});

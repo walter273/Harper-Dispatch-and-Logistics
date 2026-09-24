@@ -1,4 +1,4 @@
-# Automatic carrier screening
+﻿# Automatic carrier screening
 
 New carrier intakes receive a server-generated screening report. Staff can run
 checks on older intakes or refresh them in Intake Review. Reports include the
@@ -14,7 +14,7 @@ applicant represents that company or constitute a complete safety determination.
 
 ## Required connection
 
-Set `ALPHAWAY_FMCSA_QCMOBILE_KEY` in the app service's Railway Variables to a
+Set `HARPER_FMCSA_QCMOBILE_KEY` in the app service's Railway Variables to a
 WebKey obtained by the owner through https://mobile.fmcsa.dot.gov/QCDevsite/home.
 Do not put the key in source, browser fields, evidence notes, or screenshots.
 The existing live service does not have this variable configured as of setup.

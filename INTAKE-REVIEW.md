@@ -1,4 +1,4 @@
-# Intake review
+﻿# Intake review
 
 Open `/intake-review.html` from the staff navigation or the Admin page. All queue, detail, history, and export APIs require an active admin or dispatcher account, including local configurations without preview Basic authentication. Customer roles cannot read or change these records.
 
@@ -24,7 +24,7 @@ Carrier requests also retain their **ELD/GPS provider**, other-provider name, op
 
 New submissions and history have no rolling count limit. Startup migrates existing saved submissions into the queue without rewriting their fields; the migration event is explicitly labeled and is not represented as a past approval. Records discarded by an older release cannot be recovered by this migration.
 
-The queue uses the configured `ALPHAWAY_DATA_FILE` and its atomic persistence/rollback mechanism. On Railway this must remain on the persistent volume with a single app process. Same-volume backups help with some write failures, but are not independent disaster recovery. Indefinite retention still requires volume capacity management and an independently stored, regularly tested backup. The JSON store is not a tamper-proof ledger or a multi-process database.
+The queue uses the configured `HARPER_DATA_FILE` and its atomic persistence/rollback mechanism. On Railway this must remain on the persistent volume with a single app process. Same-volume backups help with some write failures, but are not independent disaster recovery. Indefinite retention still requires volume capacity management and an independently stored, regularly tested backup. The JSON store is not a tamper-proof ledger or a multi-process database.
 
 ## Boundaries
 

@@ -1,4 +1,4 @@
-const { test } = require('node:test');
+﻿const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -11,11 +11,11 @@ test('carrier tracking details survive submission, staff search, export and rest
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'alphaway-gps-intake-'));
   const file = path.join(dir, 'store.json');
   const { tokens, original } = seed(file, 0);
-  const config = { ALPHAWAY_DATA_FILE: file, ALPHAWAY_ACCOUNT_AUTH: 'true' };
+  const config = { HARPER_DATA_FILE: file, HARPER_ACCOUNT_AUTH: 'true' };
   let app;
   t.after(async () => { if (app) await app.stop(); fs.rmSync(dir, { recursive: true, force: true }); });
   app = await start(config);
-  const get = (route, role = 'admin') => fetch(app.url + route, { headers: { cookie: role ? `alphaway_account=${tokens[`user-${role}`]}` : '' } });
+  const get = (route, role = 'admin') => fetch(app.url + route, { headers: { cookie: role ? `harper_account=${tokens[`user-${role}`]}` : '' } });
   const base = { legal_carrier_name: 'Pilot Intake Test', primary_contact: 'Test Dispatcher', business_email: 'pilot@example.com',
     dispatch_package: 'dispatch-basic', billing_method: 'percentage', dispatch_terms: termsVersion, available_units: '1' };
   const post = fields => fetch(app.url + '/api/intakes', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'carrier-onboarding', fields: { ...base, ...fields } }) });

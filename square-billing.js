@@ -1,4 +1,4 @@
-const crypto = require('node:crypto');
+﻿const crypto = require('node:crypto');
 const { plans, isDispatchPlan } = require('./dispatch-plans');
 const fail = (statusCode, message) => Object.assign(new Error(message), { statusCode });
 const money = amount => ({ amount, currency: 'USD' });
@@ -8,7 +8,7 @@ function quote(plan, trucks = 1) {
   if (!isDispatchPlan(plan) && !['broker', 'shipper'].includes(plan)) throw fail(400, 'Choose a supported plan.');
   if (!Number.isInteger(trucks) || trucks < 1 || trucks > 100 || (!isDispatchPlan(plan) && trucks !== 1)) throw fail(400, 'Invalid truck count.');
   return { amount: isDispatchPlan(plan) ? plans[plan].weeklyCents * trucks : plan === 'broker' ? 29900 : 79900,
-    cadence: isDispatchPlan(plan) ? 'WEEKLY' : 'MONTHLY', name: isDispatchPlan(plan) ? `${plans[plan].name} — ${trucks} truck(s)` : plan === 'broker' ? 'Broker Desk' : 'Shipper Control' };
+    cadence: isDispatchPlan(plan) ? 'WEEKLY' : 'MONTHLY', name: isDispatchPlan(plan) ? `${plans[plan].name} â€” ${trucks} truck(s)` : plan === 'broker' ? 'Broker Desk' : 'Shipper Control' };
 }
 function entitled(record, now = Date.now()) {
   return record?.provider === 'square' && record.environment === 'production' && record.status === 'active' && record.currentPeriodEnd * 1000 > now;
@@ -46,7 +46,7 @@ function createSquareBilling(env = process.env, fetchImpl = fetch) {
     return data;
   }
   function returnUrl() {
-    const url = new URL(env.ALPHAWAY_PUBLIC_ORIGIN || 'http://localhost:4173');
+    const url = new URL(env.HARPER_PUBLIC_ORIGIN || 'http://localhost:4173');
     if (url.username || url.password || url.pathname !== '/' || url.search || url.hash || (url.protocol !== 'https:' && !(env.NODE_ENV !== 'production' && ['localhost','127.0.0.1'].includes(url.hostname)))) throw fail(503, 'Configure the secure Harper website address.');
     return `${url.origin}/square-billing.html`;
   }
@@ -66,7 +66,7 @@ function createSquareBilling(env = process.env, fetchImpl = fetch) {
     }
     const { payment_link: link } = await api('/online-checkout/payment-links', {
       idempotency_key: key(entry.id, setup ? 'setup-link' : 'subscription-link'),
-      quick_pay: { name: `${sandbox ? 'TEST — ' : ''}${setup ? 'Harper fleet onboarding — one time' : q.name}`, price_money: money(setup ? 15000 : q.amount), location_id: locationId },
+      quick_pay: { name: `${sandbox ? 'TEST â€” ' : ''}${setup ? 'Harper fleet onboarding â€” one time' : q.name}`, price_money: money(setup ? 15000 : q.amount), location_id: locationId },
       checkout_options: { redirect_url: returnUrl(), allow_tipping: false, ...(variationId ? { subscription_plan_id: variationId } : {}) },
       description: `Harper checkout ${entry.id} ${setup ? 'onboarding' : 'subscription'}`
     });

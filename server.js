@@ -19,24 +19,24 @@ const SECURE_COOKIES = HOSTED || Boolean(process.env.RAILWAY_ENVIRONMENT_ID);
 
 const ROOT_DIR = __dirname;
 const PORT = Number(process.env.PORT || 4173);
-const BIND_HOST = String(process.env.ALPHAWAY_HOST || process.env.HOST || '127.0.0.1').trim();
-const DATA_FILE = process.env.ALPHAWAY_DATA_FILE || path.join(ROOT_DIR, 'data', 'alphaway-store.json');
+const BIND_HOST = String(process.env.HARPER_HOST || process.env.HOST || '127.0.0.1').trim();
+const DATA_FILE = process.env.HARPER_DATA_FILE || path.join(ROOT_DIR, 'data', 'harper-store.json');
 const storage = createStorage(DATA_FILE);
 let committedStore = null;
-const REQUIRE_PREVIEW_AUTH = String(process.env.ALPHAWAY_REQUIRE_AUTH || '').trim().toLowerCase() === 'true';
-const PREVIEW_USERNAME = String(process.env.ALPHAWAY_PREVIEW_USERNAME || process.env.ALPHAWAY_ACCESS_USER || '').trim();
-const PREVIEW_PASSWORD = String(process.env.ALPHAWAY_PREVIEW_PASSWORD || process.env.ALPHAWAY_ACCESS_PASSWORD || '');
-const PREVIEW_ADMIN_TOKEN = String(process.env.ALPHAWAY_ADMIN_TOKEN || '');
-const PRIVATE_NETWORK = String(process.env.ALPHAWAY_PRIVATE_NETWORK || '').trim().toLowerCase() === 'true';
-const NETWORK_INVITE_CODE = String(process.env.ALPHAWAY_NETWORK_INVITE_CODE || '');
-const NETWORK_ACCESS_COOKIE = 'alphaway_network_access';
-const ACCOUNT_AUTH = String(process.env.ALPHAWAY_ACCOUNT_AUTH || '').trim().toLowerCase() === 'true';
-const REQUIRE_SUBSCRIPTION = String(process.env.ALPHAWAY_REQUIRE_SUBSCRIPTION || '').trim().toLowerCase() === 'true';
-const ACCOUNT_SESSION_SECRET = String(process.env.ALPHAWAY_ACCOUNT_SESSION_SECRET || NETWORK_INVITE_CODE || PREVIEW_PASSWORD || 'local-account-secret');
-const ACCOUNT_COOKIE = 'alphaway_account';
+const REQUIRE_PREVIEW_AUTH = String(process.env.HARPER_REQUIRE_AUTH || '').trim().toLowerCase() === 'true';
+const PREVIEW_USERNAME = String(process.env.HARPER_PREVIEW_USERNAME || process.env.HARPER_ACCESS_USER || '').trim();
+const PREVIEW_PASSWORD = String(process.env.HARPER_PREVIEW_PASSWORD || process.env.HARPER_ACCESS_PASSWORD || '');
+const PREVIEW_ADMIN_TOKEN = String(process.env.HARPER_ADMIN_TOKEN || '');
+const PRIVATE_NETWORK = String(process.env.HARPER_PRIVATE_NETWORK || '').trim().toLowerCase() === 'true';
+const NETWORK_INVITE_CODE = String(process.env.HARPER_NETWORK_INVITE_CODE || '');
+const NETWORK_ACCESS_COOKIE = 'harper_network_access';
+const ACCOUNT_AUTH = String(process.env.HARPER_ACCOUNT_AUTH || '').trim().toLowerCase() === 'true';
+const REQUIRE_SUBSCRIPTION = String(process.env.HARPER_REQUIRE_SUBSCRIPTION || '').trim().toLowerCase() === 'true';
+const ACCOUNT_SESSION_SECRET = String(process.env.HARPER_ACCOUNT_SESSION_SECRET || NETWORK_INVITE_CODE || PREVIEW_PASSWORD || 'local-account-secret');
+const ACCOUNT_COOKIE = 'harper_account';
 const ACCOUNT_SESSION_DAYS = 7;
-const FMCSA_API_KEY = String(process.env.ALPHAWAY_FMCSA_QCMOBILE_KEY || '');
-const FMCSA_BASE_URL = String(process.env.ALPHAWAY_FMCSA_BASE_URL || 'https://mobile.fmcsa.dot.gov/qc/services').replace(/\/+$/, '');
+const FMCSA_API_KEY = String(process.env.HARPER_FMCSA_QCMOBILE_KEY || '');
+const FMCSA_BASE_URL = String(process.env.HARPER_FMCSA_BASE_URL || 'https://mobile.fmcsa.dot.gov/qc/services').replace(/\/+$/, '');
 const carrierVerifier = createVerifier({ key: FMCSA_API_KEY, baseUrl: FMCSA_BASE_URL });
 const verificationLocks = new Set();
 const HOME_PAGE = 'index.html';
@@ -123,14 +123,14 @@ const SECURITY_HEADERS = Object.freeze({
 });
 
 if (HOSTED && (!REQUIRE_PREVIEW_AUTH || !PRIVATE_NETWORK || !ACCOUNT_AUTH)) {
-  throw new Error('Hosted previews require ALPHAWAY_REQUIRE_AUTH, ALPHAWAY_PRIVATE_NETWORK, and ALPHAWAY_ACCOUNT_AUTH=true.');
+  throw new Error('Hosted previews require HARPER_REQUIRE_AUTH, HARPER_PRIVATE_NETWORK, and HARPER_ACCOUNT_AUTH=true.');
 }
-if (!BIND_HOST) throw new Error('ALPHAWAY_HOST must not be blank.');
+if (!BIND_HOST) throw new Error('HARPER_HOST must not be blank.');
 if (REQUIRE_PREVIEW_AUTH && (!PREVIEW_USERNAME || !PREVIEW_PASSWORD)) {
-  throw new Error('ALPHAWAY_REQUIRE_AUTH=true requires ALPHAWAY_PREVIEW_USERNAME and ALPHAWAY_PREVIEW_PASSWORD.');
+  throw new Error('HARPER_REQUIRE_AUTH=true requires HARPER_PREVIEW_USERNAME and HARPER_PREVIEW_PASSWORD.');
 }
 if (PRIVATE_NETWORK && !NETWORK_INVITE_CODE) {
-  throw new Error('ALPHAWAY_PRIVATE_NETWORK=true requires ALPHAWAY_NETWORK_INVITE_CODE.');
+  throw new Error('HARPER_PRIVATE_NETWORK=true requires HARPER_NETWORK_INVITE_CODE.');
 }
 
 const LOAD_ROWS = [
@@ -454,8 +454,8 @@ function normalizeState(candidate, catalog) {
 
 function createStore() {
   const loads = defaultLoads();
-  const adminEmail = String(process.env.ALPHAWAY_ADMIN_EMAIL || '').trim().toLowerCase();
-  const adminPassword = String(process.env.ALPHAWAY_ADMIN_PASSWORD || '');
+  const adminEmail = String(process.env.HARPER_ADMIN_EMAIL || '').trim().toLowerCase();
+  const adminPassword = String(process.env.HARPER_ADMIN_PASSWORD || '');
   const seeded = adminEmail && adminPassword ? hashPassword(adminPassword) : null;
   return {
     schemaVersion: 2,
@@ -871,7 +871,7 @@ function operationId(prefix) {
 
 async function lookupFmcsaBroker(query) {
   if (!FMCSA_API_KEY) {
-    return { configured: false, message: 'Set ALPHAWAY_FMCSA_QCMOBILE_KEY to enable live FMCSA lookup.' };
+    return { configured: false, message: 'Set HARPER_FMCSA_QCMOBILE_KEY to enable live FMCSA lookup.' };
   }
   const safeQuery = encodeURIComponent(cleanText(query, '', 40));
   if (!safeQuery) throw reject(400, 'Enter an MC, DOT, or broker search value.');
@@ -1030,12 +1030,12 @@ persistStore();
 
 // Admin account bootstrap.
 // The configured password must actually take effect. The account used to be created
-// only when there were no users at all, so changing ALPHAWAY_ADMIN_PASSWORD later did
+// only when there were no users at all, so changing HARPER_ADMIN_PASSWORD later did
 // nothing and the old password kept working. The configured email is now authoritative:
 // when that user already exists, its password is refreshed to match on every start.
-if (ACCOUNT_AUTH && process.env.ALPHAWAY_ADMIN_EMAIL && process.env.ALPHAWAY_ADMIN_PASSWORD) {
-  const adminEmail = process.env.ALPHAWAY_ADMIN_EMAIL.trim().toLowerCase();
-  const adminCredentials = hashPassword(process.env.ALPHAWAY_ADMIN_PASSWORD);
+if (ACCOUNT_AUTH && process.env.HARPER_ADMIN_EMAIL && process.env.HARPER_ADMIN_PASSWORD) {
+  const adminEmail = process.env.HARPER_ADMIN_EMAIL.trim().toLowerCase();
+  const adminCredentials = hashPassword(process.env.HARPER_ADMIN_PASSWORD);
   const existingAdmin = store.accounts.users.find(u => u.email === adminEmail);
   if (!existingAdmin) {
     store.accounts.companies.push({ id: 'alphaway', name: 'Harper Dispatch and Logistics', type: 'organization', status: 'active', createdAt: Date.now() });

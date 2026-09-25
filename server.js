@@ -86,6 +86,7 @@ const STATIC_FILES = new Set([
   'robots.txt', 'sitemap.xml', 'favicon.ico',
   'inbox-loader.js', 'inbox-auth.html', 'inbox-bridge.bundle.js', 'home-reveal.js', 'command-board.css',
   'role-permissions.js', 'role-workspace.js', 'browser-voice-ui.js',
+  'harper-assistant.js', 'harper-assistant.css',
   'product-load-board.html',
   'product-dispatch.html',
   'product-planning.html',

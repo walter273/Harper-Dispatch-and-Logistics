@@ -2,10 +2,10 @@
 .harper-assistant-launcher {
   position: fixed !important;
   right: max(20px, env(safe-area-inset-right)) !important;
-  top: 50% !important;
-  bottom: auto !important;
+  top: auto !important;
+  bottom: max(20px, env(safe-area-inset-bottom)) !important;
   left: auto !important;
-  transform: translateY(-50%) !important;
+  transform: none !important;
   z-index: 2147483000 !important;
   display: flex;
   align-items: center;
@@ -24,10 +24,10 @@
 .harper-assistant-launcher:hover,
 .harper-assistant-launcher:focus-visible {
   right: max(20px, env(safe-area-inset-right)) !important;
-  top: 50% !important;
-  bottom: auto !important;
+  top: auto !important;
+  bottom: max(20px, env(safe-area-inset-bottom)) !important;
   left: auto !important;
-  transform: translateY(calc(-50% - 2px)) !important;
+  transform: translateY(-2px) !important;
   box-shadow: 0 16px 42px rgba(0, 0, 0, 0.45);
 }
 
@@ -45,10 +45,10 @@
 .harper-assistant-panel {
   position: fixed !important;
   right: max(20px, env(safe-area-inset-right)) !important;
-  top: 50% !important;
-  bottom: auto !important;
+  top: auto !important;
+  bottom: max(20px, env(safe-area-inset-bottom)) !important;
   left: auto !important;
-  transform: translateY(-50%) !important;
+  transform: none !important;
   z-index: 2147483001 !important;
   width: min(390px, calc(100vw - 30px));
   height: min(570px, calc(100vh - 110px));
@@ -151,10 +151,12 @@
 @media (max-width: 560px) {
   .harper-assistant-launcher {
     right: max(15px, env(safe-area-inset-right));
+    bottom: max(15px, env(safe-area-inset-bottom));
   }
 
   .harper-assistant-panel {
     right: 15px;
+    bottom: max(15px, env(safe-area-inset-bottom));
     width: calc(100vw - 30px);
     height: min(560px, calc(100vh - 30px));
   }

@@ -12,6 +12,7 @@ const { createStorage } = require('./storage');
 const intakeReview = require('./intake-review');
 const { createVerifier, attachReport } = require('./carrier-verification');
 const { createCarrierReviewAssistant } = require('./carrier-review-assistant');
+const { createWebsiteAssistant } = require('./website-assistant');
 const { createWorkflow } = require('./applicant-workflow');
 const { reduceSubscription } = require('./subscription-state');
 const { plans: dispatchPlans, isDispatchPlan, termsVersion: dispatchTermsVersion } = require('./dispatch-plans');
@@ -63,6 +64,7 @@ const ACCOUNT_SESSION_DAYS = 7;
 const FMCSA_API_KEY = String(process.env.HARPER_FMCSA_QCMOBILE_KEY || '');
 const FMCSA_BASE_URL = String(process.env.HARPER_FMCSA_BASE_URL || 'https://mobile.fmcsa.dot.gov/qc/services').replace(/\/+$/, '');
 const carrierVerifier = createVerifier({ key: FMCSA_API_KEY, baseUrl: FMCSA_BASE_URL });
+const websiteAssistant = createWebsiteAssistant({ env: process.env });
 const verificationLocks = new Set();
 const HOME_PAGE = 'index.html';
 const MAX_JSON_BYTES = 1024 * 1024;
@@ -1201,6 +1203,13 @@ const server = http.createServer(async (request, response) => {
       } else {
         sendUnauthorized(response);
       }
+      return;
+    }
+    if (pathname === '/api/assistant' && request.method === 'POST') {
+      requireJsonSameOrigin(request);
+      if (!consumeRateLimit(request, 'website-assistant', 12, 60000)) throw reject(429, 'Please wait before sending more assistant messages.');
+      const body = await readJson(request, 4096);
+      sendJson(response, 200, { answer: await websiteAssistant.ask(body.question) });
       return;
     }
     if (pathname === '/api/inbox/config' || pathname === '/api/inbox/ui.js') {

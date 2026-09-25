@@ -63,6 +63,18 @@
     { href: '/support-billing.html', terms: ['billing help', 'invoice', 'payment support', 'dispatch fee'], text: 'Billing Support explains where to review the dispatch fee, collected revenue, invoices, and payment questions.' },
   ];
 
+  async function askWebsiteAssistant(question) {
+    const response = await fetch('/api/assistant', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || 'The website AI assistant is temporarily unavailable.');
+    return String(payload.answer || '').trim();
+  }
+
   function addMessage(role, text) {
     const item = document.createElement('div');
     item.className = `harper-assistant-message ${role}`;
@@ -97,12 +109,27 @@
 
   addMessage('assistant', 'Hi! I’m Harper’s assistant. Ask me about loads, onboarding, dispatch, planning, billing, or where to find a workspace.');
 
-  form.addEventListener('submit', event => {
+  form.addEventListener('submit', async event => {
     event.preventDefault();
     const question = input.value;
-    if (!question.trim()) return;
+    if (!question.trim() || form.dataset.busy === 'true') return;
+    form.dataset.busy = 'true';
+    input.disabled = true;
+    form.querySelector('button').disabled = true;
     addMessage('visitor', question);
-    addMessage('assistant', answer(question));
     input.value = '';
+    addMessage('assistant', 'Thinking…');
+    const pending = messages.lastElementChild;
+    try {
+      const result = await askWebsiteAssistant(question);
+      pending.textContent = result || answer(question);
+    } catch (error) {
+      pending.textContent = `${error.message} ${answer(question)}`.trim();
+    } finally {
+      form.dataset.busy = 'false';
+      input.disabled = false;
+      form.querySelector('button').disabled = false;
+      input.focus();
+    }
   });
 })();

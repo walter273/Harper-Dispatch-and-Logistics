@@ -46,7 +46,7 @@
     { href: '/', terms: ['home', 'overview', 'services'], text: 'Start with the homepage to review Harper services, company information, and main navigation.' },
     { href: '/product-load-board.html', terms: ['load board', 'loads', 'freight', 'find loads', 'search freight'], text: 'The Load Board page explains freight search, load details, and the carrier booking experience.' },
     { href: '/solutions-carriers.html', terms: ['carrier', 'owner operator', 'trucker', 'small fleet'], text: 'The carriers page explains dispatch, load booking, documentation, and carrier onboarding.' },
-    { href: '/carrier-onboarding.html', terms: ['apply', 'onboard', 'start service', 'request service', 'carrier application'], text: 'Carrier onboarding is where you submit company, contact, insurance, W-9, agreement, and service information for human review.' },
+    { href: '/carrier-onboarding.html', terms: ['apply', 'onboard', 'start service', 'request service', 'carrier application', 'sign up', 'signup', 'register', 'create an account'], text: 'To sign up, start with carrier onboarding. Submit your company, contact, insurance, W-9, agreement, and service information for human review. Existing members can sign in through Member Access.' },
     { href: '/carrier-agreement.html', terms: ['agreement', 'carrier terms', 'dispatch fee', '5%', 'billing terms'], text: 'The carrier agreement explains the dispatch process, 5% collected-revenue fee, payment timing, exclusions, and human approval safeguards.' },
     { href: '/solutions-brokers.html', terms: ['broker', 'freight broker'], text: 'The brokers page explains account access, communication, and broker workflow options.' },
     { href: '/product-broker-desk.html', terms: ['broker desk', 'broker workspace'], text: 'Broker Desk is the broker workspace product page.' },
@@ -88,6 +88,10 @@
     if (!q) return 'Tell me what you need to find, book, or understand.';
     if (/\b(admin|intake review|approval|approve|reject|assistant review)\b/.test(q)) {
       return 'Admin and intake-review tools are available only to signed-in staff. Sign in through Member Access; the Harper assistant can prepare a review draft, but an administrator must make and record the final decision.';
+    }
+    if (/\b(how do i|how can i|where do i|where can i|help me|need to|i want to|want to)\b/.test(q)) {
+      const signup = pages.find(page => page.href === '/carrier-onboarding.html');
+      if (/\b(sign up|signup|sign-up|register|create an account|join|apply)\b/.test(q)) return `${signup.text} Open ${signup.href}.`;
     }
     const match = pages.find(page => page.terms.some(term => q.includes(term)));
     if (match) return `${match.text} Open ${match.href}.`;

@@ -35,8 +35,6 @@ function createWebsiteAssistant({ env = process.env, fetchImpl = fetch } = {}) {
         },
         body: JSON.stringify({
           model,
-          temperature: 0.2,
-          max_tokens: 300,
           messages: [
             {
               role: "system",

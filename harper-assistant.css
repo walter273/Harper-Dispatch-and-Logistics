@@ -1,24 +1,55 @@
 /* File: harper-assistant.css */
 .harper-assistant-launcher {
-  position: fixed;
-  right: 20px;
-  bottom: 20px;
-  z-index: 1000;
+  position: fixed !important;
+  right: max(20px, env(safe-area-inset-right)) !important;
+  top: 50% !important;
+  bottom: auto !important;
+  left: auto !important;
+  transform: translateY(-50%) !important;
+  z-index: 2147483000 !important;
+  display: flex;
+  align-items: center;
+  gap: 9px;
   border: 0;
   border-radius: 999px;
-  padding: 13px 18px;
+  padding: 12px 17px 12px 12px;
   background: #d9ae52;
   color: #0b0c0c;
   font: 700 0.9rem/1.2 "Helvetica Neue", Arial, sans-serif;
   box-shadow: 0 12px 35px rgba(0, 0, 0, 0.35);
   cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.harper-assistant-launcher:hover,
+.harper-assistant-launcher:focus-visible {
+  right: max(20px, env(safe-area-inset-right)) !important;
+  top: 50% !important;
+  bottom: auto !important;
+  left: auto !important;
+  transform: translateY(calc(-50% - 2px)) !important;
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.45);
+}
+
+.harper-assistant-launcher-icon {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 50%;
+  background: #0b0c0c;
+  color: #f1eee5;
+  font: 800 0.9rem/1 "Helvetica Neue", Arial, sans-serif;
 }
 
 .harper-assistant-panel {
-  position: fixed;
-  right: 20px;
-  bottom: 76px;
-  z-index: 1001;
+  position: fixed !important;
+  right: max(20px, env(safe-area-inset-right)) !important;
+  top: 50% !important;
+  bottom: auto !important;
+  left: auto !important;
+  transform: translateY(-50%) !important;
+  z-index: 2147483001 !important;
   width: min(390px, calc(100vw - 30px));
   height: min(570px, calc(100vh - 110px));
   display: flex;
@@ -119,13 +150,12 @@
 
 @media (max-width: 560px) {
   .harper-assistant-launcher {
-    right: 15px;
-    bottom: 15px;
+    right: max(15px, env(safe-area-inset-right));
   }
 
   .harper-assistant-panel {
     right: 15px;
-    bottom: 70px;
-    height: min(560px, calc(100vh - 90px));
+    width: calc(100vw - 30px);
+    height: min(560px, calc(100vh - 30px));
   }
 }

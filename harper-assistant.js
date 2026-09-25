@@ -1,12 +1,46 @@
 'use strict';
 
 (() => {
+  const ASSET_ROOT = document.head?.querySelector('meta[name="harper-assistant-root"]')?.content || '.';
+  const stylesheetId = 'harper-assistant-stylesheet';
+
+  if (!document.getElementById(stylesheetId)) {
+    const stylesheet = document.createElement('link');
+    stylesheet.id = stylesheetId;
+    stylesheet.rel = 'stylesheet';
+    stylesheet.href = `${ASSET_ROOT}/harper-assistant.css`;
+    document.head.append(stylesheet);
+  }
+
+  if (!document.getElementById('harper-assistant-launcher')) {
+    const root = document.createElement('div');
+    root.id = 'harper-assistant-root';
+    root.innerHTML = `
+      <button class="harper-assistant-launcher" id="harper-assistant-launcher" type="button" aria-expanded="false" aria-controls="harper-assistant-panel">
+        <span class="harper-assistant-launcher-icon" aria-hidden="true">H</span>
+        <span>Ask Harper</span>
+      </button>
+      <section class="harper-assistant-panel" id="harper-assistant-panel" aria-label="Harper assistant" hidden>
+        <header class="harper-assistant-header">
+          <div><strong>Harper Assistant</strong><small>How can we help?</small></div>
+          <button class="harper-assistant-close" type="button" data-assistant-close aria-label="Close assistant">×</button>
+        </header>
+        <div class="harper-assistant-messages" id="harper-assistant-messages" role="log" aria-live="polite"></div>
+        <form class="harper-assistant-form" id="harper-assistant-form">
+          <input id="harper-assistant-input" type="text" placeholder="Type your message..." autocomplete="off" aria-label="Message" maxlength="500" required>
+          <button type="submit">Send</button>
+        </form>
+      </section>`;
+    document.body.append(root);
+  }
+
   const launcher = document.getElementById('harper-assistant-launcher');
   const panel = document.getElementById('harper-assistant-panel');
   const form = document.getElementById('harper-assistant-form');
   const input = document.getElementById('harper-assistant-input');
   const messages = document.getElementById('harper-assistant-messages');
-  if (!launcher || !panel || !form || !input || !messages) return;
+  const closeButton = document.querySelector('[data-assistant-close]');
+  if (!launcher || !panel || !form || !input || !messages || !closeButton) return;
 
   const pages = [
     { href: '/', terms: ['home', 'overview', 'services'], text: 'Start with the homepage to review Harper services, company information, and main navigation.' },
@@ -55,8 +89,13 @@
   }
 
   launcher.addEventListener('click', () => setOpen(panel.hidden));
-  panel.querySelector('[data-assistant-close]').addEventListener('click', () => setOpen(false));
+  closeButton.addEventListener('click', () => {
+    setOpen(false);
+    launcher.focus();
+  });
   document.addEventListener('keydown', event => { if (event.key === 'Escape' && !panel.hidden) setOpen(false); });
+
+  addMessage('assistant', 'Hi! I’m Harper’s assistant. Ask me about loads, onboarding, dispatch, planning, billing, or where to find a workspace.');
 
   form.addEventListener('submit', event => {
     event.preventDefault();

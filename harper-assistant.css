@@ -1,0 +1,131 @@
+/* File: harper-assistant.css */
+.harper-assistant-launcher {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 1000;
+  border: 0;
+  border-radius: 999px;
+  padding: 13px 18px;
+  background: #d9ae52;
+  color: #0b0c0c;
+  font: 700 0.9rem/1.2 "Helvetica Neue", Arial, sans-serif;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+}
+
+.harper-assistant-panel {
+  position: fixed;
+  right: 20px;
+  bottom: 76px;
+  z-index: 1001;
+  width: min(390px, calc(100vw - 30px));
+  height: min(570px, calc(100vh - 110px));
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(241, 238, 229, 0.2);
+  border-radius: 16px;
+  background: #121312;
+  color: #f1eee5;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.harper-assistant-panel[hidden] {
+  display: none;
+}
+
+.harper-assistant-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid rgba(241, 238, 229, 0.14);
+}
+
+.harper-assistant-header strong {
+  display: block;
+}
+
+.harper-assistant-header small {
+  display: block;
+  margin-top: 3px;
+  color: #aaa9a2;
+}
+
+.harper-assistant-close {
+  border: 0;
+  background: transparent;
+  color: #aaa9a2;
+  font-size: 1.3rem;
+  cursor: pointer;
+}
+
+.harper-assistant-messages {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 10px;
+  padding: 15px;
+  overflow: auto;
+}
+
+.harper-assistant-message {
+  max-width: 88%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  line-height: 1.4;
+}
+
+.harper-assistant-message.visitor {
+  align-self: flex-end;
+  background: #d9ae52;
+  color: #0b0c0c;
+}
+
+.harper-assistant-message.assistant {
+  align-self: flex-start;
+  background: #1a1b19;
+  color: #f1eee5;
+}
+
+.harper-assistant-form {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid rgba(241, 238, 229, 0.14);
+}
+
+.harper-assistant-form input {
+  min-width: 0;
+  flex: 1;
+  border: 1px solid rgba(241, 238, 229, 0.2);
+  border-radius: 9px;
+  padding: 11px;
+  background: #0b0c0c;
+  color: #f1eee5;
+  font: inherit;
+}
+
+.harper-assistant-form button {
+  border: 0;
+  border-radius: 9px;
+  padding: 0 15px;
+  background: #d9ae52;
+  color: #0b0c0c;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+@media (max-width: 560px) {
+  .harper-assistant-launcher {
+    right: 15px;
+    bottom: 15px;
+  }
+
+  .harper-assistant-panel {
+    right: 15px;
+    bottom: 70px;
+    height: min(560px, calc(100vh - 90px));
+  }
+}

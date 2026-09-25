@@ -148,6 +148,45 @@
         finally { busy = false; controls.forEach(([node, disabled]) => node.disabled = disabled); }
       }));
       root.append(automatic);
+
+      const assistant = el('section', undefined, 'review-decision');
+      assistant.append(el('h3', 'Harper Dispatch personal AI assistant'),
+        el('p', 'The assistant prepares a draft assessment only. It cannot approve, reject, activate billing, or change any supporting check. A staff member must inspect the evidence and record every final decision.', 'review-help'));
+      const assistantPanel = el('div'); assistant.append(assistantPanel);
+      const showDraft = draft => {
+        assistantPanel.replaceChildren(el('p', draft.summary));
+        const list = el('div', undefined, 'review-checks');
+        for (const [id, check] of Object.entries(draft.draftChecks)) {
+          const card = el('div', undefined, 'review-check');
+          card.append(el('h4', label(id)), badge(check.status), el('p', check.rationale), el('small', check.evidence, 'review-muted'));
+          list.append(card);
+        }
+        assistantPanel.append(list);
+        if (draft.findings.length) {
+          const findings = el('ul'); findings.append(el('h4', 'Items requiring human review'));
+          for (const finding of draft.findings) findings.append(el('li', finding));
+          assistantPanel.append(findings);
+        }
+        if (draft.recommendations.length) {
+          const recommendations = el('ul');
+          for (const recommendation of draft.recommendations) recommendations.append(el('li', recommendation));
+          assistantPanel.append(recommendations);
+        }
+        assistantPanel.append(el('small', `Draft generated ${date(draft.generatedAt)}. No final action was taken.`, 'review-muted'));
+      };
+      if (review.assistantDraft) showDraft(review.assistantDraft);
+      if (editable) assistant.append(button(review.assistantDraft ? 'Refresh draft assessment' : 'Prepare draft assessment', async () => {
+        if (busy || !current) return;
+        busy = true; const controls = [...root.querySelectorAll('button, input, select, textarea')].map(node => [node, node.disabled]);
+        controls.forEach(([node]) => node.disabled = true); message('Preparing draft assessment…');
+        try {
+          current = await api(`/api/intakes/${encodeURIComponent(selected)}/assistant-draft`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ version: current.review.version }) });
+          renderDetail(); message('Draft assessment saved for human review. No review decision was changed.');
+          loadQueue().catch(error => message(error.message, true));
+        } catch (error) { message(error.message, true); }
+        finally { busy = false; controls.forEach(([node, disabled]) => node.disabled = disabled); }
+      }));
+      root.append(assistant);
     }
     if (intake.type === 'carrier-onboarding' && intake.fields.gps_pilot_requested === 'yes') {
       const pilot = el('section', undefined, 'review-divider');

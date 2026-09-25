@@ -21,5 +21,21 @@
   },
   "allowScripts": {
     "esbuild@0.28.2": true
-  }
+  },
+  "directories": {
+    "test": "test"
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/walter273/Harper-Dispatch-and-Logistics.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/walter273/Harper-Dispatch-and-Logistics/issues"
+  },
+  "homepage": "https://github.com/walter273/Harper-Dispatch-and-Logistics#readme"
 }

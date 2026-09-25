@@ -11,6 +11,7 @@ const squareEntitled = require('./square-billing').entitled;
 const { createStorage } = require('./storage');
 const intakeReview = require('./intake-review');
 const { createVerifier, attachReport } = require('./carrier-verification');
+const { createCarrierReviewAssistant } = require('./carrier-review-assistant');
 const { createWorkflow } = require('./applicant-workflow');
 const { reduceSubscription } = require('./subscription-state');
 const { plans: dispatchPlans, isDispatchPlan, termsVersion: dispatchTermsVersion } = require('./dispatch-plans');
@@ -1633,7 +1634,7 @@ const server = http.createServer(async (request, response) => {
       sendJson(response, 200, { onboarding: record ? { company: record.fields.legal_carrier_name, status: store.intakeReviews[record.id].status, plan: record.fields.dispatch_package, billingMethod: record.fields.billing_method, truckCount: Number(record.fields.available_units), paymentConfigured: squareBilling.ready && squareBilling.environment === 'production', ...applicantWorkflow.readiness(record, store.intakeReviews[record.id], w) } : null });
       return;
     }
-    const intakeRoute = pathname.match(/^\/api\/intakes\/([a-zA-Z0-9_-]+)(?:\/(review|history|export|verification|workflow))?$/);
+    const intakeRoute = pathname.match(/^\/api\/intakes\/([a-zA-Z0-9_-]+)(?:\/(review|history|export|verification|workflow|assistant-draft))?$/);
     if (intakeRoute) {
       const actor = requireAccount(request, ['admin', 'dispatcher']);
       const record = store.intakes.find(intake => intake.id === intakeRoute[1]);
@@ -1647,6 +1648,24 @@ const server = http.createServer(async (request, response) => {
           store.revision++; persistStore();
         } else if (request.method !== 'GET') throw reject(405, 'Method not allowed.');
         sendJson(response, 200, applicantWorkflow.summary(record, store.intakeReviews[record.id]));
+        return;
+      }
+      if (request.method === 'POST' && intakeRoute[2] === 'assistant-draft') {
+        requireJsonSameOrigin(request);
+        requireAccount(request, ['admin', 'dispatcher']);
+        if (record.type !== 'carrier-onboarding' || review.category !== 'carrier') throw reject(400, 'The Harper Dispatch assistant is available for carrier intakes.');
+        if (!['received', 'in_review', 'needs_information'].includes(review.status)) throw reject(409, 'An admin must reopen this review before preparing a new draft.');
+        const input = await readJson(request, MAX_INTAKE_BYTES);
+        if (input.version !== review.version) throw reject(409, 'The record changed. Reload it before preparing a draft.');
+        const draft = createCarrierReviewAssistant({ fields: record.fields, review });
+        const updated = structuredClone(review);
+        updated.assistantDraft = draft;
+        updated.updatedAt = Date.now();
+        updated.version += 1;
+        store.intakeReviews[record.id] = updated;
+        store.revision += 1;
+        persistStore();
+        sendJson(response, 200, { intake: record, review: intakeReview.publicReview(updated) });
         return;
       }
       if (request.method === 'POST' && intakeRoute[2] === 'verification') {

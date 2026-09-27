@@ -35,7 +35,7 @@ Date: 2026-09-15
 
 ### Domain
 
-Railway currently has `www.harperloadboard.com` attached. The apex domain `harperloadboard.com` is not currently attached to the service. Decide whether the apex should redirect to `www` or be attached directly before considering domain work complete.
+Resolved 2026-09-27. The apex `harperloadboard.com` is now attached in Railway alongside `www.harperloadboard.com`; both DNS records resolve and both serve the application. The server now issues a `308` permanent redirect from the apex to `www`, so a single canonical hostname is served. This is asserted in `test/carrier-flow-e2e.test.js`. All internal links, email templates and `.env.example` defaults already assumed `www`, so no other change was required. Note that the session cookie is deliberately host-only, so a visitor who arrives on the apex is redirected and signs in again on `www`; this is expected and not a fault.
 
 ### Runtime naming and legacy configuration
 
@@ -55,7 +55,7 @@ Some internal operations UI still contains legacy words such as `demo` in driver
 
 ### Payments
 
-The repository contains both Stripe and Square-related billing code and launch controls. Live payment activation should stay gated until the configured provider has completed its hosted payment, webhook, cancellation/refund and entitlement acceptance tests. Do not enable live payment switches merely because the site is publicly reachable.
+The repository contains Square billing code and launch controls; the legacy Stripe path and its SDK have been removed. Live payment activation should stay gated until Square has completed its hosted payment, webhook, cancellation/refund and entitlement acceptance tests. Do not enable live payment switches merely because the site is publicly reachable.
 
 ### Data architecture
 

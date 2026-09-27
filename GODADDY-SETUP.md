@@ -1,12 +1,12 @@
-> Historical alternative-host guide. The active app uses Railway; see README.md and OPERATIONS-READINESS.md. Old example Price IDs require replacement with prices matching the current carrier terms.
+> Historical alternative-host guide. The active app runs on Railway; see README.md and OPERATIONS-READINESS.md. This document is kept for reference only. It describes a host the project does not use. The payment variables were rewritten for Square when the Stripe path was removed; treat the rest as a template, not a current procedure.
 
-# GoDaddy setup for Harper Dispatch and Logistics
+# GoDaddy setup for Harper Dispatch and Logistics (historical)
 
-This repository is prepared for GoDaddy Node.js Hosting. Keep the first deployment private while Stripe remains in sandbox mode.
+This repository can run on GoDaddy Node.js Hosting. Nothing below reflects the current production deployment.
 
 ## 1. Import the application
 
-In GoDaddy Node.js Hosting, import the GitHub repository or upload `harper-tms-godaddy.zip`. The application meets GoDaddy's Node requirements:
+In GoDaddy Node.js Hosting, import the GitHub repository or upload the packaged ZIP. The application meets GoDaddy's Node requirements:
 
 - `package.json` has `name`, `version`, and `main` fields.
 - `npm run build` performs JavaScript syntax checks.
@@ -22,27 +22,25 @@ Add these values in GoDaddy's environment or Secrets settings. Generate every pa
 
 | Name | Hosted value |
 | --- | --- |
-| `HARPER_REQUIRE_AUTH` | `true` |
-| `HARPER_PREVIEW_USERNAME` | private preview username |
-| `HARPER_PREVIEW_PASSWORD` | long unique secret |
-| `HARPER_PRIVATE_NETWORK` | `true` |
-| `HARPER_NETWORK_INVITE_CODE` | separate long unique secret |
 | `HARPER_ACCOUNT_AUTH` | `true` |
-| `HARPER_ACCOUNT_SESSION_SECRET` | separate random secret |
+| `HARPER_ACCOUNT_SESSION_SECRET` | separate random secret (required; startup fails on the default value when `NODE_ENV=production`) |
 | `HARPER_ADMIN_EMAIL` | initial administrator email |
 | `HARPER_ADMIN_PASSWORD` | separate long unique secret |
-| `HARPER_ADMIN_TOKEN` | separate intake-review token |
 | `HARPER_REQUIRE_SUBSCRIPTION` | `false` during sandbox acceptance testing; change to `true` only after successful webhook testing |
-| `STRIPE_SECRET_KEY` | sandbox secret or restricted key from account `acct_1UDJTIKqpp58H3DU` |
-| `STRIPE_ACCOUNT_ID` | `acct_1UDJTIKqpp58H3DU` |
-| `STRIPE_WEBHOOK_SECRET` | signing secret created for the exact hosted webhook endpoint |
-| `STRIPE_PORTAL_CONFIGURATION_ID` | sandbox portal configuration ID beginning with `bpc_` |
-| `STRIPE_PRICE_CARRIER` | `price_1UDWf7Kqpp58H3DU1oRYxBT0` |
-| `STRIPE_PRICE_SHIPPER` | `price_1UDWfCKqpp58H3DU1xjnfinA` |
-| `STRIPE_PRICE_BROKER` | `price_1UDWfGKqpp58H3DUgiOa6GtG` |
-| `STRIPE_PUBLIC_BASE_URL` | `https://app.harperloadboard.com` |
+| `HARPER_PUBLIC_ORIGIN` | exact public origin, e.g. `https://www.harperloadboard.com` — Square redirect URLs derive from this and reject any path or non-https scheme |
+| `HARPER_PRIVATE_NETWORK` | `true` to require an invitation code; requires `HARPER_NETWORK_INVITE_CODE` |
+| `HARPER_NETWORK_INVITE_CODE` | separate long unique secret |
+| `SQUARE_ENVIRONMENT` | `sandbox` until live acceptance passes; `production` afterwards |
+| `SQUARE_SANDBOX_ACCESS_TOKEN` | sandbox access token |
+| `SQUARE_SANDBOX_LOCATION_ID` | sandbox location ID |
+| `SQUARE_ACCESS_TOKEN` | production access token (leave empty until approved) |
+| `SQUARE_LOCATION_ID` | production location ID (leave empty until approved) |
+| `SQUARE_LIVE_PAYMENTS_ENABLED` | `false` until the sandbox acceptance test and tax review are complete |
+| `SQUARE_WEBHOOK_SIGNATURE_KEY` | signature key from the configured webhook, if you create it manually |
 
-Leave `STRIPE_SUCCESS_URL` and `STRIPE_CANCEL_URL` blank unless you need custom same-origin destinations. The server derives safe defaults from `STRIPE_PUBLIC_BASE_URL`.
+The whole-site preview gate (`HARPER_REQUIRE_AUTH`, `HARPER_PREVIEW_USERNAME`, `HARPER_PREVIEW_PASSWORD`, `HARPER_ADMIN_TOKEN`) is a legacy mechanism for private demos. Do not enable it on the public Harper domain without first reviewing the public/private route split — it would put a password prompt in front of the marketing site.
+
+Square is the only payment provider. There is no provider switch and no Stripe fallback in the server.
 
 ## 3. Configure private data storage
 
@@ -55,48 +53,37 @@ Use a private persistent database or a private persistent filesystem path suppli
 Preview the imported app before assigning the final domain. Confirm:
 
 1. `/api/health` returns `{ "ok": true }`.
-2. The root page requests the preview username and password.
-3. The load board requires the private-network invitation code.
-4. The workspace requires a valid account sign-in.
-5. A plan button opens Stripe sandbox Checkout at `checkout.stripe.com`.
+2. The workspace requires a valid account sign-in.
+3. The load board requires the private-network invitation code, if enabled.
+4. A plan button opens a Square checkout link at `squareup.com`.
+5. Startup logs report the Square connection and environment.
 
-Do not switch Stripe to live mode. The server intentionally rejects live keys, live prices, and live events.
+Do not set `SQUARE_ENVIRONMENT=production` on a first deployment. The server verifies the location is `ACTIVE`, `USD` and card-capable before enabling collection, and refuses live collection while `SQUARE_LIVE_PAYMENTS_ENABLED` is not exactly `true`.
 
-## 5. Create the Stripe sandbox webhook
+## 5. Configure the Square webhook
 
-After GoDaddy provides the final preview or domain origin, create one webhook endpoint in the same Stripe sandbox account:
+The app can register its own webhook at startup by setting `SQUARE_CONFIGURE_WEBHOOK=true` once, which stores the subscription in the runtime store. Otherwise create one webhook endpoint in the Square dashboard pointing at:
 
 ```text
-https://YOUR-EXACT-HOST/api/stripe/webhook
+https://YOUR-EXACT-HOST/api/square/webhook
 ```
 
-Subscribe it to:
+The app subscribes to `payment.created`, `payment.updated`, `refund.updated`, `subscription.created`, `subscription.updated`, `invoice.payment_made` and `invoice.scheduled_charge_failed`. Copy the signature key into `SQUARE_WEBHOOK_SIGNATURE_KEY` if you created the subscription by hand. Do not put it in this repository or send it in chat.
 
-- `checkout.session.completed`
-- `customer.subscription.updated`
-- `customer.subscription.deleted`
+Send test events in sandbox, complete one sandbox checkout, and verify the workspace shows the plan and subscription status. Then test cancellation and confirm access survives through the paid period.
 
-Copy the endpoint's signing secret directly into GoDaddy's `STRIPE_WEBHOOK_SECRET` setting. Do not put it in this repository or send it in chat. Send test events, complete one sandbox Checkout, and verify that the workspace shows the plan and subscription status. Then test â€œManage billingâ€ and cancellation through Stripe's customer portal.
+## 6. Assign the subdomain
 
-The selected sandbox currently has no active customer-portal configuration. In the Stripe Dashboard's sandbox mode, open **Billing â†’ Customer portal**, enable payment-method updates, invoice-history access, and subscription cancellation, then save the configuration. Review the cancellation policy before using it with customers.
-
-## 6. Assign the GoDaddy subdomain
-
-The root domain `https://harperloadboard.com` already serves the public Harper Dispatch and Logistics LLC site through GoDaddy Website Builder. Keep that site in place and attach the Node.js application to `https://app.harperloadboard.com` unless the owner explicitly decides to replace the public site.
-
-Use the Node.js Hosting domain settings to attach `app.harperloadboard.com`. Set `STRIPE_PUBLIC_BASE_URL=https://app.harperloadboard.com` and redeploy. If GoDaddy asks for a DNS record, use only the target value GoDaddy shows for this Node.js application; do not guess an IP address or copy the root Website Builder records.
-
-The Stripe sandbox webhook URL for this configuration is `https://app.harperloadboard.com/api/stripe/webhook`. If the hostname changes, update the webhook, replace `STRIPE_WEBHOOK_SECRET` with the new endpoint's secret if Stripe issues one, and repeat the signed-event tests.
+The apex `harperloadboard.com` and `www.harperloadboard.com` are both attached to the live Railway service. The server issues a `308` redirect from the apex to `www`, so `www` is the canonical hostname. Set `HARPER_PUBLIC_ORIGIN=https://www.harperloadboard.com` to match. Do not point a GoDaddy subdomain at the same public domain without first deciding which host actually serves it.
 
 ## 7. Acceptance checklist
 
-- Hosted startup succeeds with all three access controls enabled.
+- Hosted startup succeeds with account authentication enabled.
 - No secrets appear in repository files, browser source, deployment ZIP, or DNS.
-- The three Price IDs resolve to active, licensed, monthly USD sandbox prices for $500 per truck, $799, and $299, plus a one-time $150 fleet onboarding price.
-- A repeated Checkout click with the same request ID does not create duplicate sessions.
-- Invalid webhook signatures return HTTP 400.
-- Valid events are deduplicated and update the linked user's subscription.
-- Carrier, shipper, and broker users can open the customer portal after Checkout.
+- Sandbox checkout completes and the workspace reflects the plan and truck count.
+- A repeated checkout click with the same request ID does not create duplicate subscriptions.
+- Invalid webhook signatures are rejected.
+- Valid events update the linked company's subscription.
+- A sandbox payment never grants production entitlement.
 - `HARPER_REQUIRE_SUBSCRIPTION=true` blocks unpaid non-admin operations access and preserves admin/dispatcher access.
-- Data and uploaded files remain private and survive a GoDaddy redeployment before any real use.
-- Replace the placeholder `support@harper-tms.invalid` contact with an authorized business support address before inviting users.
+- Data and uploaded files remain private and survive a redeploy before any real use.

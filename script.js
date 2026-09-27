@@ -493,7 +493,7 @@ function getLoadCatalog() {
 
 async function saveLoadCatalog(catalog) {
   const normalized = normalizeLoadCatalog(catalog);
-  if (!normalized) throw new Error('Add at least one valid load to the demo catalog.');
+  if (!normalized) throw new Error('Add at least one valid load to the catalog.');
 
   if (isServerConnected()) {
     const snapshot = await sendAppEvent({

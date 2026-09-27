@@ -8,7 +8,9 @@
     "build": "node build-inbox.js && node --check server.js && node --check script.js && node --check workspace.js && node --check account-nav.js && node --check storage.js && node --check subscription-state.js && node --check dispatch-plans.js && node --check dispatch-ui.js && node --check operations.js && node --check applicant-workflow.js && node --check onboarding.js && node --check applicant-response.js && node --check carrier-verification.js && node --check intake-review.js && node --check intake-review-ui.js && node --check accept-invitation.js && node --check square-billing.js && node --check square-workflow.js && node --check square-billing-ui.js",
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "node --test"
+    "test": "node --test",
+    "voice:check": "node scripts/voice-readiness.js",
+    "voice:setup": "node scripts/voice-setup.js"
   },
   "engines": {
     "node": ">=20"

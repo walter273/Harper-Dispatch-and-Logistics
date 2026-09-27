@@ -18,7 +18,7 @@ Local mode binds only to `127.0.0.1` and leaves preview authentication off. Runt
 
 The deployed application is https://harper-tms-staging-app-production.up.railway.app, from `walter273/Harper-Dispatch-and-Logistics` branch `main` (renamed from `Alphaway-Logistics`; GitHub redirects the old URL). The `harper-tms-staging-app` service mounts its 500 MB volume at `/app/data`; use one replica. See [operations readiness](./OPERATIONS-READINESS.md) for persistence, migration, company boundaries and launch limitations. `GODADDY-SETUP.md` is a historical alternative-host guide, not the current deployment configuration.
 
-Account authentication protects private operations. Public pages and the public load catalog remain accessible. Stripe webhooks require a valid signature over the original request body.
+Account authentication protects private operations. Public pages and the public load catalog remain accessible. Square webhooks require a valid signature over the original request body.
 
 ## Environment settings
 
@@ -38,9 +38,23 @@ npm start
 ```
 
 
-Run `npm ci` and `npm test`. Stripe uses the pinned official Node SDK. Checkout checks the selected account, configured payment mode, exact USD amounts and weekly or monthly intervals, safe same-origin return URLs, and a retry idempotency key. Webhook verification uses the original body and supports rotated signatures. The event audit retains 500 records, suppresses duplicates within that window across restarts, and rolls back memory state on failed persistence. Billing audit records are withheld from non-admin operations responses.
+Run `npm ci` and `npm test`. Square is the only payment provider and is called directly over HTTPS; the legacy Stripe path and its SDK have been removed. Checkout checks the configured location, the payment environment, exact USD amounts and weekly or monthly intervals, safe same-origin return URLs derived from `HARPER_PUBLIC_ORIGIN`, and a retry idempotency key. Webhook verification uses the original body. The event audit retains 500 records, suppresses duplicates within that window across restarts, and rolls back memory state on failed persistence. Billing audit records are withheld from non-admin operations responses.
 
-The integration is sandbox-only. Signed webhook events maintain each linked user's subscription status, the workspace can open Stripe's customer portal, and `HARPER_REQUIRE_SUBSCRIPTION=true` enforces active or trialing status for non-admin operations access. Enable that flag only after the hosted webhook flow passes end-to-end testing.
+The integration is sandbox-only by default. Signed webhook events maintain each linked user's subscription status, the workspace can open the Square billing page, and `HARPER_REQUIRE_SUBSCRIPTION=true` enforces active or trialing status for non-admin operations access. Only production-environment evidence grants an entitlement; a sandbox payment can never unlock production access. Enable the subscription flag only after the hosted webhook flow passes end-to-end testing.
+
+## Browser calling
+
+Browser calling through the workspace uses Twilio. It is disabled until every required variable is present, and it fails closed with HTTP 503 rather than attempting a call. Check the current state at any time:
+
+```powershell
+npm run voice:check
+```
+
+This is read-only. It never contacts Twilio, never mutates the store, and prints no secret values — only whether each variable is present and correctly shaped. It exits non-zero when calling is not usable, so it can gate a deployment step.
+
+To provision the TwiML application once credentials exist, run `npm run voice:setup` on a trusted machine, or sign in as an admin and call `POST /api/voice/setup`. The setup script finds or creates a single TwiML App named `Harper workspace browser calling` pointed at `/api/voice/twiml`, then records only its App SID.
+
+Required variables: `TWILIO_ACCOUNT_SID`, `TWILIO_VOICE_API_KEY_SID`, `TWILIO_VOICE_API_KEY_SECRET`, and `TWILIO_AUTH_TOKEN`. The caller ID is fixed in code and outbound-only; incoming calling is not granted. The webhook origin is pinned in `browser-voice.js` because Twilio validates the callback signature against it, so changing hostname requires changing that constant too.
 
 ## Preview limits and safety
 

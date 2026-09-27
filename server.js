@@ -1173,6 +1173,18 @@ const server = http.createServer(async (request, response) => {
   const requestUrl = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
   const pathname = requestUrl.pathname;
   try {
+    // The site answers on both harperloadboard.com and www.harperloadboard.com.
+    // Every internal link, email template and env default already assumes www,
+    // so the bare domain is redirected to it. Without this the same pages were
+    // served under two hostnames, splitting inbound link signals and letting
+    // search engines index either one. Redirecting is safe for the host-only
+    // session cookie because the browser drops it on the new host and the
+    // visitor simply signs in again on the canonical host.
+    const forwardedHostName = String(headerValue(request, 'x-forwarded-host') || headerValue(request, 'host') || '').split(',')[0].trim().toLowerCase();
+    if (forwardedHostName === 'harperloadboard.com') {
+      response.writeHead(308, responseHeaders({ Location: `https://www.harperloadboard.com${requestUrl.pathname}${requestUrl.search}`, 'Cache-Control': 'no-store' }));
+      response.end(); return;
+    }
     if (request.method === 'POST' && ['/api/voice/twiml', '/api/voice/status'].includes(pathname)) {
       const raw = await readRaw(request, 16000);
       const params = Object.fromEntries(new URLSearchParams(raw.toString('utf8')));
@@ -1767,7 +1779,7 @@ setInterval(() => {
     store.revision += 1;
     persistStore();
     broadcastSnapshot();
-  } catch { console.error('Demo tracking update could not be saved.'); }
+  } catch { console.error('Simulated tracking update could not be saved.'); }
 }, 5000).unref();
 
 setInterval(() => {

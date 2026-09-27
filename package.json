@@ -10,7 +10,8 @@
     "dev": "node --watch server.js",
     "test": "node --test",
     "voice:check": "node scripts/voice-readiness.js",
-    "voice:setup": "node scripts/voice-setup.js"
+    "voice:setup": "node scripts/voice-setup.js",
+    "billing:check": "node scripts/billing-readiness.js"
   },
   "engines": {
     "node": ">=20"

@@ -42,6 +42,26 @@ Run `npm ci` and `npm test`. Square is the only payment provider and is called d
 
 The integration is sandbox-only by default. Signed webhook events maintain each linked user's subscription status, the workspace can open the Square billing page, and `HARPER_REQUIRE_SUBSCRIPTION=true` enforces active or trialing status for non-admin operations access. Only production-environment evidence grants an entitlement; a sandbox payment can never unlock production access. Enable the subscription flag only after the hosted webhook flow passes end-to-end testing.
 
+## Billing launch
+
+Square is the only payment provider. Check the current state with one read-only command:
+
+```powershell
+npm run billing:check
+```
+
+It prints what is configured, what is proven, and the single next step. It never changes a variable, contacts no provider, and prints no secret values, so it is safe to run any time. It exits non-zero while anything is blocking, so it can gate a deploy.
+
+The launch is four ordered steps. The order matters: subscription enforcement must come last, because no subscription can be entitled while the sandbox is selected.
+
+1. **Credentials** — `SQUARE_SANDBOX_ACCESS_TOKEN` and `SQUARE_SANDBOX_LOCATION_ID` for testing, plus `SQUARE_ACCESS_TOKEN` and `SQUARE_LOCATION_ID` for real charges.
+2. **Webhooks** — set `SQUARE_CONFIGURE_WEBHOOK=true` once and redeploy; the log confirms the subscription was created. Also set `SQUARE_WEBHOOK_SIGNATURE_KEY` (and its sandbox twin) so signing does not depend solely on the JSON store on the volume.
+3. **Prove a purchase** — sign in as a **carrier, broker or shipper** and complete a sandbox checkout, then cancel it. Administrator and dispatcher accounts are exempt from subscription checks, so testing as an admin proves nothing.
+4. **Go live** — after the tax review, set `SQUARE_ENVIRONMENT=production` and `SQUARE_LIVE_PAYMENTS_ENABLED=true` and redeploy. Complete one real purchase to confirm.
+5. **Enforce** — only once a production subscription is active, set `HARPER_REQUIRE_SUBSCRIPTION=true`. Setting it earlier returns HTTP 402 to every carrier, broker and shipper, because `squareEntitled()` requires a production-environment subscription.
+
+Live collection is interlocked: it stays locked unless the production environment is selected, production credentials are present, and `SQUARE_LIVE_PAYMENTS_ENABLED` is exactly `true`. The location is verified at startup as active, USD and card-capable before collection is allowed.
+
 ## Browser calling
 
 Browser calling through the workspace uses Twilio. It is disabled until every required variable is present, and it fails closed with HTTP 503 rather than attempting a call. Check the current state at any time:

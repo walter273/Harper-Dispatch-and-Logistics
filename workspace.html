@@ -14,7 +14,11 @@
   <script src="./dispatch-ui.js" defer></script>
   <script src="./account-nav.js" defer></script>
 <link rel="stylesheet" href="./harper-theme.css">
-<script src="./role-permissions.js" defer></script><script src="./role-workspace.js" defer></script><style>[hidden]{display:none!important}</style></head>
+  <link rel="stylesheet" href="./harper-assistant.css">
+  <script src="./role-permissions.js" defer></script>
+  <script src="./role-workspace.js" defer></script>
+  <style>[hidden] { display: none !important; }</style>
+</head>
 <body>
   <main class="page-shell portal-shell">
     <header class="topbar portal-topbar">
@@ -123,5 +127,62 @@
     </section>
 
   </main>
-<script src="./browser-voice-ui.js" defer></script><script src="/inbox-loader.js" defer></script></body>
+
+  <button
+    class="harper-assistant-launcher"
+    id="harper-assistant-launcher"
+    type="button"
+    aria-expanded="false"
+    aria-controls="harper-assistant-panel"
+  >
+    Ask Harper
+  </button>
+
+  <section
+    class="harper-assistant-panel"
+    id="harper-assistant-panel"
+    aria-label="Harper assistant"
+    hidden
+  >
+    <header class="harper-assistant-header">
+      <div>
+        <strong>Harper Assistant</strong>
+        <small>How can we help?</small>
+      </div>
+      <button
+        class="harper-assistant-close"
+        id="harper-assistant-close"
+        type="button"
+        data-assistant-close
+        aria-label="Close assistant"
+      >
+        ×
+      </button>
+    </header>
+
+    <div
+      class="harper-assistant-messages"
+      id="harper-assistant-messages"
+      role="log"
+      aria-live="polite"
+    ></div>
+
+    <form class="harper-assistant-form" id="harper-assistant-form">
+      <input
+        id="harper-assistant-input"
+        type="text"
+        placeholder="Type your message..."
+        autocomplete="off"
+        aria-label="Message"
+        maxlength="500"
+        required
+      >
+      <button type="submit">Send</button>
+    </form>
+  </section>
+
+  <script src="./browser-voice-ui.js" defer></script>
+  <script src="/inbox-loader.js" defer></script>
+  <script src="./harper-assistant.js" defer></script>
+</body>
 </html>

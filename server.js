@@ -11,6 +11,8 @@ const squareEntitled = require('./square-billing').entitled;
 const { createStorage } = require('./storage');
 const intakeReview = require('./intake-review');
 const { createVerifier, attachReport } = require('./carrier-verification');
+const { createCarrierReviewAssistant } = require('./carrier-review-assistant');
+const { createWebsiteAssistant } = require('./website-assistant');
 const { createWorkflow } = require('./applicant-workflow');
 const { reduceSubscription } = require('./subscription-state');
 const { plans: dispatchPlans, isDispatchPlan, termsVersion: dispatchTermsVersion } = require('./dispatch-plans');
@@ -62,6 +64,7 @@ const ACCOUNT_SESSION_DAYS = 7;
 const FMCSA_API_KEY = String(process.env.HARPER_FMCSA_QCMOBILE_KEY || '');
 const FMCSA_BASE_URL = String(process.env.HARPER_FMCSA_BASE_URL || 'https://mobile.fmcsa.dot.gov/qc/services').replace(/\/+$/, '');
 const carrierVerifier = createVerifier({ key: FMCSA_API_KEY, baseUrl: FMCSA_BASE_URL });
+const websiteAssistant = createWebsiteAssistant({ env: process.env });
 const verificationLocks = new Set();
 const HOME_PAGE = 'index.html';
 const MAX_JSON_BYTES = 1024 * 1024;
@@ -83,6 +86,7 @@ const STATIC_FILES = new Set([
   'robots.txt', 'sitemap.xml', 'favicon.ico',
   'inbox-loader.js', 'inbox-auth.html', 'inbox-bridge.bundle.js', 'home-reveal.js', 'command-board.css',
   'role-permissions.js', 'role-workspace.js', 'browser-voice-ui.js',
+  'harper-assistant.js', 'harper-assistant.css',
   'product-load-board.html',
   'product-dispatch.html',
   'product-planning.html',
@@ -1214,6 +1218,13 @@ const server = http.createServer(async (request, response) => {
       }
       return;
     }
+    if (pathname === '/api/assistant' && request.method === 'POST') {
+      requireJsonSameOrigin(request);
+      if (!consumeRateLimit(request, 'website-assistant', 12, 60000)) throw reject(429, 'Please wait before sending more assistant messages.');
+      const body = await readJson(request, 4096);
+      sendJson(response, 200, { answer: await websiteAssistant.ask(body.question) });
+      return;
+    }
     if (pathname === '/api/inbox/config' || pathname === '/api/inbox/ui.js') {
       requireAccount(request, ['admin']);
       if (request.method !== 'GET') throw reject(405, 'Method not allowed.');
@@ -1645,7 +1656,7 @@ const server = http.createServer(async (request, response) => {
       sendJson(response, 200, { onboarding: record ? { company: record.fields.legal_carrier_name, status: store.intakeReviews[record.id].status, plan: record.fields.dispatch_package, billingMethod: record.fields.billing_method, truckCount: Number(record.fields.available_units), paymentConfigured: squareBilling.ready && squareBilling.environment === 'production', ...applicantWorkflow.readiness(record, store.intakeReviews[record.id], w) } : null });
       return;
     }
-    const intakeRoute = pathname.match(/^\/api\/intakes\/([a-zA-Z0-9_-]+)(?:\/(review|history|export|verification|workflow))?$/);
+    const intakeRoute = pathname.match(/^\/api\/intakes\/([a-zA-Z0-9_-]+)(?:\/(review|history|export|verification|workflow|assistant-draft))?$/);
     if (intakeRoute) {
       const actor = requireAccount(request, ['admin', 'dispatcher']);
       const record = store.intakes.find(intake => intake.id === intakeRoute[1]);
@@ -1659,6 +1670,24 @@ const server = http.createServer(async (request, response) => {
           store.revision++; persistStore();
         } else if (request.method !== 'GET') throw reject(405, 'Method not allowed.');
         sendJson(response, 200, applicantWorkflow.summary(record, store.intakeReviews[record.id]));
+        return;
+      }
+      if (request.method === 'POST' && intakeRoute[2] === 'assistant-draft') {
+        requireJsonSameOrigin(request);
+        requireAccount(request, ['admin', 'dispatcher']);
+        if (record.type !== 'carrier-onboarding' || review.category !== 'carrier') throw reject(400, 'The Harper Dispatch assistant is available for carrier intakes.');
+        if (!['received', 'in_review', 'needs_information'].includes(review.status)) throw reject(409, 'An admin must reopen this review before preparing a new draft.');
+        const input = await readJson(request, MAX_INTAKE_BYTES);
+        if (input.version !== review.version) throw reject(409, 'The record changed. Reload it before preparing a draft.');
+        const draft = createCarrierReviewAssistant({ fields: record.fields, review });
+        const updated = structuredClone(review);
+        updated.assistantDraft = draft;
+        updated.updatedAt = Date.now();
+        updated.version += 1;
+        store.intakeReviews[record.id] = updated;
+        store.revision += 1;
+        persistStore();
+        sendJson(response, 200, { intake: record, review: intakeReview.publicReview(updated) });
         return;
       }
       if (request.method === 'POST' && intakeRoute[2] === 'verification') {

@@ -13,6 +13,7 @@
   <script src="./script.js" defer></script>
   <script src="./account-nav.js" defer></script>
 <link rel="stylesheet" href="./harper-theme.css">
+  <link rel="stylesheet" href="./harper-assistant.css">
 <script src="./role-permissions.js" defer></script><script src="./role-workspace.js" defer></script><style>[hidden]{display:none!important}</style><link rel="stylesheet" href="./command-board.css"></head>
 <body class="command-board"><aside class="command-sidebar"><a class="command-home" href="/workspace.html">H <span>Command center</span></a><nav aria-label="Board workspace"><a href="#tmsTitle">Overview</a><a href="#boardLoads">Loads</a><a href="#communicationTitle">Messages</a><a href="/workspace.html#companyRecords">Documents</a><a href="/square-billing.html">Billing</a><a href="/planning-tools.html">Planning</a></nav><a class="command-return" href="/">Company home</a></aside>
   <main class="page-shell">
@@ -46,6 +47,13 @@
   </main>
   <div class="modal hidden" id="accountModal" aria-hidden="true" data-close-modal="true"><div class="modal-backdrop" aria-hidden="true" data-close-modal="true"></div><section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="accountTitle"><div class="modal-header"><h2 id="accountTitle">Preview carrier workspace</h2><button class="modal-close" id="closeModalButton" type="button" aria-label="Close">×</button></div><form class="account-form" id="accountForm"><label><span>Work email</span><input name="email" type="email" autocomplete="email" required></label><p class="account-preview-note">Preview only — this does not sign you in or create an account.</p><button class="primary-button modal-submit" type="submit">Continue to preview</button></form></section></div>
   <div class="modal hidden" id="networkAccessModal" aria-hidden="true" data-close-network-modal="true"><div class="modal-backdrop" aria-hidden="true" data-close-network-modal="true"></div><section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="networkAccessTitle"><div class="modal-header"><h2 id="networkAccessTitle">Private carrier network</h2><button class="modal-close" id="closeNetworkAccessButton" type="button" aria-label="Close">×</button></div><form class="account-form" id="networkAccessForm"><p class="account-preview-note">Enter the invitation code provided by Harper Dispatch and Logistics dispatch. Don’t have one yet? <a href="./index.html#signup">Request access</a>.</p><label><span>Invitation code</span><input name="code" type="password" autocomplete="one-time-code" required></label><p id="networkAccessStatus" class="form-status" role="status" aria-live="polite"></p><button class="primary-button modal-submit" type="submit">Unlock private board</button></form></section></div>
+  <button class="harper-assistant-launcher" id="harper-assistant-launcher" type="button" aria-expanded="false" aria-controls="harper-assistant-panel">Ask Harper</button>
+  <section class="harper-assistant-panel" id="harper-assistant-panel" aria-label="Harper assistant" hidden>
+    <header class="harper-assistant-header"><div><strong>Harper Assistant</strong><small>How can we help?</small></div><button class="harper-assistant-close" type="button" data-assistant-close aria-label="Close assistant">×</button></header>
+    <div class="harper-assistant-messages" id="harper-assistant-messages" role="log" aria-live="polite"></div>
+    <form class="harper-assistant-form" id="harper-assistant-form"><input id="harper-assistant-input" type="text" placeholder="Type your message..." autocomplete="off" aria-label="Message" maxlength="500" required><button type="submit">Send</button></form>
+  </section>
+  <script src="./harper-assistant.js" defer></script>
 </body>
 </html>
 

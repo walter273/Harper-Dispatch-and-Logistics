@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="./account-setup.css">
   <script src="./accept-invitation.js" defer></script>
 <link rel="stylesheet" href="./harper-theme.css">
+  <link rel="stylesheet" href="./harper-assistant.css">
 </head>
 <body>
   <main class="page-shell account-setup-shell">
@@ -28,7 +29,14 @@
       <p id="acceptInvitationStatus" class="form-status" role="status" aria-live="polite"></p>
       <p class="tool-note">Already created your account? <a class="account-setup-signin" href="./workspace.html">Sign in here</a>.</p>
     </section>
-  </main>
-</body>
+    </main>
+    <button class="harper-assistant-launcher" id="harper-assistant-launcher" type="button" aria-expanded="false" aria-controls="harper-assistant-panel">Ask Harper</button>
+    <section class="harper-assistant-panel" id="harper-assistant-panel" aria-label="Harper assistant" hidden>
+      <header class="harper-assistant-header"><div><strong>Harper Assistant</strong><small>How can we help?</small></div><button class="harper-assistant-close" type="button" data-assistant-close aria-label="Close assistant">×</button></header>
+      <div class="harper-assistant-messages" id="harper-assistant-messages" role="log" aria-live="polite"></div>
+      <form class="harper-assistant-form" id="harper-assistant-form"><input id="harper-assistant-input" type="text" placeholder="Type your message..." autocomplete="off" aria-label="Message" maxlength="500" required><button type="submit">Send</button></form>
+    </section>
+    <script src="./harper-assistant.js" defer></script>
+  </body>
 </html>
 

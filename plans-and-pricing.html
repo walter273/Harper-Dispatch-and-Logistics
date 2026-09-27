@@ -6,6 +6,7 @@
   <link rel="stylesheet" href="/harper-theme.css">
   <link rel="stylesheet" href="/public-preview.css">
   <title>Plans and pricing | Harper Dispatch and Logistics</title>
+  <link rel="stylesheet" href="./harper-assistant.css">
 </head>
 <body>
   <header>
@@ -25,5 +26,13 @@
     <section class="join"><h2>Ready to get started?</h2><p>Submit a request for review. Approved applicants receive an invitation to activate their account.</p><a class="primary" href="/carrier-onboarding.html">Sign up / request access</a><a href="/access.html">Already invited or have an account?</a></section>
   </main>
   <footer>Powered by Harper Dispatch and Logistics · (720) 522-6523</footer>
+
+  <button class="harper-assistant-launcher" id="harper-assistant-launcher" type="button" aria-expanded="false" aria-controls="harper-assistant-panel">Ask Harper</button>
+  <section class="harper-assistant-panel" id="harper-assistant-panel" aria-label="Harper assistant" hidden>
+    <header class="harper-assistant-header"><div><strong>Harper Assistant</strong><small>How can we help?</small></div><button class="harper-assistant-close" type="button" data-assistant-close aria-label="Close assistant">×</button></header>
+    <div class="harper-assistant-messages" id="harper-assistant-messages" role="log" aria-live="polite"></div>
+    <form class="harper-assistant-form" id="harper-assistant-form"><input id="harper-assistant-input" type="text" placeholder="Type your message..." autocomplete="off" aria-label="Message" maxlength="500" required><button type="submit">Send</button></form>
+  </section>
+  <script src="./harper-assistant.js" defer></script>
 </body>
 </html>

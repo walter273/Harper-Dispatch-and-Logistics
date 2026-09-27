@@ -460,3 +460,13 @@ body:not(.home-redesign) > header:not(.topbar) .public-nav-signin{
   .home-redesign .home-role-links > span{width:100%}
   .home-redesign .process-action{align-items:flex-start;flex-direction:column;gap:14px}
 }
+
+/* Conversational assistant voice, staff workspace only. */
+#assistantVoiceLog{max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin:10px 0;padding:10px;border:1px solid var(--line);border-radius:10px;background:rgba(0,0,0,.18)}
+#assistantVoiceLog:empty{display:none}
+.assistant-voice-line{margin:0;font-size:.86rem;line-height:1.45}
+.assistant-voice-you{color:var(--muted)}
+.assistant-voice-harper{color:var(--ink)}
+#assistantVoiceTalk.is-recording{background:var(--gold, #d9ae52);color:#12110e;border-color:var(--gold, #d9ae52)}
+#assistantVoiceBudget{margin:6px 0 0}
+@media (prefers-reduced-motion:reduce){#assistantVoiceTalk.is-recording{transition:none}}

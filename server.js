@@ -13,6 +13,7 @@ const intakeReview = require('./intake-review');
 const { createVerifier, attachReport } = require('./carrier-verification');
 const { createCarrierReviewAssistant } = require('./carrier-review-assistant');
 const { createWebsiteAssistant } = require('./website-assistant');
+const { createAssistantVoice } = require('./assistant-voice');
 const { createWorkflow } = require('./applicant-workflow');
 const { reduceSubscription } = require('./subscription-state');
 const { plans: dispatchPlans, isDispatchPlan, termsVersion: dispatchTermsVersion } = require('./dispatch-plans');
@@ -85,7 +86,7 @@ const rateLimitBuckets = new Map();
 const STATIC_FILES = new Set([
   'robots.txt', 'sitemap.xml', 'favicon.ico',
   'inbox-loader.js', 'inbox-auth.html', 'inbox-bridge.bundle.js', 'home-reveal.js', 'command-board.css',
-  'role-permissions.js', 'role-workspace.js', 'browser-voice-ui.js',
+  'role-permissions.js', 'role-workspace.js', 'browser-voice-ui.js', 'assistant-voice-ui.js',
   'harper-assistant.js', 'harper-assistant.css',
   'product-load-board.html',
   'product-dispatch.html',
@@ -543,6 +544,10 @@ function normalizeStore(candidate) {
     communications: Array.isArray(candidate?.communications) ? candidate.communications : [],
     voiceCalls: Array.isArray(candidate?.voiceCalls) ? candidate.voiceCalls : [],
     voiceAppSid: candidate?.voiceAppSid || null,
+    assistantVoice: {
+      conversations: Array.isArray(candidate?.assistantVoice?.conversations) ? candidate.assistantVoice.conversations : [],
+      budgets: Array.isArray(candidate?.assistantVoice?.budgets) ? candidate.assistantVoice.budgets : [],
+    },
     operations: normalizeOperations(candidate?.operations),
     carrierOnboardedCompanies: Array.isArray(candidate?.carrierOnboardedCompanies) ? [...new Set(candidate.carrierOnboardedCompanies.filter(id => typeof id === 'string'))] : [],
     dispatchRequests: Array.isArray(candidate?.dispatchRequests) ? candidate.dispatchRequests.filter(entry => isDispatchPlan(entry?.plan) && entry.companyId && entry.billingMethod === 'percentage') : [],
@@ -1147,6 +1152,7 @@ communications.recover();
 const communicationsTimer = setInterval(() => communications.refresh().catch(() => {}), 60000);
 communicationsTimer.unref();
 const browserVoice = require('./browser-voice').createBrowserVoice({ getStore: () => store, persist: persistStore });
+const assistantVoice = createAssistantVoice({ getStore: () => store, persist: persistStore, env: process.env });
 committedStore = structuredClone(store);
 persistStore();
 
@@ -1265,6 +1271,30 @@ const server = http.createServer(async (request, response) => {
         return;
       }
       sendJson(response, 200, browserVoice.token(await readJson(request, 4096), actor)); return;
+    }
+    // Conversational assistant voice, for signed-in staff only. Every route
+    // below re-checks the role here rather than trusting the page, and each
+    // turn is rate limited and counted against a daily per-company budget so a
+    // stuck conversation cannot run up a transcription and speech bill.
+    if (['/api/assistant-voice/state', '/api/assistant-voice/open', '/api/assistant-voice/turn', '/api/assistant-voice/close'].includes(pathname)) {
+      const actor = requireAccount(request, ['admin', 'dispatcher']);
+      if (pathname === '/api/assistant-voice/state') {
+        if (request.method !== 'GET') throw reject(405, 'Method not allowed.');
+        sendJson(response, 200, assistantVoice.state(actor)); return;
+      }
+      if (request.method !== 'POST') throw reject(405, 'Method not allowed.');
+      requireJsonSameOrigin(request);
+      if (pathname === '/api/assistant-voice/open') {
+        if (!consumeRateLimit(request, 'assistant-voice-open', 10, 60000)) throw reject(429, 'Please wait before starting another assistant conversation.');
+        sendJson(response, 200, assistantVoice.open(actor)); return;
+      }
+      if (pathname === '/api/assistant-voice/close') {
+        sendJson(response, 200, assistantVoice.close(actor, (await readJson(request, 4096))?.conversationId)); return;
+      }
+      if (!consumeRateLimit(request, 'assistant-voice-turn', 40, 60000)) throw reject(429, 'The assistant is busy. Please pause for a moment.');
+      const turn = await assistantVoice.turn(actor, await readJson(request, 24 * 1024 * 1024));
+      response.writeHead(200, responseHeaders({ 'Content-Type': 'application/json' }));
+      response.end(JSON.stringify(turn)); return;
     }
     if (pathname === '/api/square/connection' && request.method === 'GET') {
       requireAccount(request, ['admin']);

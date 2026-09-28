@@ -15,7 +15,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 const env = process.env;
 const rows = [];
-let blocking = null;
+const blockers = [];
+// Blockers are ranked by the stage they belong to, so the reported "next step"
+// is always the earliest unmet prerequisite rather than whichever check happened
+// to fail first. Credentials you will need later are not blockers at all while an
+// earlier stage is still outstanding.
+const block = (stage, message, action) => blockers.push({ stage, message, action });
 const add = (label, ok, detail) => rows.push({ label, ok, detail });
 const present = name => Boolean(String(env[name] || '').trim());
 
@@ -33,8 +38,8 @@ const enforce = env.HARPER_REQUIRE_SUBSCRIPTION === 'true';
 
 // --- Stage 1: credentials -------------------------------------------------
 add('Sandbox credentials', sandboxCreds, sandboxCreds ? 'present' : 'SQUARE_SANDBOX_ACCESS_TOKEN and SQUARE_SANDBOX_LOCATION_ID are required');
+if (!sandboxCreds && !productionCreds) block(1, 'No Square credentials are set at all.', 'Set SQUARE_SANDBOX_ACCESS_TOKEN and SQUARE_SANDBOX_LOCATION_ID.');
 add('Production credentials', productionCreds, productionCreds ? 'present' : 'SQUARE_ACCESS_TOKEN and SQUARE_LOCATION_ID are required before going live');
-if (!sandboxCreds && !productionCreds) blocking = 'No Square credentials are set at all.';
 
 // The same interlock the server applies, surfaced as a plan instead of a wall.
 const interlock = productionCreds && production && liveSwitch;
@@ -53,15 +58,18 @@ add('Webhook subscription', Boolean(webhook),
         ? 'stored, and a signature key is also set in the environment (durable)'
         : 'stored in the runtime store, but no signature key is set in the environment')
     : 'not configured; set SQUARE_CONFIGURE_WEBHOOK=true once and redeploy');
-if (!webhook && !blocking) blocking = 'Square webhooks are not configured, so paid state would never be confirmed.';
+if (!webhook) block(2, 'Square webhooks are not configured, so paid state would never be confirmed.', 'Set SQUARE_CONFIGURE_WEBHOOK=true, redeploy, then confirm the log says the subscription was configured.');
 
 // --- Stage 3: evidence -----------------------------------------------------
+// Purchase evidence is required before going live, and stays a blocker in both
+// environments: in sandbox it is the step to do next, in production it is the
+// proof that live collection was ever proven safe.
 const fixture = (store.value?.squareBilling || []).find(entry => entry.sandboxFixture);
 const smokeRan = Boolean(fixture);
 add('Sandbox purchase evidence', smokeRan,
   smokeRan ? 'a sandbox subscription was created and reconciled to active'
            : 'no sandbox checkout has been completed yet');
-if (!smokeRan && !blocking) blocking = 'No sandbox purchase has been proven yet. Do not enable live payments before one is.';
+if (!smokeRan) block(3, 'No sandbox purchase has been proven yet. Do not enable live payments before one is.', 'Sign in as a carrier, broker or shipper and complete a SANDBOX checkout, then cancel it. Admin accounts are exempt and prove nothing.');
 
 // --- Stage 4: the gate -----------------------------------------------------
 // In sandbox, billing.ready is normally true: that only means sandbox checkout
@@ -75,7 +83,7 @@ if (!enforce) {
   add('Subscription enforcement', true, 'enabled while live collection is on; unpaid non-admin accounts are refused');
 } else {
   add('Subscription enforcement', false, 'enabled but not ready: no production subscription can exist while sandbox is selected, so this would lock every carrier, broker and shipper out');
-  if (!blocking) blocking = 'HARPER_REQUIRE_SUBSCRIPTION is on too early and would lock out all paying roles.';
+  block(4, 'HARPER_REQUIRE_SUBSCRIPTION is on too early and would lock out all paying roles.', 'Set HARPER_REQUIRE_SUBSCRIPTION=false until a real production payment has succeeded, then turn it back on.');
 }
 
 const width = Math.max(...rows.map(r => r.label.length));
@@ -90,16 +98,17 @@ if (!store.value) {
 }
 
 console.log('');
-if (blocking) {
-  console.log(`Not ready. ${blocking}`);
+if (blockers.length) {
+  // The earliest unmet stage wins, so the instruction is always the one to do next.
+  const next = blockers.sort((a, b) => a.stage - b.stage)[0];
+  console.log(`Not ready. ${next.message}`);
   console.log('');
   console.log('Next step:');
-  if (!sandboxCreds && !productionCreds) console.log('  Set SQUARE_SANDBOX_ACCESS_TOKEN and SQUARE_SANDBOX_LOCATION_ID.');
-  else if (!webhook) console.log('  Set SQUARE_CONFIGURE_WEBHOOK=true, redeploy, then confirm the log says the subscription was configured.');
-  else if (!smokeRan) console.log('  Sign in as a carrier, broker or shipper and complete a SANDBOX checkout, then cancel it. Admin accounts are exempt and prove nothing.');
-  else if (!production) console.log('  Sandbox purchase proven. Review the tax position, then set SQUARE_ENVIRONMENT=production and SQUARE_LIVE_PAYMENTS_ENABLED=true and redeploy.');
-  else if (!ready) console.log('  Production is selected. Set SQUARE_LIVE_PAYMENTS_ENABLED=true to enable real charges, after the tax review.');
-  else console.log('  Live collection is enabled. Complete one real purchase, then set HARPER_REQUIRE_SUBSCRIPTION=true.');
+  console.log(`  ${next.action}`);
+  if (blockers.length > 1) {
+    console.log('');
+    console.log(`Also outstanding, after that: ${blockers.length - 1} later stage(s).`);
+  }
   process.exit(1);
 }
 

@@ -1,10 +1,12 @@
 # Render Blueprint for Harper Dispatch and Logistics
 # Deploy with: Render Dashboard -> New -> Blueprint -> select this repository
+# Free-tier notes: no persistent disk on free tier — data resets on every
+# deploy/restart. HARPER_DATA_FILE falls back to ./data when not set.
 services:
   - type: web
     name: harper-dispatch-logistics
     runtime: node
-    plan: starter
+    plan: free
     region: oregon
     buildCommand: npm ci && npm run build
     startCommand: npm start
@@ -15,7 +17,7 @@ services:
       - key: HARPER_HOST
         value: 0.0.0.0
       - key: HARPER_DATA_FILE
-        value: /data/harper-store.json
+        sync: false
       - key: HARPER_PUBLIC_ORIGIN
         value: https://www.harperloadboard.com
       # --- Secrets: set these in the Render Dashboard, never in Git ---
@@ -69,7 +71,3 @@ services:
         sync: false
       - key: TWILIO_NUMBER
         sync: false
-    disk:
-      name: harper-data
-      mountPath: /data
-      sizeGB: 1

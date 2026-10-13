@@ -1,0 +1,75 @@
+# Render Blueprint for Harper Dispatch and Logistics
+# Deploy with: Render Dashboard -> New -> Blueprint -> select this repository
+services:
+  - type: web
+    name: harper-dispatch-logistics
+    runtime: node
+    plan: starter
+    region: oregon
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HARPER_HOST
+        value: 0.0.0.0
+      - key: HARPER_DATA_FILE
+        value: /data/harper-store.json
+      - key: HARPER_PUBLIC_ORIGIN
+        value: https://www.harperloadboard.com
+      # --- Secrets: set these in the Render Dashboard, never in Git ---
+      - key: HARPER_ACCOUNT_AUTH
+        sync: false
+      - key: HARPER_ACCOUNT_SESSION_SECRET
+        sync: false
+      - key: HARPER_ADMIN_EMAIL
+        sync: false
+      - key: HARPER_ADMIN_PASSWORD
+        sync: false
+      - key: HARPER_PRIVATE_NETWORK
+        sync: false
+      - key: HARPER_NETWORK_INVITE_CODE
+        sync: false
+      - key: HARPER_FMCSA_QCMOBILE_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: SQUARE_ENVIRONMENT
+        sync: false
+      - key: SQUARE_SANDBOX_ACCESS_TOKEN
+        sync: false
+      - key: SQUARE_SANDBOX_LOCATION_ID
+        sync: false
+      - key: SQUARE_ACCESS_TOKEN
+        sync: false
+      - key: SQUARE_LOCATION_ID
+        sync: false
+      - key: SQUARE_LIVE_PAYMENTS_ENABLED
+        sync: false
+      - key: SQUARE_WEBHOOK_SIGNATURE_KEY
+        sync: false
+      - key: SQUARE_SANDBOX_WEBHOOK_SIGNATURE_KEY
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_VOICE_API_KEY_SID
+        sync: false
+      - key: TWILIO_VOICE_API_KEY_SECRET
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: HARPER_APPLICANT_EMAILS_ENABLED
+        sync: false
+      - key: HARPER_EMAIL_PROVIDER
+        sync: false
+      - key: HARPER_EMAIL_FROM
+        sync: false
+      - key: HARPER_EMAIL_REPLY_TO
+        sync: false
+      - key: TWILIO_NUMBER
+        sync: false
+    disk:
+      name: harper-data
+      mountPath: /data
+      sizeGB: 1

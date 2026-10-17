@@ -164,8 +164,9 @@ function applyReview(current, input, actor, reviewers, now = Date.now()) {
   review.history.push(event);
   return { review, replayed: false };
 }
-function publicReview(review) {
-  const { history, ...result } = review;
+function publicReview(review, actor = null) {
+  const { history, assistantDraft, ...result } = review;
+  if (actor?.role === 'admin' && assistantDraft) result.assistantDraft = assistantDraft;
   return { ...result, historyCount: history.length };
 }
 function publicHistory(history) {
@@ -195,3 +196,4 @@ function listIntakes(intakes, reviews, query) {
   } })), total: selected.length, retainedTotal: intakes.length, page, pageSize, pages, counts };
 }
 module.exports = { categories, statuses, createReview, restoreReviews, applyReview, publicReview, publicHistory, listIntakes };
+

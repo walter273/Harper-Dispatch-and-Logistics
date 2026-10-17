@@ -161,3 +161,6 @@
     height: min(560px, calc(100vh - 30px));
   }
 }
+
+
+#harper-assistant-launcher[hidden], #harper-assistant-panel[hidden] { display: none !important; }

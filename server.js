@@ -1225,6 +1225,7 @@ const server = http.createServer(async (request, response) => {
       return;
     }
     if (pathname === '/api/assistant' && request.method === 'POST') {
+      requireAccount(request, ['admin']);
       requireJsonSameOrigin(request);
       if (!consumeRateLimit(request, 'website-assistant', 12, 60000)) throw reject(429, 'Please wait before sending more assistant messages.');
       const body = await readJson(request, 4096);
@@ -1272,12 +1273,12 @@ const server = http.createServer(async (request, response) => {
       }
       sendJson(response, 200, browserVoice.token(await readJson(request, 4096), actor)); return;
     }
-    // Conversational assistant voice, for signed-in staff only. Every route
+    // Conversational assistant voice, for signed-in administrators only. Every route
     // below re-checks the role here rather than trusting the page, and each
     // turn is rate limited and counted against a daily per-company budget so a
     // stuck conversation cannot run up a transcription and speech bill.
     if (['/api/assistant-voice/state', '/api/assistant-voice/open', '/api/assistant-voice/turn', '/api/assistant-voice/close'].includes(pathname)) {
-      const actor = requireAccount(request, ['admin', 'dispatcher']);
+      const actor = requireAccount(request, ['admin']);
       if (pathname === '/api/assistant-voice/state') {
         if (request.method !== 'GET') throw reject(405, 'Method not allowed.');
         sendJson(response, 200, assistantVoice.state(actor)); return;
@@ -1688,7 +1689,7 @@ const server = http.createServer(async (request, response) => {
     }
     const intakeRoute = pathname.match(/^\/api\/intakes\/([a-zA-Z0-9_-]+)(?:\/(review|history|export|verification|workflow|assistant-draft))?$/);
     if (intakeRoute) {
-      const actor = requireAccount(request, ['admin', 'dispatcher']);
+      const actor = requireAccount(request, intakeRoute[2] === 'assistant-draft' ? ['admin'] : ['admin', 'dispatcher']);
       const record = store.intakes.find(intake => intake.id === intakeRoute[1]);
       if (!record) throw reject(404, 'Intake record not found.');
       const review = store.intakeReviews[record.id];
@@ -1704,7 +1705,7 @@ const server = http.createServer(async (request, response) => {
       }
       if (request.method === 'POST' && intakeRoute[2] === 'assistant-draft') {
         requireJsonSameOrigin(request);
-        requireAccount(request, ['admin', 'dispatcher']);
+        requireAccount(request, ['admin']);
         if (record.type !== 'carrier-onboarding' || review.category !== 'carrier') throw reject(400, 'The Harper Dispatch assistant is available for carrier intakes.');
         if (!['received', 'in_review', 'needs_information'].includes(review.status)) throw reject(409, 'An admin must reopen this review before preparing a new draft.');
         const input = await readJson(request, MAX_INTAKE_BYTES);
@@ -1717,7 +1718,7 @@ const server = http.createServer(async (request, response) => {
         store.intakeReviews[record.id] = updated;
         store.revision += 1;
         persistStore();
-        sendJson(response, 200, { intake: record, review: intakeReview.publicReview(updated) });
+        sendJson(response, 200, { intake: record, review: intakeReview.publicReview(updated, actor) });
         return;
       }
       if (request.method === 'POST' && intakeRoute[2] === 'verification') {
@@ -1738,16 +1739,16 @@ const server = http.createServer(async (request, response) => {
           store.intakeReviews[record.id] = updated;
           store.revision++;
           persistStore();
-          sendJson(response, 200, { intake: record, review: intakeReview.publicReview(updated) });
+          sendJson(response, 200, { intake: record, review: intakeReview.publicReview(updated, actor) });
         } finally { verificationLocks.delete(record.id); }
         return;
       }
       if (request.method === 'GET' && intakeRoute[2] === 'export') {
-        sendJson(response, 200, { exportedAt: Date.now(), intake: record, review: { ...intakeReview.publicReview(review), history: intakeReview.publicHistory(review.history) } });
+        sendJson(response, 200, { exportedAt: Date.now(), intake: record, review: { ...intakeReview.publicReview(review, actor), history: intakeReview.publicHistory(review.history) } });
         return;
       }
       if (request.method === 'GET' && !intakeRoute[2]) {
-        sendJson(response, 200, { intake: record, review: intakeReview.publicReview(review) });
+        sendJson(response, 200, { intake: record, review: intakeReview.publicReview(review, actor) });
         return;
       }
       if (request.method === 'GET' && intakeRoute[2] === 'history') {
@@ -1771,7 +1772,7 @@ const server = http.createServer(async (request, response) => {
           store.revision += 1;
           persistStore();
         }
-        sendJson(response, 200, { intake: record, review: intakeReview.publicReview(result.review), replayed: result.replayed });
+        sendJson(response, 200, { intake: record, review: intakeReview.publicReview(result.review, actor), replayed: result.replayed });
         return;
       }
       throw reject(405, 'Method not allowed.');
@@ -1912,3 +1913,4 @@ server.listen(PORT, BIND_HOST, () => {
 
   console.log(`Preview access: ${REQUIRE_PREVIEW_AUTH ? 'enabled' : 'disabled (local default)'}`);
 });
+

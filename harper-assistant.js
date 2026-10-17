@@ -16,7 +16,7 @@
     const root = document.createElement('div');
     root.id = 'harper-assistant-root';
     root.innerHTML = `
-      <button class="harper-assistant-launcher" id="harper-assistant-launcher" type="button" aria-expanded="false" aria-controls="harper-assistant-panel">
+      <button class="harper-assistant-launcher" id="harper-assistant-launcher" hidden type="button" aria-expanded="false" aria-controls="harper-assistant-panel">
         <span class="harper-assistant-launcher-icon" aria-hidden="true">H</span>
         <span>Ask Harper</span>
       </button>
@@ -41,6 +41,28 @@
   const messages = document.getElementById('harper-assistant-messages');
   const closeButton = document.querySelector('[data-assistant-close]');
   if (!launcher || !panel || !form || !input || !messages || !closeButton) return;
+
+  let admin = false, sessionVersion = 0;
+  function setAccount(account) {
+    admin = account?.role === 'admin';
+    launcher.hidden = !admin;
+    if (!admin) {
+      panel.hidden = true;
+      launcher.setAttribute('aria-expanded', 'false');
+      messages.replaceChildren();
+      input.value = '';
+    }
+  }
+  setAccount(null);
+  window.addEventListener('harper:account-changed', event => {
+    sessionVersion++;
+    setAccount(event.detail);
+  });
+  const initialVersion = sessionVersion;
+  fetch('/api/accounts/me', { credentials: 'same-origin', cache: 'no-store' })
+    .then(response => response.ok ? response.json() : {})
+    .then(payload => { if (initialVersion === sessionVersion) setAccount(payload.account); })
+    .catch(() => { if (initialVersion === sessionVersion) setAccount(null); });
 
   const pages = [
     { href: '/', terms: ['home', 'overview', 'services'], text: 'Start with the homepage to review Harper services, company information, and main navigation.' },
@@ -71,6 +93,7 @@
       body: JSON.stringify({ question }),
     });
     const payload = await response.json().catch(() => ({}));
+    if (response.status === 401 || response.status === 403) { sessionVersion++; setAccount(null); }
     if (!response.ok) throw new Error(payload.error || 'The website AI assistant is temporarily unavailable.');
     return String(payload.answer || '').trim();
   }
@@ -99,6 +122,7 @@
   }
 
   function setOpen(open) {
+    if (!admin) return;
     panel.hidden = !open;
     launcher.setAttribute('aria-expanded', String(open));
     if (open) input.focus();
@@ -116,7 +140,8 @@
   form.addEventListener('submit', async event => {
     event.preventDefault();
     const question = input.value;
-    if (!question.trim() || form.dataset.busy === 'true') return;
+    if (!admin || !question.trim() || form.dataset.busy === 'true') return;
+    const requestVersion = sessionVersion;
     form.dataset.busy = 'true';
     input.disabled = true;
     form.querySelector('button').disabled = true;
@@ -126,14 +151,15 @@
     const pending = messages.lastElementChild;
     try {
       const result = await askWebsiteAssistant(question);
-      pending.textContent = result || answer(question);
+      if (admin && requestVersion === sessionVersion) pending.textContent = result || answer(question);
     } catch (error) {
-      pending.textContent = `${error.message} ${answer(question)}`.trim();
+      if (admin && requestVersion === sessionVersion) pending.textContent = `${error.message} ${answer(question)}`.trim();
     } finally {
       form.dataset.busy = 'false';
       input.disabled = false;
       form.querySelector('button').disabled = false;
-      input.focus();
+      if (admin) input.focus();
     }
   });
 })();
+

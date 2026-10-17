@@ -1,5 +1,5 @@
 (() => {
-  // Staff-only conversational assistant voice. Press and hold the button to
+  // Administrator-only conversational assistant voice. Press and hold the button to
   // record, release to send; the reply is spoken back and shown in the log.
   // Every request is same-origin and authenticated by the server, which
   // re-checks the role. Nothing here holds a provider key.
@@ -38,15 +38,19 @@
     audio.play().catch(() => note('Reply received, but this browser blocked playback.'));
   }
 
+  let generation = 0;
   async function refresh() {
+    const version = ++generation;
     try {
       const data = await call('/api/assistant-voice/state');
+      if (version !== generation) return;
       ready = Boolean(data.configured);
       const used = data.budget?.used ?? 0, limit = data.budget?.limit ?? 0;
       budget.textContent = ready ? `Ready. ${limit - used} of ${limit} turns left today.` : 'Assistant voice is not configured yet.';
       if (begin) begin.disabled = !ready;
       if (!ready) talk.disabled = true;
     } catch (error) {
+      if (version !== generation) return;
       ready = false;
       budget.textContent = error.message;
       talk.disabled = true;
@@ -55,22 +59,25 @@
   }
 
   async function startConversation() {
-    if (busy) return;
+    if (busy || !ready) return;
+    const version = generation;
     busy = true;
     if (begin) begin.disabled = true;
     try {
       note('Starting a conversation…');
       const data = await call('/api/assistant-voice/open', {});
+      if (version !== generation) return;
       conversationId = data.conversationId;
       log.replaceChildren();
       say('harper', 'Ask me anything about Harper operations.');
       note('Listening is ready. Hold the button and speak.');
       talk.disabled = false;
     } catch (error) {
+      if (version !== generation) return;
       note(error.message);
       await refresh();
     } finally {
-      busy = false;
+      if (version === generation) busy = false;
     }
   }
 
@@ -80,8 +87,10 @@
       note('This browser cannot record audio.');
       return;
     }
+    const version = generation;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (version !== generation) { stream.getTracks().forEach(track => track.stop()); return; }
       chunks = [];
       recorder = new MediaRecorder(stream);
       recorder.ondataavailable = event => { if (event.data.size) chunks.push(event.data); };
@@ -96,13 +105,16 @@
 
   async function sendRecording() {
     if (!recorder) return;
+    const version = generation;
+    const recording = recorder;
     talk.classList.remove('is-recording');
     stop.disabled = true;
     busy = true;
     const done = new Promise(resolve => { recorder.onstop = resolve; });
     if (recorder.state !== 'inactive') recorder.stop();
     await done;
-    for (const track of recorder.stream.getTracks()) track.stop();
+    for (const track of recording.stream.getTracks()) track.stop();
+    if (version !== generation) return;
     const blob = new Blob(chunks, { type: chunks[0]?.type || 'audio/webm' });
     recorder = null;
     if (!blob.size) { note('Nothing was recorded.'); busy = false; return; }
@@ -113,7 +125,9 @@
         reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
         reader.readAsDataURL(blob);
       });
+      if (version !== generation) return;
       const result = await call('/api/assistant-voice/turn', { conversationId, audioBase64: base64 });
+      if (version !== generation) return;
       say('you', result.transcript);
       say('harper', result.reply);
       play(result.audio);
@@ -121,19 +135,32 @@
       budget.textContent = `Ready. ${left} turns left today.`;
       note('Listening is ready.');
     } catch (error) {
+      if (version !== generation) return;
       note(error.message);
     } finally {
-      busy = false;
+      if (version === generation) busy = false;
     }
   }
 
   form.addEventListener('submit', event => { event.preventDefault(); startRecording(); });
   stop.addEventListener('click', sendRecording);
   if (begin) begin.addEventListener('click', startConversation);
-  window.addEventListener('harper:account-changed', () => {
-    conversationId = null; busy = false;
-    log.replaceChildren(); note(''); refresh();
+  window.addEventListener('harper:account-changed', event => {
+    generation++;
+    conversationId = null; busy = false; ready = false;
+    if (audio) audio.pause();
+    if (recorder) {
+      recorder.ondataavailable = null;
+      if (recorder.state !== 'inactive') recorder.stop();
+      recorder.stream.getTracks().forEach(track => track.stop());
+      recorder = null;
+    }
+    chunks = []; talk.disabled = true; stop.disabled = true;
+    if (begin) begin.disabled = true;
+    log.replaceChildren(); note('');
+    if (event.detail?.role === 'admin') refresh();
   });
   window.addEventListener('pagehide', () => { if (recorder && recorder.state !== 'inactive') recorder.stop(); });
   refresh();
 })();
+

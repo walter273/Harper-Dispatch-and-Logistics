@@ -149,6 +149,7 @@
       }));
       root.append(automatic);
 
+      if (admin) {
       const assistant = el('section', undefined, 'review-decision');
       assistant.append(el('h3', 'Harper Dispatch personal AI assistant'),
         el('p', 'The assistant prepares a draft assessment only. It cannot approve, reject, activate billing, or change any supporting check. A staff member must inspect the evidence and record every final decision.', 'review-help'));
@@ -187,6 +188,7 @@
         finally { busy = false; controls.forEach(([node, disabled]) => node.disabled = disabled); }
       }));
       root.append(assistant);
+      }
     }
     if (intake.type === 'carrier-onboarding' && intake.fields.gps_pilot_requested === 'yes') {
       const pilot = el('section', undefined, 'review-divider');
@@ -315,3 +317,4 @@
     } catch (error) { message(error.message, true); }
   })();
 })();
+

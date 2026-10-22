@@ -1,17 +1,21 @@
 # Carrier GPS pilot
 
-## Available now
+## Qualification first; tracking later
 
-Carrier onboarding collects the ELD/GPS provider, an optional other-provider name,
-an optional pilot truck number, and an optional request to discuss a one-truck
-pilot. The provider selection includes Motive, Samsara, Geotab, Other, None, and
-Not sure. Selecting a provider is not a claim that its integration is connected.
+The initial carrier application collects company and contact details, MC/USDOT
+identifiers, equipment, available units, preferred lanes, availability, and
+qualification notes. It does not ask for an ELD/GPS provider, pilot truck, or
+tracking-pilot request.
 
-These fields are retained with the original intake and included in the staff
-review queue, search, and record export. The contact request is not carrier or
-driver authorization. Existing submissions remain intact, and earlier forms may
-submit without these new optional API fields. The current web form asks the
-carrier to select a provider, None, or Not sure.
+After qualification and approval, staff coordinate tracking setup separately.
+The onboarding status page explains this later step. Collect provider details,
+truck selection, and required carrier and driver authorizations through the
+approved setup process; an application is not tracking authorization.
+
+Previously submitted tracking fields remain available in staff review, search,
+and exports. The API continues to accept and validate those optional fields for
+compatibility, and applications without tracking fields remain valid. This
+change does not activate a tracking integration or schedule automatic tracking.
 
 ## Choose the first connection
 

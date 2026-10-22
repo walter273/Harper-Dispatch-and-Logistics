@@ -30,7 +30,7 @@
     const update = () => {
       const method = byId('workspaceBillingMethod').value;
       byId('dispatchQuote').textContent = summary(byId('workspaceDispatchPlan').value, method, Number(byId('carrierTruckCount').value));
-      byId('dispatchPlanSubmit').textContent = 'Request dispatch trial';
+      byId('dispatchPlanSubmit').textContent = 'Request dispatch services';
     };
     dispatchForm.addEventListener('input', update);
     dispatchForm.addEventListener('change', update);
@@ -42,7 +42,7 @@
       const submit = byId('dispatchPlanSubmit');
       const billingMethod = byId('workspaceBillingMethod').value;
       submit.disabled = true;
-      status.textContent = 'Saving your dispatch trial request...';
+      status.textContent = 'Saving your dispatch service request...';
       try {
         await request('./api/dispatch/requests', {
           method: 'POST', body: JSON.stringify({ plan: byId('workspaceDispatchPlan').value, billingMethod, truckCount: Number(byId('carrierTruckCount').value), termsVersion: catalog.termsVersion, requestId: crypto.randomUUID() })

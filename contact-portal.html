@@ -34,10 +34,11 @@
       <a class="portal-panel contact-option" href="./broker-intake.html"><span>Broker</span><strong>Share a lane</strong><p>Start a non-sensitive intake request.</p></a>
     </section>
 
-    <section class="portal-panel form-page-panel">
-      <header class="section-panel-header"><div><p class="eyebrow">General request</p><h2>Tell dispatch how to help</h2></div></header>
+    <section class="portal-panel form-page-panel" id="load-board-request">
+      <header class="section-panel-header"><div><p class="eyebrow">General request</p><h2>Tell Harper how to help</h2></div></header>
+      <p>For load-board access without dispatch services, select <strong>Load board only — carrier access</strong> below. Include your MC/DOT number, equipment, and preferred lanes in your message. Harper reviews carrier qualifications and confirms board-access terms and any fees before activation. This request does not enroll you in dispatch services or create a charge. Do not include sensitive documents; Harper will arrange secure document collection if needed.</p>
       <form class="operations-form" data-request-form data-request-type="contact" data-subject="Harper Dispatch and Logistics support request" data-notice="The app server is unavailable, so an email draft is opening with this request summary.">
-        <div class="operations-form-grid"><label><span>Name</span><input name="name" type="text" autocomplete="name" required></label><label><span>Email</span><input name="email" type="email" autocomplete="email" required></label><label><span>Company</span><input name="company" type="text" autocomplete="organization"></label><label><span>Topic</span><select name="topic"><option>Carrier support</option><option>Broker opportunity</option><option>Dispatch services</option><option>General question</option></select></label></div>
+        <div class="operations-form-grid"><label><span>Name</span><input name="name" type="text" autocomplete="name" required></label><label><span>Email</span><input name="email" type="email" autocomplete="email" required></label><label><span>Company</span><input name="company" type="text" autocomplete="organization"></label><label><span>Topic</span><select name="topic"><option>Carrier support</option><option>Load board only — carrier access</option><option>Broker opportunity</option><option>Dispatch services</option><option>General question</option></select></label></div>
         <label class="full-field"><span>Message</span><textarea name="message" rows="5" maxlength="1000" required></textarea></label>
         <div class="portal-actions"><button class="primary-button" type="submit">Submit request</button></div>
         <p class="form-status" data-form-status role="status" aria-live="polite"></p>

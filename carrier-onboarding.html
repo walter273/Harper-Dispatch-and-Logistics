@@ -29,7 +29,7 @@
       <div>
         <p class="eyebrow">Carrier portal</p>
         <h1>Request carrier dispatch services</h1>
-        <p>Share the operating details dispatch needs to begin a conversation about lanes, equipment, and availability.</p>
+        <p>Start with your carrier qualifications: company and contact details, operating authority, equipment, preferred lanes, and availability. Harper reviews these details before discussing service activation.</p>
       </div>
       <aside class="portal-callout warning-callout">
         <strong>Keep sensitive documents secure</strong>
@@ -38,7 +38,7 @@
     </section>
 
     <section class="portal-panel form-page-panel">
-      <header class="section-panel-header"><div><p class="eyebrow">Initial request</p><h2>Carrier details</h2></div></header>
+      <header class="section-panel-header"><div><p class="eyebrow">Initial request</p><h2>Carrier qualification details</h2></div></header>
       <form class="operations-form" data-request-form data-request-type="carrier-onboarding" data-subject="Carrier onboarding request" data-notice="The app server is unavailable, so an email draft is opening with this non-sensitive onboarding summary.">
         <div class="operations-form-grid">
           <input name="dispatch_package" id="onboardingDispatchPlan" type="hidden" value="dispatch-basic">
@@ -47,23 +47,15 @@
           <label><span>Primary contact</span><input name="primary_contact" type="text" autocomplete="name" required></label>
           <label><span>Business email</span><input name="business_email" type="email" autocomplete="email" required></label>
           <label><span>Business phone</span><input name="business_phone" type="tel" autocomplete="tel"></label>
-          <label><span>MC number</span><input name="mc_number" type="text" inputmode="numeric"></label>
-          <label><span>DOT number</span><input name="dot_number" type="text" inputmode="numeric"></label>
+          <label><span>MC number (if applicable)</span><input name="mc_number" type="text" inputmode="numeric"></label>
+          <label><span>USDOT number</span><input name="dot_number" type="text" inputmode="numeric"></label>
           <label><span>Equipment type</span><select name="equipment_type"><option>Dry Van</option><option>Reefer</option><option>Flatbed</option><option>Power Only</option><option>Other</option></select></label>
           <label><span>Available units</span><input name="available_units" type="number" min="1" max="100" step="1" value="1" required></label>
           <label><span>Preferred lanes</span><input name="preferred_lanes" type="text" placeholder="e.g., CO / AZ / TX"></label>
           <label><span>Availability</span><select name="availability"><option>Available now</option><option>Available this week</option><option>Future availability</option></select></label>
         </div>
-        <h3>ELD and GPS tracking</h3>
-        <p class="tool-note" id="gpsProviderHelp">Tell us which service your trucks use so dispatch can review a tracking connection. Choose “Not sure” if you need help identifying it.</p>
-        <div class="operations-form-grid">
-          <label><span>ELD/GPS provider</span><select name="eld_gps_provider" aria-describedby="gpsProviderHelp" required><option value="">Select your provider</option><option>Motive</option><option>Samsara</option><option>Geotab</option><option>Other</option><option value="None">No ELD/GPS provider</option><option>Not sure</option></select></label>
-          <label><span>Provider name (if Other)</span><input name="eld_gps_provider_other" type="text" maxlength="80" placeholder="Name of your ELD or GPS service"></label>
-          <label><span>Pilot truck number (optional)</span><input name="gps_pilot_truck" type="text" maxlength="40" placeholder="One truck, e.g., Truck 101" aria-describedby="gpsPilotHelp"></label>
-        </div>
-        <label class="dispatch-consent"><input type="checkbox" name="gps_pilot_requested" value="yes"><span>Contact me about a one-truck GPS pilot.</span></label>
-        <p class="tool-note" id="gpsPilotHelp">The pilot starts only after dispatch confirms the truck and records the required carrier and driver authorization. This request does not enable tracking. Do not enter passwords or API keys.</p>
-        <label class="full-field"><span>Operational notes</span><textarea name="operational_notes" rows="5" maxlength="1000" placeholder="Dispatch preferences, lane interests, or non-sensitive equipment details"></textarea></label>
+        <label class="full-field"><span>Qualification notes (optional)</span><textarea name="operational_notes" rows="5" maxlength="1000" placeholder="Authority or insurance status, equipment details, operating restrictions, and dispatch preferences. Do not include private documents."></textarea></label>
+        <p class="tool-note">Next, Harper reviews your authority, insurance, equipment fit, and availability. If documents are needed, our team will provide a secure submission method. Tracking setup is handled separately after carrier qualification and approval.</p>
         <p class="tool-note" id="onboardingDispatchSummary" aria-live="polite"></p>
         <ul class="dispatch-features"><li>No onboarding fee</li><li>No weekly payment upfront</li><li>5% only after Harper books an acceptable load</li><li>No long-term contract</li><li>You approve every load before booking</li><li>Rate confirmations and broker details remain visible</li></ul>
         <p class="tool-note">This request starts no subscription or charge. The 5% fee applies only to collected line-haul revenue on Harper-dispatched loads that you approve.</p>

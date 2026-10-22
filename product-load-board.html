@@ -1,5 +1,110 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/harper-theme.css"><link rel="stylesheet" href="/public-preview.css"><title>Harper Load Board | Harper Dispatch and Logistics</title>  <link rel="stylesheet" href="./harper-assistant.css">
-</head><body><header><a class="public-brand" href="/"><span class="harper-emblem" aria-hidden="true"></span><span><strong>Harper Dispatch and Logistics</strong><small>HOME OF HARPER LOAD BOARD</small></span></a><nav class="public-nav" aria-label="Main navigation"><div class="public-nav-group"><a href="/product-dispatch.html">Dispatch</a><a href="/product-load-board.html">Load board</a><a href="/product-planning.html">Planning</a><a href="/product-broker-desk.html">Broker desk</a><a href="/product-shipper-control.html">Shipper control</a></div><div class="public-nav-group"><a href="/solutions-carriers.html">Carriers</a><a href="/solutions-brokers.html">Brokers</a><a href="/solutions-shippers.html">Shippers</a><a href="/plans-and-pricing.html">Plans</a></div><a class="public-nav-cta" href="/contact.html">Contact</a><a class="public-nav-signin" href="/access.html">Member sign in</a></nav></header><main><p class="eyebrow">LIVE SERVICE</p><h1>Harper Load Board</h1><p class="lede">Preview freight opportunities and lane information.</p><div class="preview-grid"><article><h2>Example load 1001</h2><p>Denver, CO → Phoenix, AZ · Dry van · 42,000 lb</p></article><article><h2>Example load 1002</h2><p>Dallas, TX → Tulsa, OK · Reefer · 36,000 lb</p></article><article><h2>Example load 1003</h2><p>Chicago, IL → Columbus, OH · Flatbed · 40,000 lb</p></article></div><section class="join"><h2>Ready to get started?</h2><p>Submit a request for review. Approved applicants receive an invitation to activate their account.</p><a class="primary" href="/carrier-onboarding.html">Sign up / request access</a><a href="/access.html">Already invited or have an account?</a></section></main><footer>Powered by Harper Dispatch and Logistics · (720) 522-6523</footer>
+
+  <meta name="description" content="Explore Harper Load Board sample lanes, learn how carrier access works, and review Harper's dispatch pricing before requesting access.">
+  <link rel="canonical" href="https://www.harperloadboard.com/product-load-board.html">
+  <style>
+    .board-product{padding-top:48px;padding-bottom:56px}
+    .board-product h1{max-width:18ch;margin:12px 0 20px;font-size:clamp(2.4rem,6vw,4.5rem);letter-spacing:-.035em}
+    .board-product h2{font-size:clamp(1.5rem,3vw,2rem);line-height:1.25}
+    .board-product h3{font-size:1.15rem;line-height:1.4}
+    .board-product p{color:#c7d6e5}
+    .board-product .eyebrow{color:#ffda78;font-weight:700}
+    .board-hero{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:40px;align-items:center}
+    .board-hero .lede{max-width:54ch}
+    .board-actions{display:flex;flex-wrap:wrap;align-items:center;gap:16px;margin:24px 0}
+    .board-actions a{min-height:48px;display:inline-flex;align-items:center;justify-content:center}
+    .board-secondary{padding:12px 20px;border:1px solid #66809a;border-radius:8px;text-decoration:none;font-weight:700}
+    .board-access{padding:28px;background:#103857;border:1px solid #315775;border-top:3px solid #efb43c;border-radius:12px}
+    .board-access h2{margin-top:0;font-size:1.4rem}
+    .board-access ul{padding-left:20px;color:#dbe5ef}
+    .board-access li{margin:12px 0}
+    .board-section{margin-top:56px;scroll-margin-top:24px}
+    .board-section-intro{max-width:72ch}
+    .board-sample-note{padding:16px 20px;background:#103857;border-left:3px solid #efb43c;border-radius:4px}
+    .board-product .preview-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .board-product .preview-grid article{min-width:0;padding:24px}
+    .board-product .sample-tag{display:inline-block;color:#ffda78;font-size:.75rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+    .board-product .sample-route{font-size:1.3rem;margin:18px 0 24px}
+    .sample-route span{display:block}
+    .sample-route .route-direction{font-size:.85rem;color:#9fb5ca;margin:6px 0}
+    .sample-facts{margin:0;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .sample-facts dt{color:#9fb5ca;font-size:.8rem}
+    .sample-facts dd{margin:4px 0 0;font-weight:700}
+    .board-product details{margin-top:24px;border-top:1px solid #315775;padding-top:16px}
+    .board-product summary{cursor:pointer;color:#ffda78;font-weight:700;padding:8px 0;min-height:44px}
+    .board-product summary:focus-visible,.board-product a:focus-visible{outline:3px solid #fff;outline-offset:4px}
+    .board-product details p{font-size:.94rem}
+    .board-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;list-style:none;padding:0;counter-reset:steps}
+    .board-steps li{padding:24px;background:#0b2b4a;border:1px solid #315775;border-radius:12px;counter-increment:steps}
+    .board-steps li::before{content:"0" counter(steps);color:#ffda78;font-weight:700}
+    .board-pricing{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:32px;padding:28px;border:1px solid #66809a;border-radius:12px;background:#0b2b4a}
+    .board-pricing h2{margin-top:0}
+    .board-price{display:block;font-size:3rem;color:#ffda78;line-height:1.2}
+    .board-product .join{margin-top:56px}
+    .board-product .join h2{margin-top:0}
+    .board-skip{position:absolute;top:8px;left:16px;transform:translateY(-200%);padding:12px 20px;background:#efb43c;color:#061b33;z-index:100}
+    .board-skip:focus{transform:none}
+    body.board-product-page>.board-footer{display:flex;flex-wrap:wrap;justify-content:space-between;gap:16px;border-top:1px solid #315775}
+    body.board-product-page>header .public-brand{max-width:100%;min-width:0;flex-shrink:1}
+    @media(max-width:800px){.board-hero,.board-pricing{grid-template-columns:1fr}.board-product .preview-grid,.board-steps{grid-template-columns:1fr}.board-hero{gap:24px}.board-section{margin-top:40px}.board-product{padding-top:28px}}
+    @media(max-width:420px){.board-actions{align-items:stretch;flex-direction:column}.board-access,.board-pricing{padding:20px}.board-product .join .primary{display:block;margin-right:0;text-align:center}body.board-product-page>header .harper-emblem{flex-basis:64px;width:64px}}
+  </style>
+</head><body class="board-product-page"><a class="board-skip" href="#main-content">Skip to content</a><header><a class="public-brand" href="/"><span class="harper-emblem" aria-hidden="true"></span><span><strong>Harper Dispatch and Logistics</strong><small>HOME OF HARPER LOAD BOARD</small></span></a><nav class="public-nav" aria-label="Main navigation"><div class="public-nav-group"><a href="/product-dispatch.html">Dispatch</a><a href="/product-load-board.html" aria-current="page">Load board</a><a href="/product-planning.html">Planning</a><a href="/product-broker-desk.html">Broker desk</a><a href="/product-shipper-control.html">Shipper control</a></div><div class="public-nav-group"><a href="/solutions-carriers.html">Carriers</a><a href="/solutions-brokers.html">Brokers</a><a href="/solutions-shippers.html">Shippers</a><a href="/plans-and-pricing.html">Plans</a></div><a class="public-nav-cta" href="/contact.html">Contact</a><a class="public-nav-signin" href="/access.html">Member sign in</a></nav></header><main id="main-content" class="board-product">
+    <section class="board-hero" aria-labelledby="board-title">
+      <div>
+        <p class="eyebrow">HARPER LOAD BOARD</p>
+        <h1 id="board-title">Find the lanes that fit your truck.</h1>
+        <p class="lede">Explore sample freight lanes, see what to review before accepting a load, and connect with Harper about carrier access.</p>
+        <p>Harper brings load search and dispatch coordination together. You approve every load before Harper books it.</p>
+        <div class="board-actions"><a class="primary" href="/carrier-onboarding.html">Request carrier access</a><a class="board-secondary" href="#sample-loads">Explore sample loads</a></div>
+        <p>Already have an account? <a href="/access.html">Member sign in</a></p>
+      </div>
+      <aside class="board-access" aria-labelledby="access-title">
+        <p class="eyebrow">BEFORE YOU GET STARTED</p>
+        <h2 id="access-title">Access starts with a conversation.</h2>
+        <ul><li>Tell us about your equipment and preferred lanes.</li><li>Harper reviews your operation and confirms the right access and service terms.</li><li>Approved applicants receive an invitation to activate their account.</li></ul>
+        <p>Submitting a request starts no subscription or charge.</p>
+      </aside>
+    </section>
+
+    <section id="sample-loads" class="board-section" aria-labelledby="samples-title">
+      <p class="eyebrow">EXPLORE THE FORMAT</p>
+      <h2 id="samples-title">A closer look at a load.</h2>
+      <p class="board-section-intro">Start with the lane, equipment, and weight. Before approving actual freight, confirm the rate, pickup and delivery appointments, and load requirements with dispatch.</p>
+      <p class="board-sample-note"><strong>Sample loads — not live availability.</strong> These three examples illustrate load information only. They cannot be booked and do not represent current rates or available freight.</p>
+      <div class="preview-grid">
+        <article><span class="sample-tag">Sample 1001 · Not bookable</span><h3 class="sample-route"><span>Denver, CO</span><span class="route-direction">to</span><span>Phoenix, AZ</span></h3><dl class="sample-facts"><div><dt>Equipment</dt><dd>Dry van</dd></div><div><dt>Weight</dt><dd>42,000 lb</dd></div></dl><details><summary>View sample 1001 details</summary><p><strong>Rate and appointments:</strong> Not provided in this example.</p><p>For an actual dry van load, confirm trailer requirements, pickup and delivery windows, and loading instructions before approval.</p></details></article>
+        <article><span class="sample-tag">Sample 1002 · Not bookable</span><h3 class="sample-route"><span>Dallas, TX</span><span class="route-direction">to</span><span>Tulsa, OK</span></h3><dl class="sample-facts"><div><dt>Equipment</dt><dd>Reefer</dd></div><div><dt>Weight</dt><dd>36,000 lb</dd></div></dl><details><summary>View sample 1002 details</summary><p><strong>Rate and appointments:</strong> Not provided in this example.</p><p>For an actual reefer load, confirm the required temperature, operating instructions, and appointment windows before approval.</p></details></article>
+        <article><span class="sample-tag">Sample 1003 · Not bookable</span><h3 class="sample-route"><span>Chicago, IL</span><span class="route-direction">to</span><span>Columbus, OH</span></h3><dl class="sample-facts"><div><dt>Equipment</dt><dd>Flatbed</dd></div><div><dt>Weight</dt><dd>40,000 lb</dd></div></dl><details><summary>View sample 1003 details</summary><p><strong>Rate and appointments:</strong> Not provided in this example.</p><p>For an actual flatbed load, confirm dimensions, securement and tarp requirements, and equipment fit with dispatch before approval.</p></details></article>
+      </div>
+      <p>Have a specific lane or equipment type? <a href="/contact.html">Ask dispatch about your operation</a>.</p>
+    </section>
+
+    <section class="board-section" aria-labelledby="workflow-title">
+      <p class="eyebrow">FROM LANE SEARCH TO APPROVAL</p>
+      <h2 id="workflow-title">Know what comes next.</h2>
+      <ol class="board-steps">
+        <li><h3>Find your fit</h3><p>Use origin, destination, and equipment filters in the board to narrow the freight view to your operation.</p></li>
+        <li><h3>Review with dispatch</h3><p>Confirm the load details, rate, schedule, and requirements. Ask questions before committing your truck.</p></li>
+        <li><h3>Approve the load</h3><p>You decide whether to proceed. Harper does not book a load without your approval and helps coordinate broker communication and paperwork.</p></li>
+      </ol>
+    </section>
+
+    <section class="board-section board-pricing" aria-labelledby="pricing-title">
+      <div><p class="eyebrow">CARRIER DISPATCH PRICING</p><h2 id="pricing-title">Clear terms before you commit.</h2><strong class="board-price">5%</strong><p>of collected line-haul revenue on approved loads dispatched by Harper.</p></div>
+      <div><p>No onboarding fee, no weekly payment upfront, and no long-term contract. Fuel surcharges, detention, TONU, lumper fees, and other reimbursements are excluded from the fee basis.</p><p>This is the published <strong>dispatch service fee</strong>. For load-board-only access or questions about what is included, <a href="/contact.html">contact Harper to confirm availability and terms</a>.</p><p>Service requires approval and a signed agreement. <a href="/carrier-agreement.html">Read the billing and service overview</a> or <a href="/plans-and-pricing.html">view all plans</a>.</p></div>
+    </section>
+
+    <section class="board-section" aria-labelledby="questions-title">
+      <h2 id="questions-title">Before you request access.</h2>
+      <details><summary>Are the loads on this page available now?</summary><p>No. This public page contains illustrative samples only. Confirm current freight availability and final load details with Harper.</p></details>
+      <details><summary>Does requesting access create an account or a charge?</summary><p>No. Your request starts a review. Approved applicants receive an invitation to activate an account; service requires approval and a signed agreement.</p></details>
+      <details><summary>Can I use the load board without dispatch services?</summary><p>Contact Harper to confirm whether load-board-only access is available for your operation and what terms apply. The 5% price above describes carrier dispatch services.</p></details>
+      <details><summary>What if I am a broker or shipper?</summary><p>Visit <a href="/solutions-brokers.html">broker solutions</a> or <a href="/solutions-shippers.html">shipper solutions</a> for the appropriate onboarding path.</p></details>
+    </section>
+
+    <section class="join" aria-labelledby="request-title"><p class="eyebrow">YOUR NEXT LANE STARTS HERE</p><h2 id="request-title">Tell us where you want to run.</h2><p>Share your equipment, preferred lanes, and availability. Harper will review your request and discuss the right next step.</p><a class="primary" href="/carrier-onboarding.html">Request carrier access</a><a href="tel:+17205226523">Call (720) 522-6523</a></section>
+  </main><footer class="board-footer"><span>Powered by Harper Dispatch and Logistics</span><a href="tel:+17205226523">(720) 522-6523</a><a href="mailto:info@harperloadboard.com">info@harperloadboard.com</a></footer>
   <button class="harper-assistant-launcher" id="harper-assistant-launcher" hidden type="button" aria-expanded="false" aria-controls="harper-assistant-panel">Ask Harper</button>
   <section class="harper-assistant-panel" id="harper-assistant-panel" aria-label="Harper assistant" hidden>
     <header class="harper-assistant-header"><div><strong>Harper Assistant</strong><small>How can we help?</small></div><button class="harper-assistant-close" type="button" data-assistant-close aria-label="Close assistant">×</button></header>

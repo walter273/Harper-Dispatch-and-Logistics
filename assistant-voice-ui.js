@@ -1,6 +1,6 @@
 (() => {
-  // Administrator-only conversational assistant voice. Press and hold the button to
-  // record, release to send; the reply is spoken back and shown in the log.
+  // Administrator-only conversational assistant voice. Click Record message to
+  // record, then Send message; the reply is spoken back and shown in the log.
   // Every request is same-origin and authenticated by the server, which
   // re-checks the role. Nothing here holds a provider key.
   const form = document.getElementById('assistantVoiceForm');
@@ -47,19 +47,20 @@
       ready = Boolean(data.configured);
       const used = data.budget?.used ?? 0, limit = data.budget?.limit ?? 0;
       budget.textContent = ready ? `Ready. ${limit - used} of ${limit} turns left today.` : 'Assistant voice is not configured yet.';
-      if (begin) begin.disabled = !ready;
+      if (begin) { begin.disabled = false; begin.textContent = ready ? 'Start conversation' : 'Check voice setup'; }
       if (!ready) talk.disabled = true;
     } catch (error) {
       if (version !== generation) return;
       ready = false;
       budget.textContent = error.message;
       talk.disabled = true;
-      if (begin) begin.disabled = true;
+      if (begin) { begin.disabled = false; begin.textContent = 'Retry voice setup'; }
     }
   }
 
   async function startConversation() {
-    if (busy || !ready) return;
+    if (busy) return;
+    if (!ready) { await refresh(); if (!ready) return; }
     const version = generation;
     busy = true;
     if (begin) begin.disabled = true;
@@ -70,26 +71,30 @@
       conversationId = data.conversationId;
       log.replaceChildren();
       say('harper', 'Ask me anything about Harper operations.');
-      note('Listening is ready. Hold the button and speak.');
+      note('Click Record message, speak, then click Send message.');
       talk.disabled = false;
     } catch (error) {
       if (version !== generation) return;
       note(error.message);
-      await refresh();
+      // Do not refresh here: it changes the generation and strands busy=true.
+      if (begin) begin.disabled = false;
     } finally {
       if (version === generation) busy = false;
     }
   }
 
   async function startRecording() {
-    if (busy || !conversationId) { note('Start a conversation first.'); return; }
+    if (busy || recorder) return;
+    if (!conversationId) { note('Start a conversation first.'); return; }
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
       note('This browser cannot record audio.');
       return;
     }
     const version = generation;
+    busy = true; talk.disabled = true;
+    let stream;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       if (version !== generation) { stream.getTracks().forEach(track => track.stop()); return; }
       chunks = [];
       recorder = new MediaRecorder(stream);
@@ -97,27 +102,29 @@
       recorder.start();
       talk.classList.add('is-recording');
       stop.disabled = false;
-      note('Recording… release when you are done.');
+      note('Recording… click Send message when you are done.');
     } catch {
-      note('Microphone access was refused.');
+      if (stream) stream.getTracks().forEach(track => track.stop());
+      if (version === generation) { recorder = null; note('Could not start recording. Allow microphone access in your browser and try again.'); }
+    } finally {
+      if (version === generation) { busy = false; talk.disabled = Boolean(recorder); }
     }
   }
 
   async function sendRecording() {
-    if (!recorder) return;
+    if (busy || !recorder) return;
     const version = generation;
     const recording = recorder;
     talk.classList.remove('is-recording');
     stop.disabled = true;
     busy = true;
-    const done = new Promise(resolve => { recorder.onstop = resolve; });
-    if (recorder.state !== 'inactive') recorder.stop();
+    const done = recording.state === 'inactive' ? Promise.resolve() : new Promise(resolve => { recording.onstop = resolve; recording.stop(); });
     await done;
     for (const track of recording.stream.getTracks()) track.stop();
     if (version !== generation) return;
     const blob = new Blob(chunks, { type: chunks[0]?.type || 'audio/webm' });
     recorder = null;
-    if (!blob.size) { note('Nothing was recorded.'); busy = false; return; }
+    if (!blob.size) { note('Nothing was recorded.'); busy = false; talk.disabled = false; return; }
     try {
       note('Transcribing…');
       const base64 = await new Promise(resolve => {
@@ -133,12 +140,12 @@
       play(result.audio);
       const left = (result.budget?.limit ?? 0) - (result.budget?.used ?? 0);
       budget.textContent = `Ready. ${left} turns left today.`;
-      note('Listening is ready.');
+      note('Click Record message to ask another question.');
     } catch (error) {
       if (version !== generation) return;
       note(error.message);
     } finally {
-      if (version === generation) busy = false;
+      if (version === generation) { busy = false; talk.disabled = false; }
     }
   }
 

@@ -37,3 +37,36 @@ test('every static launcher is hidden before scripts load', () => {
     for (const tag of html.match(/<button\b[^>]*id="harper-assistant-launcher"[^>]*>/g) || []) assert.match(tag, /\bhidden\b/, file);
   }
 });
+
+test('voice start recovers after a failed open request', async () => {
+  const x = voiceSetup(); await flush();
+  await x.nodes.assistantVoiceBegin.click();
+  assert.match(x.nodes.assistantVoiceStatus.textContent, /Temporary failure/);
+  await x.nodes.assistantVoiceBegin.click();
+  assert.equal(x.opens(), 2);
+  assert.equal(x.nodes.assistantVoiceTalk.disabled, false);
+});
+test('voice setup can be rechecked after server configuration changes', async () => {
+  const x = voiceSetup(false); await flush();
+  assert.equal(x.nodes.assistantVoiceBegin.disabled, false);
+  assert.equal(x.nodes.assistantVoiceBegin.textContent, 'Check voice setup');
+  x.configure(); await x.nodes.assistantVoiceBegin.click();
+  assert.equal(x.opens(), 1);
+});
+function voiceSetup(configured = true) {
+  let opens = 0;
+  const nodes = {};
+  for (const id of ['assistantVoiceForm','assistantVoiceTalk','assistantVoiceStop','assistantVoiceLog','assistantVoiceStatus','assistantVoiceBudget','assistantVoiceBegin']) {
+    nodes[id] = { disabled: true, textContent: '', addEventListener(type, fn) { this[type] = fn; }, replaceChildren() {}, append() {}, classList: { add() {}, remove() {} } };
+  }
+  vm.runInNewContext(fs.readFileSync(path.join(root, 'assistant-voice-ui.js'), 'utf8'), {
+    document: { getElementById: id => nodes[id], createElement: () => ({}) },
+    window: { addEventListener() {} },
+    fetch: async url => {
+      if (url.endsWith('/state')) return {ok: true, json: async () => ({configured, budget: {used: 0, limit: 300}})};
+      opens++;
+      return {ok: opens > 1, json: async () => opens > 1 ? {conversationId: 'test'} : {error: 'Temporary failure'}};
+    }
+  });
+  return {nodes, opens: () => opens, configure: () => { configured = true; }};
+}
